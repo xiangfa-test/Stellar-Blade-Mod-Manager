@@ -41,11 +41,9 @@
 直接双击：
 
 ```
-dist\SBModManager\SBModManager.exe
+SBModManager.exe
 ```
 
-- 发行包 **36 MB / 39 个文件**（Microsoft.WinUI + WinUI 依赖 + Windows SDK 投影），
-  不再包含 AI / ML / Widgets / onnxruntime / DirectML 等无关运行库，也没有几十个空的语言目录。
 - 需要系统安装 **Windows App Runtime 1.8**（64 位）。本机已安装；换机器时如提示缺少运行时，
   安装 [Windows App SDK 1.8 Runtime](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads) 即可。
 - 应用数据默认在 `%LOCALAPPDATA%\SBModManager`。如果该目录不可写（例如被安全软件拦截），
@@ -137,8 +135,6 @@ stellar-mod-manager/
 
 1. **[xiangfa-test](https://github.com/xiangfa-test)**（作者 / Author）
 2. **[DeepSeek](https://github.com/deepseek-ai)**（辅助开发 / Development assistant）
-
-项目主页: [Stellar-Blade-Mod-Manager](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager)
 
 ## 已知限制
 
