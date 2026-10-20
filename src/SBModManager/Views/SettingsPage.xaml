@@ -1,0 +1,159 @@
+<Page
+    x:Class="SBModManager.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    NavigationCacheMode="Required">
+
+    <ScrollViewer Padding="24,8,24,24">
+        <StackPanel MaxWidth="820" HorizontalAlignment="Left" Spacing="12">
+            <TextBlock Margin="0,4,0,8" Style="{StaticResource TitleTextBlockStyle}" Text="设置" />
+
+            <!--  Game directory  -->
+            <Border
+                Padding="20"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <StackPanel Spacing="10">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="游戏目录" />
+                    <TextBlock
+                        x:Name="GameDirText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Click="Browse_Click" Content="浏览…" />
+                        <Button Click="AutoDetect_Click" Content="自动检测" />
+                        <Button Click="OpenGameDir_Click" Content="打开游戏目录" />
+                        <Button Click="Validate_Click" Content="验证安装" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!--  Deploy options  -->
+            <Border
+                Padding="20"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <StackPanel Spacing="14">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="部署选项" />
+
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="使用硬链接部署" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="同一磁盘时几乎瞬间完成且不额外占用空间；跨磁盘或失败时自动回退为复制。"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <ToggleSwitch
+                            x:Name="HardLinkToggle"
+                            Grid.Column="1"
+                            MinWidth="0"
+                            Toggled="HardLink_Toggled" />
+                    </Grid>
+
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="启动方式" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="通过 Steam 启动可保留成就与云存档。"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <ComboBox
+                            x:Name="LaunchModeBox"
+                            Grid.Column="1"
+                            MinWidth="180"
+                            SelectionChanged="LaunchMode_Changed">
+                            <ComboBoxItem Content="通过 Steam 启动" Tag="steam" />
+                            <ComboBoxItem Content="直接运行 SB.exe" Tag="direct" />
+                        </ComboBox>
+                    </Grid>
+
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="界面主题" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="跟随系统时使用 Windows 的浅色/深色设置。"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <ComboBox
+                            x:Name="ThemeBox"
+                            Grid.Column="1"
+                            MinWidth="180"
+                            SelectionChanged="Theme_Changed">
+                            <ComboBoxItem Content="跟随系统" />
+                            <ComboBoxItem Content="浅色" />
+                            <ComboBoxItem Content="深色" />
+                        </ComboBox>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!--  Folders  -->
+            <Border
+                Padding="20"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <StackPanel Spacing="10">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="目录" />
+                    <TextBlock
+                        x:Name="LibraryPathText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        x:Name="DataPathText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Click="OpenLibrary_Click" Content="模组库" />
+                        <Button Click="OpenModsFolder_Click" Content="~mods 目录" />
+                        <Button Click="OpenConfig_Click" Content="游戏配置目录" />
+                        <Button Click="OpenLogs_Click" Content="日志" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!--  About  -->
+            <Border
+                Padding="20"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <StackPanel Spacing="8">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="支持的模组类型" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="• PAK 模组：.pak / .ucas / .utoc，自动部署到 SB/Content/Paks/~mods&#x0a;• 资源模组：散装文件（如 DEK CNS 的 json 配置），部署到 ~mods/&lt;名称&gt;&#x0a;• UE4SS 运行库：dwmapi.dll + ue4ss 目录，部署到 SB/Binaries/Win64&#x0a;• UE4SS 脚本模组：含 scripts/main.lua 的模组&#x0a;• INI 配置：部署到 %LOCALAPPDATA%\\SB\\Saved\\Config\\WindowsNoEditor"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

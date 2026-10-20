@@ -1,0 +1,74 @@
+<Page
+    x:Class="SBModManager.Views.AboutPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer Padding="24,8,24,24">
+        <StackPanel MaxWidth="700" HorizontalAlignment="Left" Spacing="12">
+            <TextBlock Margin="0,4,0,8" Style="{StaticResource TitleTextBlockStyle}" Text="关于" />
+
+            <Border
+                Padding="20"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <StackPanel Spacing="6">
+                    <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="剑星 MOD 管理器" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="WinUI 3 · .NET 8 · Windows App SDK 1.8" />
+                    <TextBlock
+                        Margin="0,10,0,0"
+                        TextWrapping="Wrap"
+                        Text="用于管理《Stellar Blade（剑星）》的 PAK 内容模组、散装资源模组、UE4SS 运行库与脚本模组，以及 INI 配置。支持导入压缩包、一键启用/停用、冲突检测、外部文件扫描与 Steam 启动。" />
+                </StackPanel>
+            </Border>
+
+            <Border
+                Padding="20"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <StackPanel Spacing="6">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="作者" />
+                    <TextBlock TextWrapping="Wrap">
+                        <Run Text="作者：" /><Run Text="xiangfa-test" FontWeight="SemiBold" />
+                    </TextBlock>
+                    <TextBlock TextWrapping="Wrap">
+                        <Run Text="辅助开发：" /><Run Text="DeepSeek (DS)" FontWeight="SemiBold" />
+                    </TextBlock>
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border
+                Padding="20"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <StackPanel Spacing="6">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="模组安装位置" />
+                    <TextBlock
+                        FontFamily="Consolas"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="PAK 模组      → SB\Content\Paks\~mods&#x0a;资源模组      → SB\Content\Paks\~mods\&lt;名称&gt;&#x0a;UE4SS 运行库  → SB\Binaries\Win64&#x0a;UE4SS 脚本    → SB\Binaries\Win64\ue4ss\Mods\&lt;名称&gt;&#x0a;INI 配置      → %LOCALAPPDATA%\SB\Saved\Config\WindowsNoEditor"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="模组库位置: %LOCALAPPDATA%\SBModManager\mods"
+                TextWrapping="Wrap" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

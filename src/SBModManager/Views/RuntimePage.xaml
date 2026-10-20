@@ -1,0 +1,102 @@
+<Page
+    x:Class="SBModManager.Views.RuntimePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:SBModManager.ViewModels"
+    NavigationCacheMode="Required">
+
+    <ScrollViewer Padding="24,8,24,24">
+        <StackPanel MaxWidth="820" HorizontalAlignment="Left" Spacing="12">
+            <TextBlock Margin="0,4,0,8" Style="{StaticResource TitleTextBlockStyle}" Text="运行环境" />
+
+            <Border
+                Padding="20"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <StackPanel Spacing="10">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="UE4SS 运行库" />
+                    <TextBlock
+                        x:Name="StatusLine"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        x:Name="PathLine"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Click="OpenBinaries_Click" Content="打开 Win64 目录" />
+                        <Button Click="OpenUe4ssMods_Click" Content="打开 ue4ss/Mods" />
+                        <Button Click="Refresh_Click" Content="刷新状态" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border
+                Padding="20"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <StackPanel Spacing="10">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="脚本类模组" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="这里列出模组库中类型为 UE4SS 运行库或 UE4SS 脚本的模组。"
+                        TextWrapping="Wrap" />
+                    <ListView
+                        x:Name="Ue4ssList"
+                        MaxHeight="360"
+                        SelectionMode="None">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ModItem">
+                                <Grid Padding="4,6" ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Spacing="1">
+                                        <TextBlock Text="{x:Bind Name}" />
+                                        <TextBlock
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind Subtitle}" />
+                                    </StackPanel>
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="{x:Bind StatusText}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <TextBlock
+                        x:Name="EmptyHint"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="模组库中没有 UE4SS 相关模组。" />
+                </StackPanel>
+            </Border>
+
+            <Border
+                Padding="20"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <StackPanel Spacing="8">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="安装说明" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="• UE4SS：下载 UE4SS 压缩包后，直接拖入「模组管理」页面导入，工具会识别为 UE4SS 运行库并部署到 SB/Binaries/Win64。&#x0a;• 脚本模组：压缩包内需要包含 scripts/main.lua，导入后部署到 SB/Binaries/Win64/ue4ss/Mods/&lt;名称&gt;，并自动创建 enabled.txt。&#x0a;• 内容模组（PAK）：导入后启用即可，文件会出现在 SB/Content/Paks/~mods。"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,27 @@
+# Build output
+bin/
+obj/
+dist/
+_nuget/
+
+# Local scratch / dev-only tools
+_scratch/
+_tools/
+
+# Runtime data folder (portable mode)
+SBMM-Data/
+**/SBMM-Data/
+
+# Logs, crash dumps and local diagnostics
+*.log
+*.dmp
+crash.log
+startup-trace.log
+*.user
+.vs/
+
+# Local secrets / tokens
+.env
+*.key
+*.token
+secrets*
