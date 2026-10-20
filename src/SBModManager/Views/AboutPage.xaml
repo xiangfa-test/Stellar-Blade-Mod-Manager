@@ -40,11 +40,20 @@
                     <TextBlock TextWrapping="Wrap">
                         <Run Text="辅助开发：" /><Run Text="DeepSeek" FontWeight="SemiBold" />
                     </TextBlock>
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager"
-                        TextWrapping="Wrap" />
+                    <StackPanel Margin="0,4,0,0" Orientation="Horizontal" Spacing="12">
+                        <HyperlinkButton NavigateUri="https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager" Padding="0">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon FontSize="14" Glyph="&#xE774;" />
+                                <TextBlock Text="项目主页" />
+                            </StackPanel>
+                        </HyperlinkButton>
+                        <HyperlinkButton NavigateUri="https://github.com/xiangfa-test" Padding="0">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon FontSize="14" Glyph="&#xE77B;" />
+                                <TextBlock Text="作者 GitHub" />
+                            </StackPanel>
+                        </HyperlinkButton>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 

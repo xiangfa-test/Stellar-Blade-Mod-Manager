@@ -136,10 +136,10 @@ stellar-mod-manager/
 
 ## 作者
 
-1. **xiangfa-test**（作者 / Author）— https://github.com/xiangfa-test
-2. **DeepSeek**（辅助开发 / Development assistant）
+1. **[xiangfa-test](https://github.com/xiangfa-test)**（作者 / Author）
+2. **[DeepSeek](https://github.com/deepseek-ai)**（辅助开发 / Development assistant）
 
-项目主页: https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager
+项目主页: [Stellar-Blade-Mod-Manager](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager)
 
 ## 已知限制
 
