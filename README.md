@@ -57,7 +57,6 @@ dist\SBModManager\SBModManager.exe
   # 或设置环境变量 SBMM_DATA_DIR
   ```
 
-  > 之前版本“双击没反应”就是因为数据目录创建被拒绝后直接静默崩溃；现在会逐级探测可用目录，
   > 真正失败时也会弹出错误框并写入 `crash.log`，不会再无提示退出。
 
 ## 从源码编译
