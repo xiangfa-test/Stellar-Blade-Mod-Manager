@@ -25,3 +25,10 @@ startup-trace.log
 *.key
 *.token
 secrets*
+
+# Compiled binaries / release packages (source-only repository)
+*.exe
+*.dll
+*.pdb
+*.zip
+*.7z

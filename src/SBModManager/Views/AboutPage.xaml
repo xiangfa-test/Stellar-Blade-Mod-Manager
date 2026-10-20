@@ -38,7 +38,7 @@
                         <Run Text="作者：" /><Run Text="xiangfa-test" FontWeight="SemiBold" />
                     </TextBlock>
                     <TextBlock TextWrapping="Wrap">
-                        <Run Text="辅助开发：" /><Run Text="DeepSeek (DS)" FontWeight="SemiBold" />
+                        <Run Text="辅助开发：" /><Run Text="DeepSeek" FontWeight="SemiBold" />
                     </TextBlock>
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"

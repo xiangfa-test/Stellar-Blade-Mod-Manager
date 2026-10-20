@@ -59,7 +59,7 @@ public sealed class AppState
 
         ReloadLibrary();
         Log.Info("数据目录: " + AppPaths.Root + (AppPaths.RootResolutionLog.Count > 1 ? " (候选: " + string.Join("; ", AppPaths.RootResolutionLog) + ")" : ""));
-        Log.Info("剑星 MOD 管理器 1.0.0 | 作者: xiangfa-test | 辅助开发: DeepSeek (DS)");
+        Log.Info("剑星 MOD 管理器 1.0.0 | 作者: xiangfa-test | 辅助开发: DeepSeek");
         Log.Info($"启动完成。游戏目录={GameDir ?? "(未设置)"}，库内模组={Library.Count}，已启用={Deployed.Mods.Count}");
     }
 
