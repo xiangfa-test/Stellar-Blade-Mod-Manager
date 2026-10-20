@@ -21,6 +21,9 @@
     <Version>1.0.0</Version>
     <Product>剑星 MOD 管理器</Product>
     <AssemblyTitle>剑星 MOD 管理器</AssemblyTitle>
+    <Company>xiangfa-test</Company>
+    <Authors>xiangfa-test; DeepSeek (DS)</Authors>
+    <Copyright>Copyright © 2026 xiangfa-test</Copyright>
   </PropertyGroup>
 
   <PropertyGroup>
