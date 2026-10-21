@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SBModManager.Services;
+using Windows.System;
 
 namespace SBModManager.Views;
 
@@ -30,6 +31,7 @@ public sealed partial class SettingsPage : Page
             ElevateToggle.IsOn = State.Config.ElevateOnStartup;
             NxmToggle.IsOn = State.Config.HandleNxmLinks;
             LaunchModeBox.SelectedIndex = State.Config.LaunchMode == "direct" ? 1 : 0;
+            UpdateStatusText.Text = "当前版本 " + AppUpdater.CurrentVersion;
             LibraryPathText.Text = "模组库: " + AppPaths.ModsRoot;
             DataPathText.Text = "数据目录: " + AppPaths.Root;
             ThemeBox.SelectedIndex = State.Config.Theme switch
@@ -237,4 +239,92 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+
+    private AppUpdateInfo? _pendingUpdate;
+
+    private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        CheckUpdateButton.IsEnabled = false;
+        ApplyUpdateButton.IsEnabled = false;
+        UpdateStatusText.Text = "正在检查最新版本…";
+        try
+        {
+            var info = await AppUpdater.CheckAsync();
+            _pendingUpdate = info;
+            if (info.IsNewer)
+            {
+                UpdateStatusText.Text = $"发现新版本 {info.Tag}（当前 {AppUpdater.CurrentVersion}）";
+                ApplyUpdateButton.IsEnabled = info.Package is not null;
+            }
+            else
+            {
+                UpdateStatusText.Text = $"已是最新版本（{AppUpdater.CurrentVersion}）";
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("检查应用更新失败", ex);
+            UpdateStatusText.Text = "检查失败: " + ex.Message;
+        }
+        finally
+        {
+            CheckUpdateButton.IsEnabled = true;
+        }
+    }
+
+    private async void ApplyUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pendingUpdate is not { IsNewer: true, Package: not null } update)
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "更新到 " + update.Tag,
+            Content = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Text = $"将下载 {update.Package.Name}，校验 SHA256 后关闭应用、覆盖程序文件并自动重启。\n" +
+                       "模组库与设置不会受影响。更新期间请不要关闭游戏或强制结束进程。",
+            },
+            PrimaryButtonText = "下载并更新",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        ApplyUpdateButton.IsEnabled = false;
+        CheckUpdateButton.IsEnabled = false;
+        try
+        {
+            var progress = new Progress<double>(percent => UpdateStatusText.Text = $"下载中 {percent:0}%…");
+            var staged = await AppUpdater.PrepareAsync(update, progress);
+            UpdateStatusText.Text = "更新已下载，正在重启应用…";
+            AppUpdater.StartUpdater(staged);
+            await Task.Delay(600);
+            Application.Current.Exit();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("应用更新失败", ex);
+            UpdateStatusText.Text = "更新失败: " + ex.Message;
+            ApplyUpdateButton.IsEnabled = true;
+            CheckUpdateButton.IsEnabled = true;
+        }
+    }
+
+    private async void OpenRelease_Click(object sender, RoutedEventArgs e)
+    {
+        var url = _pendingUpdate?.ReleaseUrl;
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            url = $"https://github.com/{AppUpdater.Repository}/releases/latest";
+        }
+        await Launcher.LaunchUriAsync(new Uri(url));
+    }
 }

@@ -379,6 +379,38 @@ public static class SelfTest
                 Deployer.Undeploy(modB.Id);
             }
 
+            // 6) in-app update helpers
+            Check("版本比较", AppUpdater.CompareVersions("1.6.0", "1.5.3") > 0 &&
+                             AppUpdater.CompareVersions("1.5.3", "1.5.3") == 0 &&
+                             AppUpdater.CompareVersions("1.5.3", "1.6.0") < 0);
+
+            if (Environment.GetEnvironmentVariable("SBMM_TEST_UPDATE") is { Length: > 0 })
+            {
+                try
+                {
+                    var update = AppUpdater.CheckAsync().GetAwaiter().GetResult();
+                    Check("应用更新检查", !string.IsNullOrWhiteSpace(update.Tag) && update.Package is not null,
+                        $"{update.Tag} / {update.Package?.Name ?? "无安装包"} / newer={update.IsNewer}");
+                    if (Environment.GetEnvironmentVariable("SBMM_TEST_UPDATE_PREPARE") is { Length: > 0 })
+                    {
+                        var staged = AppUpdater.PrepareAsync(update).GetAwaiter().GetResult();
+                        Check("更新包下载/校验/解压", File.Exists(Path.Combine(staged, "SBModManager.exe")), staged);
+                        try
+                        {
+                            Directory.Delete(Path.GetDirectoryName(staged)!, recursive: true);
+                        }
+                        catch
+                        {
+                            // ignore cleanup failure
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Check("应用更新检查", false, ex.Message);
+                }
+            }
+
             // Optional live GitHub check (SBMM_TEST_GITHUB=owner/repo)
             if (Environment.GetEnvironmentVariable("SBMM_TEST_GITHUB") is { Length: > 0 } repo)
             {

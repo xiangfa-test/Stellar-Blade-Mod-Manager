@@ -252,6 +252,41 @@
                 </StackPanel>
             </Border>
 
+            <!--  ===== 应用更新 =====  -->
+            <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="应用更新" />
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid Style="{StaticResource SettingsRowStyle}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Grid.Column="0" Glyph="&#xE895;" Style="{StaticResource SettingsRowIconStyle}" />
+                    <StackPanel Grid.Column="1" Spacing="0">
+                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="检查更新" />
+                        <TextBlock x:Name="UpdateStatusText" Style="{StaticResource SettingsRowDescriptionStyle}" />
+                    </StackPanel>
+                    <StackPanel
+                        Grid.Column="2"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <Button
+                            x:Name="CheckUpdateButton"
+                            Click="CheckUpdate_Click"
+                            Content="检查更新" />
+                        <Button
+                            x:Name="ApplyUpdateButton"
+                            Click="ApplyUpdate_Click"
+                            Content="下载并更新"
+                            IsEnabled="False"
+                            Style="{StaticResource AccentButtonStyle}" />
+                        <Button Click="OpenRelease_Click" Content="Release 页面" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
             <!--  ===== 目录信息 =====  -->
             <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="目录" />
 
