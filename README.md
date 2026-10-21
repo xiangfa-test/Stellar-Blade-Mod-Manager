@@ -2,7 +2,7 @@
 
 基于 **WinUI 3 + .NET 8** 的《Stellar Blade（剑星）》模组管理器，原生 Fluent + Mica 界面。
 
-当前版本 **v1.8.0** ｜ 协议 **GPL-3.0** ｜ [下载最新版](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/releases/latest)
+当前版本 **v1.9.0** ｜ 协议 **GPL-3.0** ｜ [下载最新版](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/releases/latest)
 
 ![模组管理](docs/screenshots/mods.png)
 
@@ -17,7 +17,10 @@
 - Nexus 合集：粘贴合集链接解析、切换版本、批量下载导入、按合集启用 / 停用
 - 内置「本地安装」合集：手动导入的模组自动归入，可与他人合集来回切换
 - UE4SS 一键安装：下载最新 Release 或选本地 zip，自动放置 `ue4ss` + `dwmapi.dll`
-- 标签 / 备注（回车添加、快速添加已有标签）、多版本切换、更新检查、冲突链分析
+- 标签 / 备注（回车添加、快速添加已有标签）、多版本切换、更新检查、冲突链分析、资源级冲突分析（实验）
+- 方案（Profiles）：保存「启用哪些模组 + 加载顺序」，一键切换
+- 预览图：自动读取模组包内图片并在详情显示
+- 窗口大小记忆：首次调整后询问是否记住
 - 主页视频：含 `.bk2` 的压缩包自动识别为视频模组，部署到 `SB/Content/Movies`
 - PAK 顺序前缀：给 `~mods` 里的 pak 加 `0001_` 序号，让加载顺序真正影响覆盖（可在设置关闭）
 - FOMOD 选项安装：识别 `fomod/ModuleConfig.xml` 并弹出选项，只安装选中的文件
