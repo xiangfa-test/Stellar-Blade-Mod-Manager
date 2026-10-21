@@ -27,6 +27,12 @@ public static class AppUpdater
     {
         get
         {
+            // Test hook: pretend to be an older build so the update path can be exercised.
+            if (Environment.GetEnvironmentVariable("SBMM_TEST_CURRENT_VERSION") is { Length: > 0 } fake)
+            {
+                return fake;
+            }
+
             var assembly = Assembly.GetExecutingAssembly();
             var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
             if (!string.IsNullOrWhiteSpace(informational))

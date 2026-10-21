@@ -29,6 +29,8 @@ public static class Program
 
     public static string? PageTag { get; private set; }
 
+    public static bool SelfUpdateRequested { get; private set; }
+
     public static string? DataDirOverride { get; private set; }
 
     public static bool SelectFirst { get; private set; }
@@ -74,6 +76,9 @@ public static class Program
                     break;
                 case "--nxm" when i + 1 < args.Length:
                     NxmUrl = args[++i];
+                    break;
+                case "--self-update":
+                    SelfUpdateRequested = true;
                     break;
                 case "--select-first":
                     SelectFirst = true;

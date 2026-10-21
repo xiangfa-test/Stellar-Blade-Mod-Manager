@@ -23,6 +23,29 @@ public partial class App : Application
         };
     }
 
+    private static async Task RunSelfUpdateAsync()
+    {
+        try
+        {
+            var info = await Services.AppUpdater.CheckAsync();
+            Services.Log.Info($"自更新: 最新 {info.Tag}，当前 {Services.AppUpdater.CurrentVersion}，有更新={info.IsNewer}");
+            if (!info.IsNewer)
+            {
+                Current.Exit();
+                return;
+            }
+
+            var staged = await Services.AppUpdater.PrepareAsync(info);
+            Services.AppUpdater.StartUpdater(staged);
+            await Task.Delay(800);
+        }
+        catch (Exception ex)
+        {
+            Services.Log.Error("自更新失败", ex);
+        }
+        Current.Exit();
+    }
+
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         try
@@ -44,6 +67,11 @@ public partial class App : Application
             MainWindow.Activate();
             Program.Trace("window activated");
             StartRequestPump(MainWindow);
+
+            if (Program.SelfUpdateRequested)
+            {
+                _ = RunSelfUpdateAsync();
+            }
 
             if (Services.AppState.Instance.Config.HandleNxmLinks)
             {
