@@ -230,17 +230,17 @@ public static class SelfTest
                 using var s = entry.Open();
                 s.Write(Encoding.UTF8.GetBytes("-- test"));
             }
-            var ue4ssResult = ModImporter.ImportArchive(ue4ssZip);
-            Check("UE4SS 脚本模组导入成功", ue4ssResult.Mod is not null, ue4ssResult.Error);
-            if (ue4ssResult.Mod is { } ue4ssMod)
+            var scriptResult = ModImporter.ImportArchive(ue4ssZip);
+            Check("UE4SS 脚本模组导入成功", scriptResult.Mod is not null, scriptResult.Error);
+            if (scriptResult.Mod is { } scriptMod)
             {
-                madeMods.Add(ue4ssMod);
-                Check("UE4SS 类型识别", ue4ssMod.Type == ModType.Ue4ss, ue4ssMod.Type.ToString());
-                var deploy = Deployer.Deploy(ue4ssMod, gameDir, force: false);
+                madeMods.Add(scriptMod);
+                Check("UE4SS 类型识别", scriptMod.Type == ModType.Ue4ss, scriptMod.Type.ToString());
+                var deploy = Deployer.Deploy(scriptMod, gameDir, force: false);
                 Check("UE4SS 模组部署成功", deploy.Success, deploy.Error);
-                var target = Path.Combine(Deployer.Ue4ssModsDir(gameDir), ue4ssMod.FolderName, "scripts", "main.lua");
+                var target = Path.Combine(Deployer.Ue4ssModsDir(gameDir), scriptMod.FolderName, "scripts", "main.lua");
                 Check("脚本文件出现在 ue4ss/Mods", File.Exists(target), target);
-                Deployer.Undeploy(ue4ssMod.Id);
+                Deployer.Undeploy(scriptMod.Id);
             }
 
             // 3b) nxm:// parsing
@@ -298,6 +298,27 @@ public static class SelfTest
                 Check("高冲突模组统计", conflictReport.HighConflictMods.Count >= 2);
                 Deployer.Undeploy(modA.Id);
                 Deployer.Undeploy(modB.Id);
+            }
+
+            // Optional UE4SS release fixture (SBMM_TEST_UE4SS_ZIP=/path/to/UE4SS.zip)
+            if (Environment.GetEnvironmentVariable("SBMM_TEST_UE4SS_ZIP") is { Length: > 0 } ue4ssFixture &&
+                File.Exists(ue4ssFixture))
+            {
+                var releaseResult = ModImporter.ImportArchive(ue4ssFixture);
+                Check("UE4SS 包导入", releaseResult.Mod is not null, releaseResult.Error);
+                if (releaseResult.Mod is { } releaseMod)
+                {
+                    madeMods.Add(releaseMod);
+                    var files = releaseMod.Files.Select(f => f.Replace('/', '\\')).ToList();
+                    Check("UE4SS 包含 dwmapi.dll",
+                        files.Any(f => Path.GetFileName(f).Equals("dwmapi.dll", StringComparison.OrdinalIgnoreCase)));
+                    Check("UE4SS 包含 ue4ss 目录",
+                        files.Any(f => f.Contains(@"ue4ss\", StringComparison.OrdinalIgnoreCase)));
+                    var deploy = Deployer.Deploy(releaseMod, gameDir, force: true);
+                    Check("UE4SS 部署到 Win64", deploy.Success && Deployer.IsUe4ssInstalled(gameDir), deploy.Error);
+                    Deployer.Undeploy(releaseMod.Id);
+                    Check("UE4SS 停用后移除", !Deployer.IsUe4ssInstalled(gameDir));
+                }
             }
 
             // 4) External scan should not throw

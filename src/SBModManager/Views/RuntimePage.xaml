@@ -40,7 +40,12 @@
                                 Click="InstallUe4ss_Click"
                                 Content="下载并安装"
                                 Style="{StaticResource AccentButtonStyle}"
-                                ToolTipService.ToolTip="从 Chrisr0/RE-UE4SS 下载最新 release 并部署到 SB\Binaries\Win64" />
+                                ToolTipService.ToolTip="从 Chrisr0/RE-UE4SS 下载最新 Release，并把 ue4ss 文件夹 + dwmapi.dll 复制到 SB\Binaries\Win64" />
+                            <Button
+                                x:Name="InstallLocalUe4ssButton"
+                                Click="InstallLocalUe4ss_Click"
+                                Content="从本地 zip 安装"
+                                ToolTipService.ToolTip="选择任意 UE4SS 压缩包安装" />
                             <Button
                                 x:Name="CheckUe4ssButton"
                                 Click="CheckUe4ss_Click"
@@ -141,7 +146,7 @@
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="• UE4SS：直接点上面的「下载并安装」，工具会从 Chrisr0/RE-UE4SS 拉取最新 Release 并部署到 SB/Binaries/Win64（也可以手动拖入压缩包导入）。&#x0a;• 脚本模组：压缩包内需要包含 scripts/main.lua，导入后部署到 SB/Binaries/Win64/ue4ss/Mods/&lt;名称&gt;，并自动创建 enabled.txt。&#x0a;• 内容模组（PAK）：导入后启用即可，文件会出现在 SB/Content/Paks/~mods。"
+                        Text="• UE4SS：点「下载并安装」会取 Chrisr0/RE-UE4SS 的最新 Release，把压缩包里的 `ue4ss` 文件夹和 `dwmapi.dll` 复制到 SB/Binaries/Win64。&#x0a;• 也可以自己下载任意 UE4SS 压缩包后点「从本地 zip 安装」。&#x0a;• 脚本模组：压缩包内需要包含 scripts/main.lua，导入后部署到 SB/Binaries/Win64/ue4ss/Mods/&lt;名称&gt;，并自动创建 enabled.txt。&#x0a;• 内容模组（PAK）：导入后启用即可，文件会出现在 SB/Content/Paks/~mods。&#x0a;• 带 SB/ 目录的包（如 CNS 基础包）：会自动合并到游戏根目录。"
                         TextWrapping="Wrap" />
                 </StackPanel>
             </Border>

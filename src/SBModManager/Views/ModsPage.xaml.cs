@@ -908,7 +908,8 @@ public sealed partial class ModsPage : Page
         ModStore.Save(other.Record);
         RebuildMods();
         UpdateDetails(Mods.FirstOrDefault(m => m.Record.Id == item.Record.Id));
-        ShowMessage(InfoBarSeverity.Informational, "加载顺序已调整", "点击「按加载顺序重建部署」让新顺序生效。");
+        ShowMessage(InfoBarSeverity.Informational, "加载顺序已调整",
+            "可在左侧「加载顺序」页查看完整顺序，调整后点「应用顺序并重建部署」生效。");
     }
 
     // ---------------------------------------------------------- updates / conflicts
@@ -1054,6 +1055,9 @@ public sealed partial class ModsPage : Page
         };
         _ = dialog.ShowAsync();
     }
+
+    private void OpenLoadOrder_Click(object sender, RoutedEventArgs e)
+        => (App.MainWindow as MainWindow)?.SelectPage("loadorder");
 
     private void RedeployInOrder_Click(object sender, RoutedEventArgs e)
     {

@@ -105,6 +105,7 @@
                         <MenuFlyoutItem Click="CheckAllUpdates_Click" Text="检查模组更新" />
                         <MenuFlyoutItem Click="ShowConflicts_Click" Text="冲突链分析" />
                         <MenuFlyoutItem Click="RedeployInOrder_Click" Text="按加载顺序重建部署" />
+                        <MenuFlyoutItem Click="OpenLoadOrder_Click" Text="打开加载顺序页…" />
                         <MenuFlyoutItem Click="EditMeta_Click" Text="编辑标签 / 备注…" />
                         <MenuFlyoutSeparator />
                         <MenuFlyoutItem Click="OpenLogs_Click" Text="打开日志目录" />

@@ -298,6 +298,7 @@ public sealed partial class MainWindow : Window
         var pageType = tag switch
         {
             "collections" => typeof(CollectionsPage),
+            "loadorder" => typeof(LoadOrderPage),
             "runtime" => typeof(RuntimePage),
             "settings" => typeof(SettingsPage),
             "about" => typeof(AboutPage),
@@ -341,6 +342,7 @@ public sealed partial class MainWindow : Window
         {
             "mods" => typeof(ModsPage),
             "collections" => typeof(CollectionsPage),
+            "loadorder" => typeof(LoadOrderPage),
             "runtime" => typeof(RuntimePage),
             "settings" => typeof(SettingsPage),
             "about" => typeof(AboutPage),
