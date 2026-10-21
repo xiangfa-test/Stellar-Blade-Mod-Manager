@@ -194,11 +194,11 @@ public static class SelfTest
             Check("合集标签生成", CollectionInstaller.TagFor(new NexusCollection { Name = "Demo" }) == "合集:Demo");
 
             var localRecord = new ModRecord { Name = "selftest-local-tag" };
-            CollectionInstaller.TagAsLocal(localRecord);
+            CollectionInstaller.TagAsLocal(localRecord, persist: false);
             Check("本地安装默认合集标签", localRecord.Tags.Contains(CollectionInstaller.LocalTag));
 
             var foreignRecord = new ModRecord { Name = "selftest-foreign-tag", Tags = { "合集:别人的合集" } };
-            CollectionInstaller.TagAsLocal(foreignRecord);
+            CollectionInstaller.TagAsLocal(foreignRecord, persist: false);
             Check("已有合集标签不改成本地", !foreignRecord.Tags.Contains(CollectionInstaller.LocalTag));
 
             var deactivateEmpty = CollectionInstaller.Deactivate("合集:不存在的合集");

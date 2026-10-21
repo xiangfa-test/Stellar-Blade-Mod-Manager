@@ -98,6 +98,9 @@ public sealed class AppConfig
 
     /// <summary>Recently parsed Nexus collections (URLs or slugs), newest first.</summary>
     public List<string> RecentCollections { get; set; } = new();
+
+    /// <summary>One-time migration: put pre-1.4.3 untagged mods into the local collection.</summary>
+    public bool LocalCollectionMigrated { get; set; }
 }
 
 public sealed class DeployState

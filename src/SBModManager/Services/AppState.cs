@@ -58,6 +58,18 @@ public sealed class AppState
         }
 
         ReloadLibrary();
+
+        if (!Config.LocalCollectionMigrated)
+        {
+            Config.LocalCollectionMigrated = true;
+            var migrated = CollectionInstaller.MigrateUntaggedToLocal();
+            SaveConfig();
+            if (migrated > 0)
+            {
+                ReloadLibrary();
+            }
+        }
+
         Log.Info("数据目录: " + AppPaths.Root + (AppPaths.RootResolutionLog.Count > 1 ? " (候选: " + string.Join("; ", AppPaths.RootResolutionLog) + ")" : ""));
         var version = typeof(AppState).Assembly.GetName().Version?.ToString(3) ?? "1.1.0";
         Log.Info($"剑星 MOD 管理器 {version} | 作者: xiangfa-test | 辅助开发: DeepSeek");

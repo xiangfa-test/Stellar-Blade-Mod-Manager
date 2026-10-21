@@ -18,7 +18,7 @@
             </Grid.ColumnDefinitions>
 
             <Button
-                x:Name="PaneToggleButton"
+                x:Name="BackButton"
                 Grid.Column="0"
                 Width="40"
                 Height="40"
@@ -27,10 +27,11 @@
                 VerticalAlignment="Center"
                 Background="Transparent"
                 BorderThickness="0"
-                Click="PaneToggleButton_Click"
+                Click="BackButton_Click"
                 CornerRadius="4"
-                ToolTipService.ToolTip="展开/收起导航">
-                <FontIcon FontSize="16" Glyph="&#xE700;" />
+                Visibility="Collapsed"
+                ToolTipService.ToolTip="返回上一页">
+                <FontIcon FontSize="16" Glyph="&#xE72B;" />
             </Button>
 
             <Grid
@@ -59,7 +60,7 @@
             x:Name="NavView"
             Grid.Row="1"
             IsBackButtonVisible="Collapsed"
-            IsPaneToggleButtonVisible="False"
+            IsPaneToggleButtonVisible="True"
             IsSettingsVisible="False"
             OpenPaneLength="190"
             PaneDisplayMode="Left"

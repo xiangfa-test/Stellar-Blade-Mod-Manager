@@ -108,12 +108,37 @@ public static class CollectionInstaller
         return (disabled, errors);
     }
 
+    /// <summary>
+    /// One-time migration for libraries created before the local collection existed:
+    /// mods without any collection tag become part of "本地安装".
+    /// </summary>
+    public static int MigrateUntaggedToLocal()
+    {
+        var migrated = 0;
+        foreach (var record in AppState.Instance.Library)
+        {
+            if (record.Tags.Any(IsCollectionTag)) continue;
+            record.Tags.Add(LocalTag);
+            ModStore.Save(record);
+            migrated++;
+        }
+        if (migrated > 0)
+        {
+            AppState.Instance.ReloadLibrary();
+            Log.Info($"已把 {migrated} 个旧模组归入「{LocalTag}」合集");
+        }
+        return migrated;
+    }
+
     /// <summary>Tag a manually imported mod as part of the local collection (unless it already has one).</summary>
-    public static void TagAsLocal(ModRecord record)
+    public static void TagAsLocal(ModRecord record, bool persist = true)
     {
         if (record.Tags.Any(IsCollectionTag)) return;
         record.Tags.Add(LocalTag);
-        ModStore.Save(record);
+        if (persist)
+        {
+            ModStore.Save(record);
+        }
     }
 
     public static async Task<CollectionInstallReport> InstallAsync(

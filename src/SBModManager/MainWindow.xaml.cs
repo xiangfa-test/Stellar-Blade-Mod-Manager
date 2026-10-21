@@ -61,6 +61,7 @@ public sealed partial class MainWindow : Window
 
         TryApplyBackdrop();
 
+        ContentFrame.Navigated += (_, _) => UpdateBackButton();
         SelectPage(Program.PageTag ?? "mods");
 
         if (Program.NavTag is { Length: > 0 } navTag)
@@ -76,6 +77,23 @@ public sealed partial class MainWindow : Window
                 }
             });
         }
+    }
+
+    private void BackButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ContentFrame.CanGoBack)
+        {
+            ContentFrame.GoBack();
+        }
+    }
+
+    /// <summary>
+    /// Task-Manager style layout: the title bar only shows the back button when there is
+    /// something to go back to; the pane hamburger lives inside the navigation pane.
+    /// </summary>
+    private void UpdateBackButton()
+    {
+        BackButton.Visibility = ContentFrame.CanGoBack ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ApplyConfiguredTheme()
@@ -164,11 +182,6 @@ public sealed partial class MainWindow : Window
         {
             RootGrid.Background = pageBrush;
         }
-    }
-
-    private void PaneToggleButton_Click(object sender, RoutedEventArgs e)
-    {
-        NavView.IsPaneOpen = !NavView.IsPaneOpen;
     }
 
     public string CurrentPageName => ContentFrame.CurrentSourcePageType?.Name ?? "null";
@@ -271,6 +284,8 @@ public sealed partial class MainWindow : Window
             try
             {
                 var ok = ContentFrame.Navigate(pageType);
+                ContentFrame.BackStack.Clear();
+                UpdateBackButton();
                 Services.Log.Info($"导航到 {pageType.Name}: {ok}");
             }
             catch (Exception ex)
