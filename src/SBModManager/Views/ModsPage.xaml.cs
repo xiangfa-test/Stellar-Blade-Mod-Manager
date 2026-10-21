@@ -880,7 +880,7 @@ public sealed partial class ModsPage : Page
     {
         var width = DetailColumn.ActualWidth;
         if (width <= 0) return;
-        var compact = width < 330;
+        var compact = width < 290;
         foreach (var row in new[] { PriorityRow, MetaRow, ActionsRow, FolderRow })
         {
             row.Orientation = compact ? Orientation.Vertical : Orientation.Horizontal;
@@ -1584,9 +1584,6 @@ public sealed partial class ModsPage : Page
             SetBusy(false);
         }
     }
-
-    private void OpenLoadOrder_Click(object sender, RoutedEventArgs e)
-        => (App.MainWindow as MainWindow)?.SelectPage("loadorder");
 
     private void RedeployInOrder_Click(object sender, RoutedEventArgs e)
     {
