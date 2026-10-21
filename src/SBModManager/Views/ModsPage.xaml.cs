@@ -10,7 +10,6 @@ using SBModManager.ViewModels;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.Storage;
-using Windows.Storage.Pickers;
 
 namespace SBModManager.Views;
 
@@ -179,18 +178,13 @@ public sealed partial class ModsPage : Page
     {
         try
         {
-            var picker = new FileOpenPicker
-            {
-                SuggestedStartLocation = PickerLocationId.Downloads,
-            };
-            foreach (var ext in new[] { ".zip", ".7z", ".rar" })
-            {
-                picker.FileTypeFilter.Add(ext);
-            }
-            InitPicker(picker);
-            var files = await picker.PickMultipleFilesAsync();
-            if (files is null || files.Count == 0) return;
-            await ImportFilesAsync(files.Select(f => f.Path).ToList());
+            var paths = FileDialogService.PickFiles(
+                OwnerHandle(),
+                "选择模组压缩包",
+                new FileDialogService.DialogFilter("压缩包", "*.zip;*.7z;*.rar"),
+                new FileDialogService.DialogFilter("所有文件", "*.*"));
+            if (paths.Count == 0) return;
+            await ImportFilesAsync(paths.ToList());
         }
         catch (Exception ex)
         {
@@ -203,20 +197,15 @@ public sealed partial class ModsPage : Page
     {
         try
         {
-            var picker = new FileOpenPicker
-            {
-                SuggestedStartLocation = PickerLocationId.Downloads,
-            };
-            foreach (var ext in new[] { ".pak", ".ucas", ".utoc" })
-            {
-                picker.FileTypeFilter.Add(ext);
-            }
-            InitPicker(picker);
-            var files = await picker.PickMultipleFilesAsync();
-            if (files is null || files.Count == 0) return;
+            var paths = FileDialogService.PickFiles(
+                OwnerHandle(),
+                "选择 .pak / .ucas / .utoc",
+                new FileDialogService.DialogFilter("Unreal 包", "*.pak;*.ucas;*.utoc"),
+                new FileDialogService.DialogFilter("所有文件", "*.*"));
+            if (paths.Count == 0) return;
 
             SetBusy(true);
-            var result = ModImporter.ImportPakFiles(files.Select(f => f.Path).ToList());
+            var result = ModImporter.ImportPakFiles(paths.ToList());
             SetBusy(false);
             ApplyImportResult(result);
         }
@@ -232,14 +221,11 @@ public sealed partial class ModsPage : Page
     {
         try
         {
-            var picker = new FolderPicker { SuggestedStartLocation = PickerLocationId.Downloads };
-            picker.FileTypeFilter.Add("*");
-            InitPicker(picker);
-            var folder = await picker.PickSingleFolderAsync();
-            if (folder is null) return;
+            var folder = FileDialogService.PickFolder(OwnerHandle(), "选择模组文件夹");
+            if (string.IsNullOrWhiteSpace(folder)) return;
 
             SetBusy(true);
-            var result = ModImporter.ImportDirectory(folder.Path, folder.Name, folder.Path, move: false);
+            var result = ModImporter.ImportDirectory(folder, Path.GetFileName(folder.TrimEnd(Path.DirectorySeparatorChar)), folder, move: false);
             SetBusy(false);
             ApplyImportResult(result);
         }
@@ -294,12 +280,8 @@ public sealed partial class ModsPage : Page
         // The button also owns a flyout; this handler only runs when the flyout is dismissed.
     }
 
-    private static void InitPicker(object picker)
-    {
-        if (App.MainWindow is null) return;
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-    }
+    private static IntPtr OwnerHandle()
+        => App.MainWindow is null ? IntPtr.Zero : WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
 
     // ---------------------------------------------------------------- toggles
 

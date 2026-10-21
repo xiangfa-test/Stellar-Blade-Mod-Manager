@@ -121,4 +121,5 @@ public partial class App : Application
             Current.Exit();
         }
     }
+
 }

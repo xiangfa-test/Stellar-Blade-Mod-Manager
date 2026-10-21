@@ -18,7 +18,7 @@
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="v1.1.0 · WinUI 3 · .NET 8 · Windows App SDK 1.8" />
+                        Text="v1.1.1 · WinUI 3 · .NET 8 · Windows App SDK 1.8" />
                     <TextBlock
                         Margin="0,10,0,0"
                         TextWrapping="Wrap"

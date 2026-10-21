@@ -1,7 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SBModManager.Services;
-using Windows.Storage.Pickers;
 
 namespace SBModManager.Views;
 
@@ -46,24 +45,28 @@ public sealed partial class SettingsPage : Page
         }
     }
 
-    private async void Browse_Click(object sender, RoutedEventArgs e)
+    private void Browse_Click(object sender, RoutedEventArgs e)
     {
-        var picker = new FolderPicker { SuggestedStartLocation = PickerLocationId.ComputerFolder };
-        picker.FileTypeFilter.Add("*");
-        if (App.MainWindow is not null)
+        try
         {
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+            var hwnd = App.MainWindow is null
+                ? IntPtr.Zero
+                : WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+            var folder = FileDialogService.PickFolder(hwnd, "选择《剑星》安装目录（包含 SB.exe）");
+            if (string.IsNullOrWhiteSpace(folder)) return;
+            if (!GameLocator.IsValidGameDir(folder))
+            {
+                ShowError("该目录不是有效的《剑星》安装目录（需要包含 SB.exe 与 SB/Content/Paks）。");
+                return;
+            }
+            SetGameDir(folder);
+            LoadSettings();
         }
-        var folder = await picker.PickSingleFolderAsync();
-        if (folder is null) return;
-        if (!GameLocator.IsValidGameDir(folder.Path))
+        catch (Exception ex)
         {
-            ShowError("该目录不是有效的《剑星》安装目录（需要包含 SB.exe 与 SB/Content/Paks）。");
-            return;
+            Log.Error("选择游戏目录失败", ex);
+            ShowError("打开目录选择框失败: " + ex.Message);
         }
-        SetGameDir(folder.Path);
-        LoadSettings();
     }
 
     private void AutoDetect_Click(object sender, RoutedEventArgs e)
