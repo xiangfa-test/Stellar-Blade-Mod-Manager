@@ -954,26 +954,19 @@ public sealed partial class ModsPage : Page
             return;
         }
 
-        var key = State.Config.NexusApiKey;
+        var apiKey = State.Config.NexusApiKey;
         var domain = string.IsNullOrWhiteSpace(link.Domain) ? State.Config.NexusGameDomain : link.Domain;
-        if (string.IsNullOrWhiteSpace(key))
+        var hasKey = !string.IsNullOrWhiteSpace(link.Key);
+        var fallbackUrl = $"https://www.nexusmods.com/{domain}/mods/{link.ModId}?tab=files&file_id={link.FileId}&nmm=1";
+
+        // A keyless link can only be resolved by premium accounts (this is exactly what
+        // Vortex does too: free users get sent to the website for those links).
+        if (!hasKey && string.IsNullOrWhiteSpace(apiKey))
         {
-            var dialog = new ContentDialog
-            {
-                XamlRoot = XamlRoot,
-                Title = "收到 Nexus 下载链接",
-                Content = new TextBlock
-                {
-                    TextWrapping = TextWrapping.Wrap,
-                    Text = $"{link.PageUrl}\n\n自动下载需要 Nexus API Key（Premium 账号才能取直链）。\n请到「设置」填写 API Key，或先打开页面手动下载。",
-                },
-                PrimaryButtonText = "打开 Nexus 页面",
-                CloseButtonText = "关闭",
-            };
-            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
-            {
-                await Launcher.LaunchUriAsync(new Uri(link.PageUrl));
-            }
+            await ShowNxmFallbackAsync(link,
+                "这个链接没有携带 Nexus 的下载授权 key（通常来自手动拼的 nxm 链接）。\n" +
+                "请到 Nexus 文件页点「Mod Manager Download」重新获取链接（会带 key），或手动下载后导入。",
+                fallbackUrl);
             return;
         }
 
@@ -982,10 +975,14 @@ public sealed partial class ModsPage : Page
         try
         {
             Directory.CreateDirectory(AppPaths.TempRoot);
-            var uri = await NexusService.GetDownloadLinkAsync(domain, link.ModId, link.FileId, key);
+            var uri = await NexusService.GetDownloadLinkAsync(domain, link.ModId, link.FileId, apiKey,
+                link.Key, link.Expires);
             if (string.IsNullOrWhiteSpace(uri))
             {
-                ShowMessage(InfoBarSeverity.Warning, "无法获取下载地址", "Nexus 没有返回直链（可能不是 Premium 账号）。");
+                await ShowNxmFallbackAsync(link,
+                    "Nexus 没有返回下载地址。\n免费账号需要带授权 key 的 nxm 链接（网页「Mod Manager Download」生成）；" +
+                    "不带 key 的链接只有 Premium 能取直链。",
+                    fallbackUrl);
                 return;
             }
 
@@ -1015,13 +1012,38 @@ public sealed partial class ModsPage : Page
         catch (Exception ex)
         {
             Log.Error("nxm 下载失败", ex);
-            ShowMessage(InfoBarSeverity.Error, "nxm 下载失败",
-                ex.Message + "\n\n提示：Nexus 直链下载需要 Premium 账号 + API Key。");
+            var message = ex.Message +
+                          (string.IsNullOrWhiteSpace(apiKey)
+                              ? "\n\n提示：请先在「设置 → 网络与集成」填写 Nexus API Key。"
+                              : "") +
+                          (hasKey ? "" : "\n\n提示：不带 key 的链接只有 Premium 账号能直接取直链。");
+            await ShowNxmFallbackAsync(link, message, fallbackUrl);
         }
         finally
         {
             SetBusy(false);
             try { if (File.Exists(downloaded)) File.Delete(downloaded); } catch { /* ignore */ }
+        }
+    }
+
+    private async Task ShowNxmFallbackAsync(NxmLink link, string message, string fallbackUrl)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Nexus 下载链接",
+            Content = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                IsTextSelectionEnabled = true,
+                Text = message + "\n\n" + fallbackUrl,
+            },
+            PrimaryButtonText = "打开 Nexus 页面",
+            CloseButtonText = "关闭",
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            await Launcher.LaunchUriAsync(new Uri(fallbackUrl));
         }
     }
 

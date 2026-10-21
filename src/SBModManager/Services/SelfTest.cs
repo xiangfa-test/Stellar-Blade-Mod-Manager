@@ -131,6 +131,8 @@ public static class SelfTest
             var nxmOk = NxmHandler.TryParse("nxm://stellarblade/mods/1234/files/5678?key=abc&expires=99", out var nxmLink)
                         && nxmLink.Domain == "stellarblade" && nxmLink.ModId == 1234 && nxmLink.FileId == 5678;
             Check("nxm 链接解析", nxmOk);
+            var linkUrl = NexusService.BuildDownloadLinkUrl("stellarblade", 1234, 5678, "abc", "99");
+            Check("nxm 免会员直链参数", linkUrl.Contains("key=abc") && linkUrl.Contains("expires=99"), linkUrl);
 
             // 3c) conflict chain + high-conflict detection (two mods writing the same pak)
             var dupA = Path.Combine(AppPaths.TempRoot, "selftest-dup-a.zip");

@@ -2,7 +2,7 @@
 
 一个用 **WinUI 3 + .NET 8 + Windows App SDK 1.8** 写的《Stellar Blade（剑星）》模组管理器。
 原生 Fluent / Mica 界面，支持亮暗主题，所有操作都有中文说明。
-当前版本 **v1.1.1**：修复管理员模式下文件选择框无法弹出的问题；包含 UE4SS 一键安装、模组更新检查、nxm:// 接管、多版本管理、标签/备注、CNS 适配、冲突链分析与加载顺序。
+当前版本 **v1.1.2**：nxm:// 下载改用 Nexus 的 key/expires 授权参数（免费账号也能直连下载，和 Vortex 一致）；包含 UE4SS 一键安装、更新检查、多版本管理、标签/备注、CNS 适配、冲突链分析与加载顺序。
 
 ![模组管理](docs/screenshots/mods.png)
 
@@ -77,10 +77,13 @@ SBModManager.exe
 
 - UE4SS 下载地址固定为 [Chrisr0/RE-UE4SS](https://github.com/Chrisr0/RE-UE4SS) 的最新 Release，
   自动跳过 `zDEV`、`zCustomGameConfigs`、`zMapGen` 等辅助压缩包，只取标准 UE4SS zip。
-- 更新检查与 nxm:// 直链下载需要 **Nexus API Key**：在 <https://www.nexusmods.com/users/myaccount?tab=api>
+- 更新检查与 nxm:// 下载需要 **Nexus API Key**：在 <https://www.nexusmods.com/users/myaccount?tab=api>
   生成 Personal API Key 后填入「设置 → 网络与集成」。
-- Nexus 的 `download_link` 接口只对 **Premium** 账号返回直链；非 Premium 账号会收到 403，
-  工具会提示并给出模组页面链接。`nxm://` 接管是本地 HKCU 协议注册，可随时关闭并恢复原处理程序。
+- **免费账号也能直连下载**：Nexus 的 `download_link` 接口接受 nxm 链接自带的 `key`/`expires` 一次性授权参数，
+  这与 Vortex 的做法一致（见 [Vortex nxmProtocol.ts](https://github.com/Nexus-Mods/Vortex/blob/master/src/renderer/src/extensions/nexus_integration/nxmProtocol.ts) 与
+  [node-nexus-api Nexus.ts](https://github.com/Nexus-Mods/node-nexus-api/blob/master/src/Nexus.ts)）。
+  只有**不带 key 的 nxm 链接**才需要 Premium；这类链接会回退到「打开 Nexus 页面手动下载」。
+- `nxm://` 接管是本地 HKCU 协议注册，可随时关闭并恢复原处理程序。
 
 ## 从源码编译
 
@@ -169,5 +172,5 @@ stellar-mod-manager/
 - 只负责“文件部署”这一层；启用/停用前建议先退出游戏，避免文件被占用。
 - 以管理员身份运行时，文件选择使用 Win32 通用对话框；从资源管理器**拖拽**文件到提权窗口会被 Windows（UIPI）阻止，需要拖拽时请关闭管理员模式（设置里可关）。
 - Nexus 更新检查只对通过 nxm:// 导入且带模组 ID 的模组有效；从普通 zip 导入的模组没有 ID，只能手动检查。
-- nxm:// 直链下载需要 Premium；非 Premium 账号请使用工具提供的「打开 Nexus 页面」回退方案。
+- 不带 `key` 的 nxm 链接只有 Premium 能取直链；从网页「Mod Manager Download」得到的链接都带 key，免费账号可用。
 - 仅支持 Windows x64。

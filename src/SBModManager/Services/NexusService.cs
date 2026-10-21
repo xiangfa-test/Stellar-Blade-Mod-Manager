@@ -123,14 +123,22 @@ public static class NexusService
         }
     }
 
-    /// <summary>Resolve an nxm file download link (Nexus premium accounts only, API limitation).</summary>
-    public static async Task<string?> GetDownloadLinkAsync(string domain, int modId, int fileId, string apiKey,
-        CancellationToken ct = default)
+    /// <summary>
+    /// Resolve an nxm file download link.
+    /// For free accounts this only works when the nxm:// link carries the one-time
+    /// key + expires that Nexus generates for "Download with Manager" buttons;
+    /// premium accounts can also request a keyless link.
+    /// </summary>
+    public static async Task<string?> GetDownloadLinkAsync(string domain, int modId, int fileId, string? apiKey,
+        string? key = null, string? expires = null, CancellationToken ct = default)
     {
-        var url = $"https://api.nexusmods.com/v1/games/{Uri.EscapeDataString(domain)}/mods/{modId}/files/{fileId}/download_link.json";
+        var url = BuildDownloadLinkUrl(domain, modId, fileId, key, expires);
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.TryAddWithoutValidation("apikey", apiKey);
-        request.Headers.UserAgent.ParseAdd("SBModManager/1.1");
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            request.Headers.TryAddWithoutValidation("apikey", apiKey);
+        }
+        request.Headers.UserAgent.ParseAdd("SBModManager/1.2");
         request.Headers.Accept.ParseAdd("application/json");
         using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
         var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
@@ -149,6 +157,21 @@ public static class NexusService
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// Build the download_link URL. Nexus uses the key+expires from the nxm:// URL to
+    /// authorise a single file for free accounts (same mechanism as Vortex).
+    /// </summary>
+    internal static string BuildDownloadLinkUrl(string domain, int modId, int fileId,
+        string? key = null, string? expires = null)
+    {
+        var url = $"https://api.nexusmods.com/v1/games/{Uri.EscapeDataString(domain)}/mods/{modId}/files/{fileId}/download_link.json";
+        if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(expires))
+        {
+            url += $"?key={Uri.EscapeDataString(key)}&expires={Uri.EscapeDataString(expires)}";
+        }
+        return url;
     }
 
     private static bool VersionsEqual(string a, string b)
