@@ -12,6 +12,8 @@ public enum ModType
     IniTweak,
     /// <summary>Dekita CustomNanosuitSystem addon (.dekcns.json / .dekani.json).</summary>
     Cns,
+    /// <summary>Archive that ships an SB/ tree and must be merged into the game root.</summary>
+    GameRoot,
 }
 
 public sealed class ModRecord
@@ -60,6 +62,7 @@ public sealed class ModRecord
         ModType.Ue4ssRuntime => "UE4SS 运行库",
         ModType.IniTweak => "INI 配置",
         ModType.Cns => "CNS 外观",
+        ModType.GameRoot => "游戏根目录",
         _ => "未知",
     };
 
@@ -104,6 +107,9 @@ public sealed class AppConfig
 
     /// <summary>Width of the mod details pane in the Mods page.</summary>
     public double ModsDetailWidth { get; set; } = 300;
+
+    /// <summary>One-time migration for packs that should merge into the game root.</summary>
+    public bool GameRootOverlayMigrated { get; set; }
 }
 
 public sealed class DeployState

@@ -60,6 +60,9 @@ public static class Deployer
                 case ModType.Ue4ssRuntime:
                     targetRel = Path.Combine("SB", "Binaries", "Win64", StripRuntimePrefix(rel));
                     break;
+                case ModType.GameRoot:
+                    targetRel = rel;
+                    break;
                 case ModType.IniTweak:
                     targetRel = Path.Combine("..", "..", "..", "..", "..", "..", "SB", "Saved", "Config", "WindowsNoEditor",
                         Path.GetFileName(rel));

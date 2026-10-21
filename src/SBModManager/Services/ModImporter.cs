@@ -65,10 +65,14 @@ public static class ModImporter
 
             var relFiles = files.Select(f => Path.GetRelativePath(srcDir, f).Replace('/', '\\')).ToList();
 
+            // Some packs (Custom Nanosuit System, UE4SS bundles) ship an SB/ tree that has to be
+            // merged into the game root. Detect that before stripping a common top-level folder.
+            var overlayFromRaw = IsGameRootOverlay(relFiles);
+
             // Strip a single common top-level directory ("MyMod/..." -> "...").
             var rootParts = relFiles.Select(r => r.Split('\\')[0]).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             string? commonRoot = null;
-            if (rootParts.Count == 1 && files.Count >= 1 && relFiles.Any(r => r.Contains('\\')))
+            if (!overlayFromRaw && rootParts.Count == 1 && files.Count >= 1 && relFiles.Any(r => r.Contains('\\')))
             {
                 var first = rootParts[0];
                 var firstIsDir = Directory.Exists(Path.Combine(srcDir, first));
@@ -80,8 +84,15 @@ public static class ModImporter
 
             string Rel(string rel) => commonRoot is null ? rel : rel[(commonRoot.Length + 1)..];
 
-            var stripped = relFiles.Select(Rel).ToList();
-            var type = DetectType(stripped);
+            var stripped = overlayFromRaw ? relFiles : relFiles.Select(Rel).ToList();
+            var overlay = overlayFromRaw || IsGameRootOverlay(stripped);
+            if (overlayFromRaw)
+            {
+                commonRoot = null; // files are already SB-relative
+            }
+
+            var recordFiles = overlay ? stripped.Where(IsUnderSb).ToList() : stripped;
+            var type = overlay ? ModType.GameRoot : DetectType(recordFiles);
 
             var name = displayName;
             if (commonRoot is not null && LooksLikeModName(commonRoot))
@@ -103,12 +114,12 @@ public static class ModImporter
                 SourceName = sourceName,
                 FolderName = Sanitize(name),
                 GroupKey = NormalizeGroup(string.IsNullOrWhiteSpace(name) ? "未命名模组" : name),
-                Files = stripped,
+                Files = recordFiles,
             };
 
             var dest = AppPaths.ModDir(record.Id);
             Directory.CreateDirectory(dest);
-            foreach (var rel in stripped)
+            foreach (var rel in recordFiles)
             {
                 var from = Path.Combine(srcDir, commonRoot is null ? rel : Path.Combine(commonRoot, rel));
                 var to = Path.Combine(dest, rel);
@@ -143,6 +154,71 @@ public static class ModImporter
             Log.Error("导入目录失败: " + srcDir, ex);
             return new ImportResult { Error = ex.Message };
         }
+    }
+
+    /// <summary>True when every file is either under SB\ or a harmless documentation file.</summary>
+    /// <summary>
+    /// Older versions stripped the SB\ prefix from CNS/UE4SS packs and deployed them below ~mods.
+    /// Move those records to the GameRoot type so their files merge into the game root again.
+    /// </summary>
+    public static int MigrateGameRootOverlays()
+    {
+        var state = AppState.Instance;
+        var migrated = 0;
+
+        foreach (var record in state.Library.ToList())
+        {
+            if (record.Type is ModType.GameRoot or ModType.Cns) continue;
+            if (record.Type is not (ModType.Pak or ModType.Loose)) continue;
+            if (record.Files.Count == 0) continue;
+
+            var looksOverlay = record.Files.All(f =>
+                f.StartsWith(@"Content\Paks\~mods\CustomNanosuitSystem\", StringComparison.OrdinalIgnoreCase) ||
+                f.StartsWith(@"Binaries\Win64\ue4ss\", StringComparison.OrdinalIgnoreCase));
+            if (!looksOverlay) continue;
+
+            var wasEnabled = state.IsEnabled(record.Id);
+            if (wasEnabled)
+            {
+                Deployer.Undeploy(record.Id);
+            }
+
+            record.Files = record.Files
+                .Select(f => f.StartsWith(@"SB\", StringComparison.OrdinalIgnoreCase) ? f : @"SB\" + f)
+                .ToList();
+            record.Type = ModType.GameRoot;
+            ModStore.Save(record);
+
+            if (wasEnabled && state.GameDir is { } gameDir)
+            {
+                Deployer.Deploy(record, gameDir, force: false);
+            }
+
+            migrated++;
+        }
+
+        if (migrated > 0)
+        {
+            state.ReloadLibrary();
+            Log.Info($"已把 {migrated} 个 SB 根目录包迁移为「游戏根目录」类型");
+        }
+        return migrated;
+    }
+
+    public static bool IsGameRootOverlay(IReadOnlyList<string> relFiles)
+    {
+        if (relFiles.Count == 0) return false;
+        if (!relFiles.Any(IsUnderSb)) return false;
+        return relFiles.Where(r => !IsUnderSb(r)).All(IsDocumentationFile);
+    }
+
+    private static bool IsUnderSb(string rel)
+        => rel.StartsWith("SB\\", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsDocumentationFile(string rel)
+    {
+        var ext = Path.GetExtension(rel).ToLowerInvariant();
+        return ext is ".txt" or ".md" or ".pdf" or ".png" or ".jpg" or ".jpeg" or ".gif" or ".url" or ".rtf" or ".html";
     }
 
     public static ModType DetectType(IReadOnlyList<string> relFiles)

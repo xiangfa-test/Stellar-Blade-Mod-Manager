@@ -135,6 +135,66 @@ public static class SelfTest
                 Deployer.Undeploy(sevenMod.Id);
             }
 
+            // 2a2) SB/ overlay pack (Custom Nanosuit System style: merge into the game root)
+            var overlayZip = Path.Combine(AppPaths.TempRoot, "selftest-overlay.zip");
+            if (File.Exists(overlayZip)) File.Delete(overlayZip);
+            using (var zip = ZipFile.Open(overlayZip, ZipArchiveMode.Create))
+            {
+                void Add(string entryName, string content)
+                {
+                    var entry = zip.CreateEntry(entryName);
+                    using var w = new StreamWriter(entry.Open());
+                    w.Write(content);
+                }
+
+                Add("CNSPack-v1/readme.txt", "install by merging the SB folder");
+                Add("CNSPack-v1/SB/Content/Paks/~mods/CustomNanosuitSystem/Animations/Overlay.dekcns.json", "{}");
+                Add("CNSPack-v1/SB/Binaries/Win64/ue4ss/Mods/CNS/scripts/main.lua", "return {}");
+            }
+
+            var overlayResult = ModImporter.ImportArchive(overlayZip);
+            Check("SB 根目录包导入成功", overlayResult.Mod is not null, overlayResult.Error);
+            if (overlayResult.Mod is { } overlayMod)
+            {
+                madeMods.Add(overlayMod);
+                Check("SB 根目录包类型识别", overlayMod.Type == ModType.GameRoot, overlayMod.Type.ToString());
+                var deploy = Deployer.Deploy(overlayMod, gameDir, force: false);
+                Check("SB 根目录包部署成功", deploy.Success, deploy.Error);
+                var overlayA = Path.Combine(gameDir, "SB", "Content", "Paks", "~mods",
+                    "CustomNanosuitSystem", "Animations", "Overlay.dekcns.json");
+                var overlayB = Path.Combine(gameDir, "SB", "Binaries", "Win64",
+                    "ue4ss", "Mods", "CNS", "scripts", "main.lua");
+                Check("SB 根目录文件合并到游戏根目录", File.Exists(overlayA) && File.Exists(overlayB),
+                    overlayA + " | " + overlayB);
+                Deployer.Undeploy(overlayMod.Id);
+                Check("SB 根目录包停用清理", !File.Exists(overlayA));
+            }
+
+            // 2a3) legacy CNS pack records (stripped SB\ prefix) get migrated to GameRoot
+            var legacy = new ModRecord
+            {
+                Name = "selftest-legacy-cns",
+                Type = ModType.Pak,
+                Files = new List<string>
+                {
+                    @"Content\Paks\~mods\CustomNanosuitSystem\Animations\Legacy.dekcns.json",
+                },
+            };
+            ModStore.Save(legacy);
+            AppState.Instance.ReloadLibrary();
+            ModImporter.MigrateGameRootOverlays();
+            AppState.Instance.ReloadLibrary();
+            var migratedRecord = AppState.Instance.Library.FirstOrDefault(r => r.Id == legacy.Id);
+            Check("旧 CNS 包迁移为游戏根目录",
+                migratedRecord is { Type: ModType.GameRoot } &&
+                migratedRecord.Files.All(f => f.StartsWith(@"SB\", StringComparison.OrdinalIgnoreCase)),
+                migratedRecord?.Type.ToString());
+            if (migratedRecord is not null)
+            {
+                ModStore.Delete(migratedRecord);
+                AppState.Instance.ReloadLibrary();
+            }
+
             // 2b) CNS addon detection + special deploy path
             var cnsZip = Path.Combine(AppPaths.TempRoot, "selftest-cns.zip");
             if (File.Exists(cnsZip)) File.Delete(cnsZip);
