@@ -117,10 +117,10 @@
                         <MenuFlyoutItem Click="OpenLibraryFolder_Click" Text="打开模组库" />
                         <MenuFlyoutItem Click="OpenGameFolder_Click" Text="打开游戏目录" />
                         <MenuFlyoutItem Click="CheckAllUpdates_Click" Text="检查模组更新" />
+                        <MenuFlyoutItem Click="OpenLoadOrder_Click" Text="打开加载顺序页…" />
                         <MenuFlyoutItem Click="RenameNexusNames_Click" Text="从 N 网补全模组名称" />
                         <MenuFlyoutItem Click="ShowConflicts_Click" Text="冲突链分析" />
                         <MenuFlyoutItem Click="ShowAssetConflicts_Click" Text="资源级冲突分析（实验）" />
-                        <MenuFlyoutItem Click="RedeployInOrder_Click" Text="按加载顺序重建部署" />
                         <MenuFlyoutItem Click="EditMeta_Click" Text="编辑标签 / 备注…" />
                         <MenuFlyoutSeparator />
                         <MenuFlyoutItem Click="OpenLogs_Click" Text="打开日志目录" />
@@ -339,18 +339,6 @@
                                     Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     Visibility="Collapsed" />
-                                <StackPanel
-                                    x:Name="PriorityRow"
-                                    Orientation="Horizontal"
-                                    Spacing="8">
-                                    <TextBlock
-                                        x:Name="DetailPriority"
-                                        VerticalAlignment="Center"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Style="{StaticResource CaptionTextBlockStyle}" />
-                                    <Button Click="MovePriorityUp_Click" Content="↑ 上移" />
-                                    <Button Click="MovePriorityDown_Click" Content="↓ 下移" />
-                                </StackPanel>
                                 <StackPanel
                                     x:Name="MetaRow"
                                     Orientation="Horizontal"

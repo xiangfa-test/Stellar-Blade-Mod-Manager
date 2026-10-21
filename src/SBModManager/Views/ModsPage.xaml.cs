@@ -708,7 +708,6 @@ public sealed partial class ModsPage : Page
         DetailCns.Text = cnsParts.Count == 0 ? "" : "CNS  " + string.Join("   ·   ", cnsParts);
         DetailCns.Visibility = DetailCns.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         DetailNotes.Text = string.IsNullOrWhiteSpace(item.Record.Notes) ? "" : "备注: " + item.Record.Notes;
-        DetailPriority.Text = $"加载顺序 {item.PriorityText}";
         UpdateModButton.Visibility = item.Record.UpdateAvailable ? Visibility.Visible : Visibility.Collapsed;
         NexusPageButton.Visibility = item.Record.NexusModId is > 0 ? Visibility.Visible : Visibility.Collapsed;
         DetailNexusThumb.Source = null;
@@ -881,7 +880,7 @@ public sealed partial class ModsPage : Page
         var width = DetailColumn.ActualWidth;
         if (width <= 0) return;
         var compact = width < 290;
-        foreach (var row in new[] { PriorityRow, MetaRow, ActionsRow, FolderRow })
+        foreach (var row in new[] { MetaRow, ActionsRow, FolderRow })
         {
             row.Orientation = compact ? Orientation.Vertical : Orientation.Horizontal;
             row.Spacing = compact ? 6 : 8;
@@ -1284,29 +1283,6 @@ public sealed partial class ModsPage : Page
         }
     }
 
-    private void MovePriorityUp_Click(object sender, RoutedEventArgs e) => MovePriority(-1);
-
-    private void MovePriorityDown_Click(object sender, RoutedEventArgs e) => MovePriority(+1);
-
-    private void MovePriority(int delta)
-    {
-        if (ModList.SelectedItem is not ModItem item) return;
-        EnsurePriorities();
-        var ordered = Mods.OrderBy(m => m.Record.Priority).ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase).ToList();
-        var index = ordered.FindIndex(m => m.Record.Id == item.Record.Id);
-        var target = index + delta;
-        if (index < 0 || target < 0 || target >= ordered.Count) return;
-
-        var other = ordered[target];
-        (item.Record.Priority, other.Record.Priority) = (other.Record.Priority, item.Record.Priority);
-        ModStore.Save(item.Record);
-        ModStore.Save(other.Record);
-        RebuildMods();
-        UpdateDetails(Mods.FirstOrDefault(m => m.Record.Id == item.Record.Id));
-        ShowMessage(InfoBarSeverity.Informational, "加载顺序已调整",
-            "可在左侧「加载顺序」页查看完整顺序，调整后点「应用顺序并重建部署」生效。");
-    }
-
     // ---------------------------------------------------------- updates / conflicts
 
     private async void CheckOneUpdate_Click(object sender, RoutedEventArgs e)
@@ -1585,18 +1561,8 @@ public sealed partial class ModsPage : Page
         }
     }
 
-    private void RedeployInOrder_Click(object sender, RoutedEventArgs e)
-    {
-        if (!EnsureGame(out var gameDir)) return;
-        EnsurePriorities();
-        var (ok, failed) = Deployer.RedeployAll(gameDir);
-        RebuildMods();
-        UpdateStatus();
-        UpdateDetails(ModList.SelectedItem as ModItem);
-        ShowMessage(failed == 0 ? InfoBarSeverity.Success : InfoBarSeverity.Warning,
-            "加载顺序已应用",
-            $"成功重建 {ok} 个模组" + (failed > 0 ? $"，{failed} 个失败（见日志）" : "") + "。");
-    }
+    private void OpenLoadOrder_Click(object sender, RoutedEventArgs e)
+        => (App.MainWindow as MainWindow)?.SelectPage("loadorder");
 
     // ---------------------------------------------------------- nxm:// handoff
 
