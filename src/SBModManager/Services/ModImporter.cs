@@ -154,6 +154,8 @@ public static class ModImporter
                 EnsureUe4ssEnabled(dest, record.Files);
             }
 
+            CnsAnalyzer.Analyze(record);
+
             ModStore.Save(record);
             Log.Info($"已导入模组 [{record.Name}] 类型={record.Type} 文件数={record.Files.Count}");
             return new ImportResult { Mod = record };

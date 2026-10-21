@@ -41,7 +41,7 @@ public sealed class ModItem : ObservableObject
     public string AuthorText => string.IsNullOrWhiteSpace(Record.Author) ? "" : $"作者: {Record.Author}";
     public string VersionText => string.IsNullOrWhiteSpace(Record.Version) ? "" : $"v{Record.Version}";
     public string SizeText => FormatSize(Record.SizeBytes);
-    public string Subtitle => string.Join("  ·  ", new[] { TypeLabel, SizeText, VersionText }
+    public string Subtitle => string.Join("  ·  ", new[] { TypeLabel, Record.CnsSummary, SizeText, VersionText }
         .Where(s => !string.IsNullOrEmpty(s)));
 
     public string ImportedText => $"导入时间 {Record.ImportedAt.LocalDateTime:yyyy-MM-dd HH:mm}";

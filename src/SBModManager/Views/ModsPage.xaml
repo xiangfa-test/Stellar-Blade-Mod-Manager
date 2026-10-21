@@ -292,6 +292,12 @@
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap" />
                                 <TextBlock
+                                    x:Name="DetailCns"
+                                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    TextWrapping="Wrap"
+                                    Visibility="Collapsed" />
+                                <TextBlock
                                     x:Name="DetailNotes"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap" />

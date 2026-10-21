@@ -2,7 +2,7 @@
 
 一个用 **WinUI 3 + .NET 8 + Windows App SDK 1.8** 写的《Stellar Blade（剑星）》模组管理器。
 原生 Fluent / Mica 界面，支持亮暗主题，所有操作都有中文说明。
-当前版本 **v1.5.2**：标签编辑改为标签芯片 + 回车添加 + 快速添加已有标签，「本地安装」默认标签不可移除；包含无 SB 前缀包合并与旧记录迁移、GitHub 检查、独立加载顺序页、UE4SS 安装、Windows 设置风格界面、内置 7z/RAR 解压、合集、更新检查、多版本、冲突链分析。
+当前版本 **v1.5.3**：CNS 服装自动识别（服装名 / 角色 / 类型）；标签芯片编辑；包含无 SB 前缀包合并与旧记录迁移、GitHub 检查、独立加载顺序页、UE4SS 安装、Windows 设置风格界面、内置 7z/RAR 解压、合集、更新检查、多版本、冲突链分析。
 
 ![模组管理](docs/screenshots/mods.png)
 ![合集](docs/screenshots/collections.png)
@@ -20,8 +20,10 @@
 - **多版本管理**：同名模组的多个版本会归入同一组，详情面板用「已安装版本」下拉切换，启用一个版本会自动停用同组其它版本。
 - **标签与备注**：每个模组可自定义标签和备注，列表中直接显示标签，可按标签搜索；编辑时标签以芯片展示，
   输入文字按回车添加、点 × 删除，并可一键快速添加库里已有的标签；「合集:本地安装」是默认合集标签，不可移除。
-- **CNS 适配**：`.dekcns.json` / `.dekani.json` 会被识别为 CNS 外观模组，自动部署到
-  `SB\Content\Paks\~mods\CustomNanosuitSystem\` 下并保留 Animations / Cosmetics 目录结构。
+- **CNS 适配与识别**：`.dekcns.json` / `.dekani.json` 会被识别为 CNS 外观模组，自动部署到
+  `SB\Content\Paks\~mods\CustomNanosuitSystem\` 下并保留 Animations / Cosmetics 目录结构；
+  同时解析 json 里的 `DisplayName` / `Description` / `FitMeshType` / `OutfitTypes`，
+  在列表与详情中显示服装名、目标角色（Eve / Lily / Adam / Drone）和服装类型，搜索结果也能匹配。
 - **游戏根目录合并**：压缩包内自带 `SB/` 目录、或者直接以 `Binaries/`、`Content/` 开头（例如 Custom Nanosuit System 基础包、UE4SS 脚本合集）时，
   按原始结构整体合并到游戏根目录，而不是塞进 `~mods`；旧版本导入的这类包会自动迁移（含库内文件搬迁）并重新部署。
 - **冲突链分析**：一键查看所有被多个已启用模组写入的文件，按加载顺序显示「A → B」覆盖链，

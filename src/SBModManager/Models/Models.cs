@@ -39,6 +39,37 @@ public sealed class ModRecord
     public List<string> Tags { get; set; } = new();
     public string Notes { get; set; } = "";
 
+    /// <summary>True when the mod ships Custom Nanosuit System json (.dekcns.json / .dekani.json).</summary>
+    public bool HasCnsContent { get; set; }
+
+    /// <summary>Display names of the CNS outfits (from DisplayName in the json).</summary>
+    public List<string> CnsFits { get; set; } = new();
+
+    /// <summary>Characters the outfits target (Eve / Lily / Adam / Drone).</summary>
+    public List<string> CnsCharacters { get; set; } = new();
+
+    /// <summary>Outfit categories advertised by CNS (Dress, Body, ...).</summary>
+    public List<string> CnsOutfitTypes { get; set; } = new();
+
+    [JsonIgnore]
+    public bool LooksCnsCompatible =>
+        HasCnsContent || Name.Contains("CNS", StringComparison.OrdinalIgnoreCase) ||
+        Files.Any(f => f.EndsWith(".dekcns.json", StringComparison.OrdinalIgnoreCase) ||
+                       f.EndsWith(".dekani.json", StringComparison.OrdinalIgnoreCase));
+
+    [JsonIgnore]
+    public string CnsSummary
+    {
+        get
+        {
+            if (!LooksCnsCompatible) return "";
+            var parts = new List<string> { "CNS" };
+            if (CnsCharacters.Count > 0) parts.Add(string.Join(" / ", CnsCharacters));
+            if (CnsFits.Count > 0) parts.Add(string.Join(" / ", CnsFits.Take(3)) + (CnsFits.Count > 3 ? " …" : ""));
+            return string.Join("  ·  ", parts);
+        }
+    }
+
     /// <summary>Load-order priority: lower values deploy first, higher values win file conflicts.</summary>
     public int Priority { get; set; }
 
@@ -107,6 +138,9 @@ public sealed class AppConfig
 
     /// <summary>Width of the mod details pane in the Mods page.</summary>
     public double ModsDetailWidth { get; set; } = 300;
+
+    /// <summary>One-time pass that parses CNS outfit json for already imported mods.</summary>
+    public bool CnsMetadataMigrated { get; set; }
 
     /// <summary>One-time migration for packs that should merge into the game root.</summary>
     public bool GameRootOverlayMigrated { get; set; }

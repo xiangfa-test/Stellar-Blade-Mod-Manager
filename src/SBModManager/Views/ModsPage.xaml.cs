@@ -205,6 +205,7 @@ public sealed partial class ModsPage : Page
             if (filter.Length > 0 &&
                 !record.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !record.DisplayType.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !record.CnsSummary.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !record.Tags.Any(t => t.Contains(filter, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
@@ -572,6 +573,12 @@ public sealed partial class ModsPage : Page
         DetailSource.Text = string.IsNullOrWhiteSpace(item.SourceText) ? "" : "来源: " + item.SourceText;
         DetailTargetsText.Text = string.Join(Environment.NewLine, item.TargetPaths);
         DetailTags.Text = item.Record.Tags.Count == 0 ? "标签: （未设置）" : "标签: " + string.Join(" · ", item.Record.Tags);
+        var cnsParts = new List<string>();
+        if (item.Record.CnsFits.Count > 0) cnsParts.Add("服装: " + string.Join(" / ", item.Record.CnsFits.Take(6)));
+        if (item.Record.CnsCharacters.Count > 0) cnsParts.Add("角色: " + string.Join(" / ", item.Record.CnsCharacters));
+        if (item.Record.CnsOutfitTypes.Count > 0) cnsParts.Add("类型: " + string.Join(" / ", item.Record.CnsOutfitTypes.Take(4)));
+        DetailCns.Text = cnsParts.Count == 0 ? "" : "CNS  " + string.Join("   ·   ", cnsParts);
+        DetailCns.Visibility = DetailCns.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         DetailNotes.Text = string.IsNullOrWhiteSpace(item.Record.Notes) ? "" : "备注: " + item.Record.Notes;
         DetailPriority.Text = $"加载顺序 {item.PriorityText}";
         DetailUpdate.Text = item.Record.UpdateAvailable

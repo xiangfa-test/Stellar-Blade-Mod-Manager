@@ -275,7 +275,10 @@ public static class SelfTest
             {
                 var entry = zip.CreateEntry("CustomNanosuitSystem/Animations/TestOutfit.dekcns.json");
                 using var s = entry.Open();
-                s.Write(Encoding.UTF8.GetBytes("{}"));
+                s.Write(Encoding.UTF8.GetBytes(
+                    "[{\"UniqueFitID\":\"Eve_Off_Duty_CNS_378\",\"DisplayName\":\"Eve Off Duty\"," +
+                    "\"Description\":\"Eve wears Lily's Off Duty outfit\",\"FitMeshType\":\"Body\"," +
+                    "\"OutfitTypes\":[\"Dress\"],\"OutfitPaths\":[\"/Game/Outfitmods/Eve_Off_Duty/body/x\"]}]"));
             }
             var cnsResult = ModImporter.ImportArchive(cnsZip);
             Check("CNS 模组导入成功", cnsResult.Mod is not null, cnsResult.Error);
@@ -283,6 +286,9 @@ public static class SelfTest
             {
                 madeMods.Add(cnsMod);
                 Check("CNS 类型识别", cnsMod.Type == ModType.Cns, cnsMod.Type.ToString());
+                Check("CNS 服装名解析", cnsMod.CnsFits.Contains("Eve Off Duty"), string.Join(",", cnsMod.CnsFits));
+                Check("CNS 角色解析", cnsMod.CnsCharacters.Contains("Eve"), string.Join(",", cnsMod.CnsCharacters));
+                Check("CNS 类型解析", cnsMod.CnsOutfitTypes.Contains("Dress"), string.Join(",", cnsMod.CnsOutfitTypes));
                 var deploy = Deployer.Deploy(cnsMod, gameDir, force: false);
                 Check("CNS 部署成功", deploy.Success, deploy.Error);
                 var target = Path.Combine(Deployer.PaksModsDir(gameDir), "CustomNanosuitSystem", "Animations", "TestOutfit.dekcns.json");
