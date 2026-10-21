@@ -23,6 +23,17 @@ public static class AppUpdater
 {
     public const string Repository = "xiangfa-test/Stellar-Blade-Mod-Manager";
 
+    /// <summary>Skip the automatic startup check in headless/test modes.</summary>
+    public static bool StartupCheckAllowed()
+    {
+        if (Program.SelfTestPath is not null || Program.ScreenshotPath is not null ||
+            Program.SelfUpdateRequested)
+        {
+            return false;
+        }
+        return Environment.GetEnvironmentVariable("SBMM_SKIP_UPDATE_CHECK") is null or "";
+    }
+
     public static string CurrentVersion
     {
         get

@@ -68,6 +68,15 @@ public partial class App : Application
             Program.Trace("window activated");
             StartRequestPump(MainWindow);
 
+            try
+            {
+                MainWindow.RunStartupUpdateCheck();
+            }
+            catch (Exception ex)
+            {
+                Services.Log.Warn("启动更新检查异常: " + ex.Message);
+            }
+
             if (Program.SelfUpdateRequested)
             {
                 _ = RunSelfUpdateAsync();

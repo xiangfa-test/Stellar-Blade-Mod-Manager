@@ -145,6 +145,9 @@ public sealed class AppConfig
     /// <summary>One-time pass that parses CNS outfit json for already imported mods.</summary>
     public bool CnsMetadataMigrated { get; set; }
 
+    /// <summary>Check GitHub for a new app release when the app starts.</summary>
+    public bool AutoCheckUpdates { get; set; } = true;
+
     /// <summary>One-time migration for packs that should merge into the game root.</summary>
     public bool GameRootOverlayMigrated { get; set; }
 

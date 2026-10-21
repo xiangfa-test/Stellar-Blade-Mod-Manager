@@ -32,6 +32,7 @@ public sealed partial class SettingsPage : Page
             NxmToggle.IsOn = State.Config.HandleNxmLinks;
             LaunchModeBox.SelectedIndex = State.Config.LaunchMode == "direct" ? 1 : 0;
             UpdateStatusText.Text = "当前版本 " + AppUpdater.CurrentVersion;
+            AutoUpdateToggle.IsOn = State.Config.AutoCheckUpdates;
             LibraryPathText.Text = "模组库: " + AppPaths.ModsRoot;
             DataPathText.Text = "数据目录: " + AppPaths.Root;
             ThemeBox.SelectedIndex = State.Config.Theme switch
@@ -247,6 +248,8 @@ public sealed partial class SettingsPage : Page
         CheckUpdateButton.IsEnabled = false;
         ApplyUpdateButton.IsEnabled = false;
         UpdateStatusText.Text = "正在检查最新版本…";
+        UpdateProgress.Visibility = Visibility.Visible;
+        UpdateProgress.IsIndeterminate = true;
         try
         {
             var info = await AppUpdater.CheckAsync();
@@ -268,6 +271,8 @@ public sealed partial class SettingsPage : Page
         }
         finally
         {
+            UpdateProgress.IsIndeterminate = false;
+            UpdateProgress.Visibility = Visibility.Collapsed;
             CheckUpdateButton.IsEnabled = true;
         }
     }
@@ -300,11 +305,19 @@ public sealed partial class SettingsPage : Page
 
         ApplyUpdateButton.IsEnabled = false;
         CheckUpdateButton.IsEnabled = false;
+        UpdateProgress.Visibility = Visibility.Visible;
+        UpdateProgress.IsIndeterminate = false;
+        UpdateProgress.Value = 0;
         try
         {
-            var progress = new Progress<double>(percent => UpdateStatusText.Text = $"下载中 {percent:0}%…");
+            var progress = new Progress<double>(percent =>
+            {
+                UpdateStatusText.Text = $"下载中 {percent:0}%…";
+                UpdateProgress.Value = percent;
+            });
             var staged = await AppUpdater.PrepareAsync(update, progress);
             UpdateStatusText.Text = "更新已下载，正在重启应用…";
+            UpdateProgress.IsIndeterminate = true;
             AppUpdater.StartUpdater(staged);
             await Task.Delay(600);
             Application.Current.Exit();
@@ -313,9 +326,18 @@ public sealed partial class SettingsPage : Page
         {
             Log.Error("应用更新失败", ex);
             UpdateStatusText.Text = "更新失败: " + ex.Message;
+            UpdateProgress.IsIndeterminate = false;
+            UpdateProgress.Visibility = Visibility.Collapsed;
             ApplyUpdateButton.IsEnabled = true;
             CheckUpdateButton.IsEnabled = true;
         }
+    }
+
+    private void AutoUpdate_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        State.Config.AutoCheckUpdates = AutoUpdateToggle.IsOn;
+        State.SaveConfig();
     }
 
     private async void OpenRelease_Click(object sender, RoutedEventArgs e)

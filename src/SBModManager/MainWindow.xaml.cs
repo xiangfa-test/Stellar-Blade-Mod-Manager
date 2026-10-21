@@ -164,6 +164,37 @@ public sealed partial class MainWindow : Window
         BackButton.Visibility = ContentFrame.CanGoBack ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private bool _startupUpdateChecked;
+
+    public async void RunStartupUpdateCheck()
+    {
+        if (_startupUpdateChecked) return;
+        _startupUpdateChecked = true;
+        if (!Services.AppState.Instance.Config.AutoCheckUpdates) return;
+        if (!Services.AppUpdater.StartupCheckAllowed()) return;
+
+        try
+        {
+            var info = await Services.AppUpdater.CheckAsync();
+            if (!info.IsNewer) return;
+
+            UpdateInfoBar.Title = $"发现新版本 {info.Tag}";
+            UpdateInfoBar.Message = $"当前版本 {Services.AppUpdater.CurrentVersion}，可在「设置 → 应用更新」中下载。";
+            var action = new Button { Content = "查看更新" };
+            action.Click += (_, _) =>
+            {
+                UpdateInfoBar.IsOpen = false;
+                SelectPage("settings");
+            };
+            UpdateInfoBar.ActionButton = action;
+            Ui.InfoBarAnimation.Show(UpdateInfoBar);
+        }
+        catch (Exception ex)
+        {
+            Services.Log.Warn("启动时检查更新失败: " + ex.Message);
+        }
+    }
+
     private void ApplyConfiguredTheme()
     {
         RootGrid.RequestedTheme = Services.AppState.Instance.Config.Theme switch
