@@ -269,7 +269,9 @@ public sealed partial class MainWindow : Window
         {
             XamlRoot = RootGrid.XamlRoot,
             Title = "记住窗口大小？",
-            Content = $"下次启动时使用当前窗口大小（{size.Width} × {size.Height}）吗？",
+            Content = $"下次启动时使用当前窗口大小（{size.Width} × {size.Height}）吗？\n\n" +
+                      "选择「记住」后，之后每次调整窗口都会自动记住。" +
+                      "想反悔可到「设置 → 窗口 → 重置为默认大小」清除。",
             PrimaryButtonText = "记住",
             CloseButtonText = "不记住",
             DefaultButton = ContentDialogButton.Primary,

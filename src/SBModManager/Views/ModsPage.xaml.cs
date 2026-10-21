@@ -45,6 +45,7 @@ public sealed partial class ModsPage : Page
         }
         // The detail pane starts collapsed; hook its scrollbar anyway so the first
         // selection already gets the auto-hiding behaviour.
+        SizeChanged += OnPageSizeChanged;
         Ui.ScrollBarAutoHide.Attach(DetailsScroll);
         Ui.ScrollBarAutoHide.AttachToElement(ModList);
         Ui.ScrollBarAutoHide.AttachToElement(ExternalList);
@@ -869,6 +870,28 @@ public sealed partial class ModsPage : Page
         {
             RebuildMods();
         }
+    }
+
+    private double _lastAvailableWidth;
+
+    /// <summary>Keep the detail pane proportional when the window grows/shrinks.</summary>
+    private void OnPageSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var available = e.NewSize.Width;
+        if (available <= 0) return;
+        var current = DetailColumn.ActualWidth > 0 ? DetailColumn.ActualWidth : DetailColumn.Width.Value;
+        if (_lastAvailableWidth <= 0 || _lastAvailableWidth == available)
+        {
+            _lastAvailableWidth = available;
+            return;
+        }
+
+        var ratio = current / _lastAvailableWidth;
+        var max = Math.Max(MinDetailWidth, available * 0.45);
+        var target = Math.Clamp(ratio * available, MinDetailWidth, max);
+        DetailColumn.Width = new GridLength(target);
+        State.Config.ModsDetailWidth = target;
+        _lastAvailableWidth = available;
     }
 
     private void Filter_Changed(object sender, SelectionChangedEventArgs e)

@@ -338,8 +338,8 @@ public sealed partial class SettingsPage : Page
     {
         State.Config.WindowWidth = 0;
         State.Config.WindowHeight = 0;
-        State.Config.WindowSizePromptDone = true;
-        State.Config.RememberWindowSize = true;
+        State.Config.WindowSizePromptDone = false;
+        State.Config.RememberWindowSize = false;
         State.SaveConfig();
 
         if (App.MainWindow is { } window)

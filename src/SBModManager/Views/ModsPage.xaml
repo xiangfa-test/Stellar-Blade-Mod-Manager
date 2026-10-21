@@ -265,7 +265,11 @@
                             Text="选择一个模组查看详情"
                             TextWrapping="Wrap" />
 
-                        <ScrollViewer x:Name="DetailsScroll" Visibility="Collapsed">
+                        <ScrollViewer
+                            x:Name="DetailsScroll"
+                            HorizontalScrollBarVisibility="Disabled"
+                            HorizontalScrollMode="Disabled"
+                            Visibility="Collapsed">
                             <StackPanel Spacing="8">
                                 <TextBlock
                                     x:Name="DetailName"
@@ -286,12 +290,14 @@
                                     TextWrapping="Wrap" />
                                 <Image
                                     x:Name="DetailNexusThumb"
+                                    MaxWidth="240"
                                     MaxHeight="160"
                                     HorizontalAlignment="Left"
                                     Stretch="Uniform"
                                     Visibility="Collapsed" />
                                 <Image
                                     x:Name="DetailPreview"
+                                    MaxWidth="240"
                                     MaxHeight="180"
                                     HorizontalAlignment="Left"
                                     Stretch="Uniform"
@@ -346,6 +352,8 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Button Click="EditMeta_Click" Content="标签 / 备注" />
                                     <Button Click="CheckOneUpdate_Click" Content="检查更新" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Button
                                         x:Name="UpdateModButton"
                                         Click="UpdateMod_Click"
