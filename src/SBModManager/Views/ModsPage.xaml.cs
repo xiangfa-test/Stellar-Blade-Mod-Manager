@@ -698,6 +698,7 @@ public sealed partial class ModsPage : Page
             }
         }
         DetailTargetsText.Text = string.Join(Environment.NewLine, item.TargetPaths);
+        ApplyDetailButtonLayout();
         DetailTags.Text = item.Record.Tags.Count == 0 ? "标签: （未设置）" : "标签: " + string.Join(" · ", item.Record.Tags);
         var cnsParts = new List<string>();
         if (item.Record.CnsFits.Count > 0) cnsParts.Add("服装: " + string.Join(" / ", item.Record.CnsFits.Take(6)));
@@ -874,6 +875,19 @@ public sealed partial class ModsPage : Page
 
     private double _lastAvailableWidth;
 
+    /// <summary>Stack the detail buttons vertically when the pane is too narrow for a row.</summary>
+    private void ApplyDetailButtonLayout()
+    {
+        var width = DetailColumn.ActualWidth;
+        if (width <= 0) return;
+        var compact = width < 330;
+        foreach (var row in new[] { PriorityRow, MetaRow, ActionsRow, FolderRow })
+        {
+            row.Orientation = compact ? Orientation.Vertical : Orientation.Horizontal;
+            row.Spacing = compact ? 6 : 8;
+        }
+    }
+
     /// <summary>Keep the detail pane proportional when the window grows/shrinks.</summary>
     private void OnPageSizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -891,6 +905,7 @@ public sealed partial class ModsPage : Page
         var target = Math.Clamp(ratio * available, MinDetailWidth, max);
         DetailColumn.Width = new GridLength(target);
         State.Config.ModsDetailWidth = target;
+        ApplyDetailButtonLayout();
         _lastAvailableWidth = available;
     }
 
