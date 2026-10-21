@@ -300,6 +300,138 @@ public static class SelfTest
             Check("版本分组 GroupKey", ModImporter.NormalizeGroup("My Cool Mod v1.2.3") == "my cool mod",
                 ModImporter.NormalizeGroup("My Cool Mod v1.2.3"));
 
+            // 2d) home-menu video mods (.bk2 -> SB\Content\Movies)
+            var videoZip = Path.Combine(AppPaths.TempRoot, "selftest-video.zip");
+            if (File.Exists(videoZip)) File.Delete(videoZip);
+            using (var zip = ZipFile.Open(videoZip, ZipArchiveMode.Create))
+            {
+                void AddVideoEntry(string entryName, string content)
+                {
+                    var entry = zip.CreateEntry(entryName);
+                    using var writer = new StreamWriter(entry.Open());
+                    writer.Write(content);
+                }
+
+                AddVideoEntry("MenuLoop.bk2", "KB2-video");
+                AddVideoEntry("readme.txt", "replace the main menu video");
+            }
+
+            var videoResult = ModImporter.ImportArchive(videoZip);
+            Check("主页视频包导入", videoResult.Mod is not null, videoResult.Error);
+            if (videoResult.Mod is { } videoMod)
+            {
+                madeMods.Add(videoMod);
+                Check("主页视频类型识别", videoMod.Type == ModType.Video, videoMod.Type.ToString());
+                Check("主页视频路径规范化",
+                    videoMod.Files.Count == 1 &&
+                    videoMod.Files[0].Equals(@"SB\Content\Movies\MenuLoop.bk2", StringComparison.OrdinalIgnoreCase),
+                    string.Join(",", videoMod.Files));
+                var deploy = Deployer.Deploy(videoMod, gameDir, force: true);
+                var videoTarget = Path.Combine(gameDir, "SB", "Content", "Movies", "MenuLoop.bk2");
+                Check("主页视频部署到 Content/Movies", deploy.Success && File.Exists(videoTarget), videoTarget);
+                Deployer.Undeploy(videoMod.Id);
+                Check("主页视频停用后移除", !File.Exists(videoTarget));
+            }
+
+            // 2e) archive already using Content\Movies and the SB\Content\Movies tree
+            var videoZip2 = Path.Combine(AppPaths.TempRoot, "selftest-video2.zip");
+            if (File.Exists(videoZip2)) File.Delete(videoZip2);
+            using (var zip = ZipFile.Open(videoZip2, ZipArchiveMode.Create))
+            {
+                var entry = zip.CreateEntry("Content/Movies/Intro.bk2");
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write("KB2-intro");
+            }
+
+            var videoResult2 = ModImporter.ImportArchive(videoZip2);
+            Check("Content/Movies 视频包识别为视频",
+                videoResult2.Mod is { Type: ModType.Video } &&
+                videoResult2.Mod.Files.All(f => f.StartsWith(@"SB\Content\Movies\", StringComparison.OrdinalIgnoreCase)),
+                videoResult2.Mod?.Type.ToString());
+            if (videoResult2.Mod is { } videoMod2)
+            {
+                madeMods.Add(videoMod2);
+                Deployer.Undeploy(videoMod2.Id);
+            }
+
+            var videoZip3 = Path.Combine(AppPaths.TempRoot, "selftest-video3.zip");
+            if (File.Exists(videoZip3)) File.Delete(videoZip3);
+            using (var zip = ZipFile.Open(videoZip3, ZipArchiveMode.Create))
+            {
+                void AddWrapped(string entryName, string content)
+                {
+                    var entry = zip.CreateEntry(entryName);
+                    using var writer = new StreamWriter(entry.Open());
+                    writer.Write(content);
+                }
+
+                AddWrapped("VideoPack/SB/Content/Movies/Wrapped.bk2", "KB2-wrapped");
+                AddWrapped("VideoPack/说明.txt", "merge into game root");
+            }
+
+            var videoResult3 = ModImporter.ImportArchive(videoZip3);
+            Check("带 SB 前缀的视频包识别", videoResult3.Mod is { Type: ModType.Video },
+                videoResult3.Mod?.Type.ToString());
+            if (videoResult3.Mod is { } videoMod3)
+            {
+                madeMods.Add(videoMod3);
+                Deployer.Undeploy(videoMod3.Id);
+            }
+
+            // 2f) mixed archive must not be classified as video-only
+            var mixedZip = Path.Combine(AppPaths.TempRoot, "selftest-video-mixed.zip");
+            if (File.Exists(mixedZip)) File.Delete(mixedZip);
+            using (var zip = ZipFile.Open(mixedZip, ZipArchiveMode.Create))
+            {
+                void AddMixed(string entryName, string content)
+                {
+                    var entry = zip.CreateEntry(entryName);
+                    using var writer = new StreamWriter(entry.Open());
+                    writer.Write(content);
+                }
+
+                AddMixed("Menu.bk2", "KB2-video");
+                AddMixed("Mixed_P.pak", "pak");
+            }
+
+            var mixedResult = ModImporter.ImportArchive(mixedZip);
+            Check("混合压缩包不按视频处理",
+                mixedResult.Mod is not null && mixedResult.Mod.Type != ModType.Video &&
+                mixedResult.Mod.Notes.Contains("混合", StringComparison.Ordinal),
+                mixedResult.Mod?.Type.ToString() ?? mixedResult.Error);
+            if (mixedResult.Mod is { } mixedMod)
+            {
+                madeMods.Add(mixedMod);
+                Deployer.Undeploy(mixedMod.Id);
+            }
+
+            // 2g) mixed pack that still has a game-tree layout merges as game root
+            var hybridZip = Path.Combine(AppPaths.TempRoot, "selftest-video-hybrid.zip");
+            if (File.Exists(hybridZip)) File.Delete(hybridZip);
+            using (var zip = ZipFile.Open(hybridZip, ZipArchiveMode.Create))
+            {
+                void AddHybrid(string entryName, string content)
+                {
+                    var entry = zip.CreateEntry(entryName);
+                    using var writer = new StreamWriter(entry.Open());
+                    writer.Write(content);
+                }
+
+                AddHybrid("SB/Content/Movies/Hybrid.bk2", "KB2-hybrid");
+                AddHybrid("Extra_P.pak", "pak");
+            }
+
+            var hybridResult = ModImporter.ImportArchive(hybridZip);
+            Check("混合包保留游戏根目录结构",
+                hybridResult.Mod is { Type: ModType.GameRoot } &&
+                hybridResult.Mod.Files.Any(f => f.EndsWith("Hybrid.bk2", StringComparison.OrdinalIgnoreCase)),
+                hybridResult.Mod?.Type.ToString() ?? hybridResult.Error);
+            if (hybridResult.Mod is { } hybridMod)
+            {
+                madeMods.Add(hybridMod);
+                Deployer.Undeploy(hybridMod.Id);
+            }
+
             // 3) UE4SS script mod detection
             var ue4ssZip = Path.Combine(AppPaths.TempRoot, "selftest-ue4ss.zip");
             if (File.Exists(ue4ssZip)) File.Delete(ue4ssZip);

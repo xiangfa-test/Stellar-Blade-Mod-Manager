@@ -103,6 +103,43 @@ public static class ModImporter
             var recordFiles = pairs.Select(p => p.Record).ToList();
             var type = overlay ? ModType.GameRoot : DetectType(recordFiles);
 
+            // Home-menu video mods (.bk2). Only take over a video-only archive, otherwise a pack
+            // that happens to contain a bk2 would be split incorrectly.
+            var mixedArchive = false;
+            if (IsVideoArchive(stripped, out var videoFiles))
+            {
+                if (overlay)
+                {
+                    type = ModType.Video; // SB/ tree already points at SB\Content\Movies
+                }
+                else
+                {
+                    pairs = videoFiles
+                        .Select(f => (Source: f, Record: NormalizeVideoRel(f)))
+                        .ToList();
+                    recordFiles = pairs.Select(p => p.Record).ToList();
+                    type = ModType.Video;
+                }
+            }
+            else if (videoFiles.Count > 0)
+            {
+                mixedArchive = true;
+                Log.Warn("压缩包同时包含 .bk2 与其它模组文件，按普通类型处理: " + displayName);
+
+                // A mixed pack that still carries a game-tree layout is safer merged as-is than
+                // split into ~mods, otherwise its videos/scripts end up in the wrong folder.
+                if (stripped.Any(IsGameTreeFile))
+                {
+                    pairs = stripped.Where(IsGameTreeFile)
+                        .Select(f => (Source: f,
+                            Record: f.StartsWith("SB\\", StringComparison.OrdinalIgnoreCase) ? f : "SB\\" + f))
+                        .ToList();
+                    recordFiles = pairs.Select(p => p.Record).ToList();
+                    type = ModType.GameRoot;
+                    Log.Warn("混合包包含游戏根目录结构，改为按游戏根目录合并: " + displayName);
+                }
+            }
+
             var name = displayName;
             if (commonRoot is not null && LooksLikeModName(commonRoot))
             {
@@ -125,6 +162,11 @@ public static class ModImporter
                 GroupKey = NormalizeGroup(string.IsNullOrWhiteSpace(name) ? "未命名模组" : name),
                 Files = recordFiles,
             };
+
+            if (mixedArchive)
+            {
+                record.Notes = "检测到 .bk2 与其它模组文件混合，已按「" + record.DisplayType + "」处理。";
+            }
 
             var dest = AppPaths.ModDir(record.Id);
             Directory.CreateDirectory(dest);
@@ -235,6 +277,32 @@ public static class ModImporter
             newFiles.Add(newRel);
         }
         return newFiles;
+    }
+
+    private static bool HasPrefix(string value, string prefix)
+        => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Video packs contain only .bk2 files (plus docs). Returns false when anything else is inside,
+    /// so mixed archives are never treated as video-only.
+    /// </summary>
+    public static bool IsVideoArchive(IReadOnlyList<string> files, out List<string> videoFiles)
+    {
+        videoFiles = files.Where(IsVideoFile).ToList();
+        if (videoFiles.Count == 0) return false;
+        return files.Where(f => !IsVideoFile(f)).All(IsDocumentationFile);
+    }
+
+    private static bool IsVideoFile(string rel)
+        => rel.EndsWith(".bk2", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Map an archive-relative bk2 path to SB\Content\Movies\...</summary>
+    private static string NormalizeVideoRel(string rel)
+    {
+        if (HasPrefix(rel, "SB\\Content\\Movies\\")) return rel;
+        if (HasPrefix(rel, "Content\\Movies\\")) return @"SB\" + rel;
+        if (HasPrefix(rel, "Movies\\")) return @"SB\Content\" + rel;
+        return @"SB\Content\Movies\" + rel;
     }
 
     /// <summary>True when every file is either under SB\ or a harmless documentation file.</summary>

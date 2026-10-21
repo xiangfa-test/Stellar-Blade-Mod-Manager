@@ -14,6 +14,8 @@ public enum ModType
     Cns,
     /// <summary>Archive that ships an SB/ tree and must be merged into the game root.</summary>
     GameRoot,
+    /// <summary>Home-menu video replacement (.bk2 files -> SB\Content\Movies).</summary>
+    Video,
 }
 
 public sealed class ModRecord
@@ -94,6 +96,7 @@ public sealed class ModRecord
         ModType.IniTweak => "INI 配置",
         ModType.Cns => "CNS 外观",
         ModType.GameRoot => "游戏根目录",
+        ModType.Video => "主页视频",
         _ => "未知",
     };
 

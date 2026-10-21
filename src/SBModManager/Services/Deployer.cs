@@ -63,6 +63,9 @@ public static class Deployer
                 case ModType.GameRoot:
                     targetRel = rel;
                     break;
+                case ModType.Video:
+                    targetRel = rel; // already normalized to SB\Content\Movies\...
+                    break;
                 case ModType.IniTweak:
                     targetRel = Path.Combine("..", "..", "..", "..", "..", "..", "SB", "Saved", "Config", "WindowsNoEditor",
                         Path.GetFileName(rel));
