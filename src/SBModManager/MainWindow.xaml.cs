@@ -198,6 +198,7 @@ public sealed partial class MainWindow : Window
 
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _resizeTimer;
     private bool _applyingSavedSize;
+    private bool _suppressNextResizePrompt;
 
     private void AttachSizeMemory()
     {
@@ -236,6 +237,13 @@ public sealed partial class MainWindow : Window
 
     private void OnWindowResized()
     {
+        if (_suppressNextResizePrompt)
+        {
+            // Reset-to-default is a programmatic resize: don't ask again for it.
+            _suppressNextResizePrompt = false;
+            return;
+        }
+
         var state = Services.AppState.Instance;
         var config = state.Config;
         var size = AppWindow.Size;
@@ -256,6 +264,29 @@ public sealed partial class MainWindow : Window
         if (!config.WindowSizePromptDone)
         {
             _ = PromptWindowSizeAsync(size);
+        }
+    }
+
+    /// <summary>Resize to the default size without triggering the "remember size?" prompt.</summary>
+    public void ResetWindowSize()
+    {
+        var before = AppWindow.Size;
+        _suppressNextResizePrompt = true;
+        try
+        {
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(1280, 820));
+        }
+        catch (Exception ex)
+        {
+            Services.Log.Warn("重置窗口大小失败: " + ex.Message);
+            _suppressNextResizePrompt = false;
+            return;
+        }
+
+        // No actual size change means AppWindow.Changed never fires; clear the guard.
+        if (AppWindow.Size == before)
+        {
+            _suppressNextResizePrompt = false;
         }
     }
 

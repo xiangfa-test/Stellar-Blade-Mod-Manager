@@ -342,17 +342,7 @@ public sealed partial class SettingsPage : Page
         State.Config.RememberWindowSize = false;
         State.SaveConfig();
 
-        if (App.MainWindow is { } window)
-        {
-            try
-            {
-                window.AppWindow.Resize(new Windows.Graphics.SizeInt32(1280, 820));
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("重置窗口大小失败: " + ex.Message);
-            }
-        }
+        (App.MainWindow as MainWindow)?.ResetWindowSize();
     }
 
     private void PakPrefix_Toggled(object sender, RoutedEventArgs e)
