@@ -73,6 +73,25 @@ public static class NxmHandler
                command.Contains(exePath, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Make sure the protocol points at the current exe. Used on startup when takeover is enabled,
+    /// so moving/updating the app folder does not leave a stale handler behind.
+    /// </summary>
+    public static void EnsureRegistered(string exePath)
+    {
+        try
+        {
+            if (IsRegisteredTo(exePath)) return;
+            using var commandKey = Registry.CurrentUser.CreateSubKey(CommandKey, true);
+            commandKey?.SetValue(null, $"\"{exePath}\" --nxm \"%1\"");
+            Log.Info("已把 nxm:// 处理程序更新到当前程序路径: " + exePath);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("更新 nxm:// 处理程序失败: " + ex.Message);
+        }
+    }
+
     /// <summary>Register this exe for nxm:// and return the previous command (to be persisted).</summary>
     public static string? Register(string exePath)
     {

@@ -170,10 +170,18 @@ public sealed partial class MainWindow : Window
                 presenter.Restore();
             }
             Activate();
-            SelectPage("mods");
-            if (nxmUrl is not null && ContentFrame.Content is ModsPage page)
+            if (nxmUrl is not null)
             {
-                _ = page.HandleNxmFromExternalAsync(nxmUrl);
+                ModsPage.QueueExternalNxm(nxmUrl);
+                SelectPage("mods");
+                if (ContentFrame.Content is ModsPage page)
+                {
+                    page.HandlePendingExternal();
+                }
+            }
+            else
+            {
+                SelectPage("mods");
             }
         }
         catch (Exception ex)

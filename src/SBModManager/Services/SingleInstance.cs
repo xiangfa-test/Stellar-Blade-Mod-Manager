@@ -13,13 +13,45 @@ public static class SingleInstance
 {
     private static Mutex? _mutex;
 
-    /// <summary>Writable places for the handoff queue (data dir first, temp as fallback).</summary>
-    private static IEnumerable<string> RequestDirs
+    /// <summary>
+    /// Places the request is written to. The running instance may be elevated while the second
+    /// launch is not, and the two can resolve different data directories, so we fan the request
+    /// out to every location a user process can normally write.
+    /// </summary>
+    private static IEnumerable<string> WriteDirs
     {
         get
         {
-            yield return Path.Combine(AppPaths.Root, "requests");
-            yield return Path.Combine(Path.GetTempPath(), "SBModManager-requests");
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var candidates = new List<string>
+            {
+                Path.Combine(AppPaths.Root, "requests"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "SBModManager", "requests"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "SBModManager", "requests"),
+                Path.Combine(Path.GetTempPath(), "SBModManager-requests"),
+            };
+            foreach (var candidate in candidates)
+            {
+                if (!string.IsNullOrWhiteSpace(candidate) && seen.Add(candidate))
+                {
+                    yield return candidate;
+                }
+            }
+        }
+    }
+
+    /// <summary>Places the running instance scans; includes the portable dir as a fallback.</summary>
+    private static IEnumerable<string> ReadDirs
+    {
+        get
+        {
+            foreach (var dir in WriteDirs)
+            {
+                yield return dir;
+            }
+            yield return Path.Combine(AppContext.BaseDirectory, "SBMM-Data", "requests");
         }
     }
 
@@ -88,28 +120,37 @@ public static class SingleInstance
     public static void Enqueue(InstanceRequest request)
     {
         var name = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}.{request.Kind}";
-        foreach (var dir in RequestDirs)
+        var written = 0;
+        foreach (var dir in WriteDirs)
         {
             try
             {
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, name), request.Payload ?? "");
-                Log.Info($"已把启动请求转发给现有实例: {request.Kind}");
-                return;
+                written++;
             }
             catch
             {
                 // try the next writable location
             }
         }
-        Log.Warn("转发启动请求失败：没有可写的队列目录");
+
+        if (written > 0)
+        {
+            Log.Info($"已把启动请求转发给现有实例: {request.Kind}（写入 {written} 个队列目录）");
+        }
+        else
+        {
+            Log.Warn("转发启动请求失败：没有可写的队列目录");
+        }
     }
 
     /// <summary>Called by the running instance (UI thread) to pick up forwarded requests.</summary>
     public static List<InstanceRequest> Drain()
     {
         var result = new List<InstanceRequest>();
-        foreach (var dir in RequestDirs)
+        var seenPayloads = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var dir in ReadDirs)
         {
             try
             {
@@ -120,7 +161,12 @@ public static class SingleInstance
                     {
                         var payload = File.ReadAllText(file);
                         var kind = Path.GetExtension(file).TrimStart('.');
-                        result.Add(new InstanceRequest(kind, payload));
+                        // The same request is written to every writable queue dir; only handle once.
+                        var dedupe = kind + "|" + payload;
+                        if (seenPayloads.Add(dedupe))
+                        {
+                            result.Add(new InstanceRequest(kind, payload));
+                        }
                         File.Delete(file);
                     }
                     catch
@@ -134,12 +180,16 @@ public static class SingleInstance
                 Log.Warn("读取转发请求失败: " + ex.Message);
             }
         }
+        if (result.Count > 0)
+        {
+            Log.Info($"收到 {result.Count} 个转发请求: " + string.Join(", ", result.Select(r => r.Kind)));
+        }
         return result;
     }
 
     private static void CleanupOldRequests()
     {
-        foreach (var dir in RequestDirs)
+        foreach (var dir in ReadDirs)
         {
             try
             {

@@ -45,6 +45,15 @@ public partial class App : Application
             Program.Trace("window activated");
             StartRequestPump(MainWindow);
 
+            if (Services.AppState.Instance.Config.HandleNxmLinks)
+            {
+                var exePath = Environment.ProcessPath;
+                if (!string.IsNullOrWhiteSpace(exePath))
+                {
+                    Services.NxmHandler.EnsureRegistered(exePath);
+                }
+            }
+
             if (Program.ScreenshotPath is { } shotPath)
             {
                 _ = CaptureAsync(MainWindow, shotPath);

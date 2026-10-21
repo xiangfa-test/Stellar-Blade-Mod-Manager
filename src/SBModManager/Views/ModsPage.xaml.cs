@@ -20,7 +20,8 @@ public sealed partial class ModsPage : Page
     private bool _suppressVersionChange;
     private bool _nxmHandled;
     private DateTime _suppressToggleUntil;
-    private readonly Queue<string> _pendingNxm = new();
+    private static readonly Queue<string> PendingExternal = new();
+    private static readonly object PendingLock = new();
 
     public ModsPage()
     {
@@ -31,10 +32,7 @@ public sealed partial class ModsPage : Page
             {
                 _initialized = true;
                 Reload();
-                while (_pendingNxm.Count > 0)
-                {
-                    _ = HandleNxmAsync(_pendingNxm.Dequeue());
-                }
+                HandlePendingExternal();
                 if (!_nxmHandled && Program.NxmUrl is { } nxm)
                 {
                     _nxmHandled = true;
@@ -961,14 +959,29 @@ public sealed partial class ModsPage : Page
 
     // ---------------------------------------------------------- nxm:// handoff
 
-    public async Task HandleNxmFromExternalAsync(string url)
+    /// <summary>Queue an nxm request from another launch; safe to call before the page loads.</summary>
+    public static void QueueExternalNxm(string url)
     {
-        if (!IsLoaded)
+        lock (PendingLock)
         {
-            _pendingNxm.Enqueue(url);
-            return;
+            PendingExternal.Enqueue(url);
         }
-        await HandleNxmAsync(url);
+    }
+
+    /// <summary>Drain queued external nxm requests (called when the page is loaded or re-activated).</summary>
+    public void HandlePendingExternal()
+    {
+        if (!IsLoaded) return;
+        while (true)
+        {
+            string url;
+            lock (PendingLock)
+            {
+                if (PendingExternal.Count == 0) return;
+                url = PendingExternal.Dequeue();
+            }
+            _ = HandleNxmAsync(url);
+        }
     }
 
     private async Task HandleNxmAsync(string url)

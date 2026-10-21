@@ -31,7 +31,7 @@ Push-Location $root
 try {
     if (-not (Test-Path "_nuget\feed\microsoft.windowsappsdk.1.8.260921001.nupkg")) {
         Write-Host "Fetching NuGet packages into _nuget\feed ..."
-        python tools\fetch_nuget.py Microsoft.WindowsAppSDK:1.8.260921001 Microsoft.Windows.SDK.NET.Ref:10.0.19041.57 System.Numerics.Tensors:9.0.0
+        python tools\fetch_nuget.py Microsoft.WindowsAppSDK:1.8.260921001 Microsoft.Windows.SDK.NET.Ref:10.0.19041.57 System.Numerics.Tensors:9.0.0 SharpCompress:0.50.7
         if ($LASTEXITCODE -ne 0) { throw "package fetch failed" }
     }
 

@@ -2,14 +2,14 @@
 
 一个用 **WinUI 3 + .NET 8 + Windows App SDK 1.8** 写的《Stellar Blade（剑星）》模组管理器。
 原生 Fluent / Mica 界面，支持亮暗主题，所有操作都有中文说明。
-当前版本 **v1.1.3**：修复检查更新后误禁用模组、nxm 链接重复开窗的问题；包含 UE4SS 一键安装、更新检查、多版本管理、标签/备注、CNS 适配、冲突链分析与加载顺序。
+当前版本 **v1.2.0**：内置 7z/RAR 解压引擎（无需安装 7-Zip）；修复已打开时 nxm 下载不触发的问题；包含 UE4SS 一键安装、更新检查、多版本管理、标签/备注、CNS 适配、冲突链分析与加载顺序。
 
 ![模组管理](docs/screenshots/mods.png)
 
 ## 功能
 
 - **自动检测游戏**：读取 Steam 注册表与 `libraryfolders.vdf`，按 AppID `3489700` 找到游戏目录；也可手动选择。
-- **导入模组**：压缩包（`.zip` / `.7z` / `.rar`）、文件夹、或直接选 `.pak/.ucas/.utoc`；支持把文件/文件夹直接拖进窗口。
+- **导入模组**：压缩包（`.zip` / `.7z` / `.rar`）、文件夹、或直接选 `.pak/.ucas/.utoc`；**7z/RAR 由内置 SharpCompress 引擎解压，无需安装 7-Zip**；支持把文件/文件夹直接拖进窗口。
 - **UE4SS 一键安装**：在「运行环境」里直接下载 [Chrisr0/RE-UE4SS](https://github.com/Chrisr0/RE-UE4SS) 的最新 Release，
   自动解压、识别为运行库并部署到 `SB\Binaries\Win64`，也可以检查本地安装版本。
 - **模组更新检查**：配置 Nexus API Key 后，可对带 Nexus 模组 ID 的模组一键检查更新。
@@ -60,6 +60,7 @@ SBModManager.exe
 
 - 需要系统安装 **Windows App Runtime 1.8**（64 位）。本机已安装；换机器时如提示缺少运行时，
   安装 [Windows App SDK 1.8 Runtime](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads) 即可。
+- 解压 7z/RAR 不再需要安装 7-Zip；加密压缩包需要密码的场景暂不支持。
 - **默认以管理员身份运行**：为避免写入游戏目录或读取受保护目录被拒绝，启动时会通过 UAC 请求管理员权限。
   不需要的话可以在「设置 → 网络与集成」关闭「启动时请求管理员权限」，或启动时加 `--no-elevate`。
 - 应用数据默认在 `%LOCALAPPDATA%\SBModManager`。如果该目录不可写（例如被安全软件拦截），
@@ -160,6 +161,12 @@ stellar-mod-manager/
 
 `--page` 支持 `mods` / `runtime` / `settings` / `about`。
 
+## 第三方组件
+
+- [Windows App SDK / WinUI 3](https://github.com/microsoft/WindowsAppSDK)（MIT）
+- [SharpCompress](https://github.com/adamhathcock/sharpcompress)（MIT）：内置 7z / RAR / ZIP 解压，无外部依赖
+- Segoe Fluent Icons 字体图标（系统自带）
+
 ## 作者
 
 1. **[xiangfa-test](https://github.com/xiangfa-test)**（作者 / Author）
@@ -168,7 +175,7 @@ stellar-mod-manager/
 ## 已知限制
 
 - 冲突检测以“目标文件路径”为单位；PAK 之间更深层的资源覆盖由游戏加载顺序决定，本工具不做 pak 合并。
-- `.rar` / `.7z` 解压需要系统装有 7-Zip 或 Bandizip（会自动寻找常见安装路径）。
+- 7z / RAR / ZIP 由内置 SharpCompress 引擎解压，**不需要安装 7-Zip**；带密码的压缩包暂不支持（会提示用外部 7-Zip）。
 - 只负责“文件部署”这一层；启用/停用前建议先退出游戏，避免文件被占用。
 - 以管理员身份运行时，文件选择使用 Win32 通用对话框；从资源管理器**拖拽**文件到提权窗口会被 Windows（UIPI）阻止，需要拖拽时请关闭管理员模式（设置里可关）。
 - Nexus 更新检查只对通过 nxm:// 导入且带模组 ID 的模组有效；从普通 zip 导入的模组没有 ID，只能手动检查。

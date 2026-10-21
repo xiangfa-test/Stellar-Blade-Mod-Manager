@@ -1,6 +1,8 @@
 using System.IO.Compression;
 using System.Text;
 using SBModManager.Models;
+using SharpCompress.Common;
+using SharpCompress.Writers;
 
 namespace SBModManager.Services;
 
@@ -77,6 +79,43 @@ public static class SelfTest
                 Check("资源文件出现在 ~mods/<名称>", File.Exists(target), target);
                 Deployer.Undeploy(looseMod.Id);
                 Check("资源模组停用后文件被移除", !File.Exists(target));
+            }
+
+            // Optional extra archive fixture (used for testing real 7-Zip output).
+            if (Environment.GetEnvironmentVariable("SBMM_TEST_ARCHIVE") is { Length: > 0 } extraArchive &&
+                File.Exists(extraArchive))
+            {
+                var extraResult = ModImporter.ImportArchive(extraArchive);
+                Check("外部压缩包解压 (" + Path.GetFileName(extraArchive) + ")", extraResult.Mod is not null,
+                    extraResult.Error);
+                if (extraResult.Mod is { } extraMod)
+                {
+                    madeMods.Add(extraMod);
+                    Deployer.Undeploy(extraMod.Id);
+                }
+            }
+
+            // 2a) built-in 7z engine (no external 7-Zip installation)
+            var sevenSource = Path.Combine(AppPaths.TempRoot, "selftest-seven-src.pak");
+            var sevenArchive = Path.Combine(AppPaths.TempRoot, "selftest-seven.7z");
+            File.WriteAllBytes(sevenSource, new byte[128]);
+            if (File.Exists(sevenArchive)) File.Delete(sevenArchive);
+            using (var fs = File.Create(sevenArchive))
+            using (var writer = WriterFactory.OpenWriter(fs, ArchiveType.SevenZip,
+                       new WriterOptions(CompressionType.LZMA)))
+            using (var src = File.OpenRead(sevenSource))
+            {
+                writer.Write("SevenTest_P.pak", src, null);
+            }
+            var sevenResult = ModImporter.ImportArchive(sevenArchive);
+            Check("内置 7z 解压导入", sevenResult.Mod is not null, sevenResult.Error);
+            if (sevenResult.Mod is { } sevenMod)
+            {
+                madeMods.Add(sevenMod);
+                Check("7z 模组类型识别", sevenMod.Type == ModType.Pak, sevenMod.Type.ToString());
+                var deploy = Deployer.Deploy(sevenMod, gameDir, force: false);
+                Check("7z 模组部署成功", deploy.Success, deploy.Error);
+                Deployer.Undeploy(sevenMod.Id);
             }
 
             // 2b) CNS addon detection + special deploy path
