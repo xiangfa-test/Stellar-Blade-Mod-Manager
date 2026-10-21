@@ -37,6 +37,9 @@ public static class Program
 
     private static bool ElevatedChild { get; set; }
 
+    /// <summary>Nav tag selected through the real NavigationView path (diagnostics).</summary>
+    public static string? NavTag { get; private set; }
+
     /// <summary>Collection slug passed with --collection (opens the Collections page).</summary>
     public static string? CollectionSlug { get; private set; }
 
@@ -77,6 +80,9 @@ public static class Program
                     break;
                 case "--no-elevate":
                     NoElevate = true;
+                    break;
+                case "--nav" when i + 1 < args.Length:
+                    NavTag = args[++i];
                     break;
                 case "--collection" when i + 1 < args.Length:
                     CollectionSlug = args[++i];

@@ -62,6 +62,20 @@ public sealed partial class MainWindow : Window
         TryApplyBackdrop();
 
         SelectPage(Program.PageTag ?? "mods");
+
+        if (Program.NavTag is { Length: > 0 } navTag)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                var navItem = NavView.MenuItems.Concat(NavView.FooterMenuItems)
+                    .OfType<NavigationViewItem>()
+                    .FirstOrDefault(i => (i.Tag as string) == navTag);
+                if (navItem is not null)
+                {
+                    NavView.SelectedItem = navItem;
+                }
+            });
+        }
     }
 
     private void ApplyConfiguredTheme()
@@ -245,6 +259,7 @@ public sealed partial class MainWindow : Window
         var pageType = tag switch
         {
             "mods" => typeof(ModsPage),
+            "collections" => typeof(CollectionsPage),
             "runtime" => typeof(RuntimePage),
             "settings" => typeof(SettingsPage),
             "about" => typeof(AboutPage),
