@@ -95,6 +95,9 @@ public sealed class AppConfig
     public int HighConflictThreshold { get; set; } = 3;
 
     public string Ue4ssRepository { get; set; } = "Chrisr0/RE-UE4SS";
+
+    /// <summary>Recently parsed Nexus collections (URLs or slugs), newest first.</summary>
+    public List<string> RecentCollections { get; set; } = new();
 }
 
 public sealed class DeployState

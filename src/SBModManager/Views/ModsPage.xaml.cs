@@ -73,6 +73,13 @@ public sealed partial class ModsPage : Page
         }
     }
 
+    /// <summary>Set the search box (used when jumping in from the collections page).</summary>
+    public void SetSearchFilter(string text)
+    {
+        SearchBox.Text = text ?? "";
+        RebuildMods();
+    }
+
     private void RebuildMods()
     {
         // Rebuilding the ItemsSource recycles ListView containers; a reused ToggleSwitch can
@@ -994,20 +1001,7 @@ public sealed partial class ModsPage : Page
 
         if (link.IsCollection)
         {
-            SetBusy(true);
-            try
-            {
-                var collection = await NexusService.GetCollectionAsync(link.CollectionSlug!, State.Config.NexusApiKey);
-                SetBusy(false);
-                Log.Info($"解析合集: {collection.Name}（{collection.Mods.Count} 个模组, rev {collection.RevisionNumber}）");
-                await ShowCollectionAsync(collection);
-            }
-            catch (Exception ex)
-            {
-                SetBusy(false);
-                Log.Error("解析 Nexus 合集失败", ex);
-                ShowMessage(InfoBarSeverity.Error, "合集解析失败", ex.Message);
-            }
+            (App.MainWindow as MainWindow)?.OpenCollection(link.CollectionSlug!);
             return;
         }
 

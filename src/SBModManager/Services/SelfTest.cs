@@ -191,6 +191,7 @@ public static class SelfTest
             var collectionNxm = NxmHandler.TryParse("nxm://stellarblade/collections/n7zgom/revisions/3", out var colLink)
                                  && colLink.IsCollection && colLink.CollectionSlug == "n7zgom";
             Check("nxm 合集链接解析", collectionNxm);
+            Check("合集标签生成", CollectionInstaller.TagFor(new NexusCollection { Name = "Demo" }) == "合集:Demo");
             Check("nxm 免会员直链参数", linkUrl.Contains("key=abc") && linkUrl.Contains("expires=99"), linkUrl);
 
             // 3c) conflict chain + high-conflict detection (two mods writing the same pak)

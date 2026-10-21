@@ -37,6 +37,16 @@ public static class Program
 
     private static bool ElevatedChild { get; set; }
 
+    /// <summary>Collection slug passed with --collection (opens the Collections page).</summary>
+    public static string? CollectionSlug { get; private set; }
+
+    public static string? TakeCollectionSlug()
+    {
+        var value = CollectionSlug;
+        CollectionSlug = null;
+        return value;
+    }
+
     /// <summary>nxm:// URL passed by the browser / Nexus "Mod Manager Download" button.</summary>
     public static string? NxmUrl { get; private set; }
 
@@ -67,6 +77,9 @@ public static class Program
                     break;
                 case "--no-elevate":
                     NoElevate = true;
+                    break;
+                case "--collection" when i + 1 < args.Length:
+                    CollectionSlug = args[++i];
                     break;
                 case "--elevated-child":
                     ElevatedChild = true;

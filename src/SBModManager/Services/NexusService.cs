@@ -42,6 +42,8 @@ public sealed class NexusCollection
     public long TotalSize { get; init; }
     public string PageUrl { get; init; } = "";
     public List<NexusCollectionMod> Mods { get; init; } = new();
+    /// <summary>Published revision numbers, newest first.</summary>
+    public List<int> Revisions { get; init; } = new();
     public int OptionalCount => Mods.Count(m => m.Optional);
     public string SizeText => TotalSize <= 0 ? "未知" : $"{TotalSize / (1024.0 * 1024 * 1024):0.##} GB";
 }
@@ -52,14 +54,15 @@ public static class NexusService
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(2) };
 
     private const string CollectionQuery = """
-        query($slug: String!) {
+        query($slug: String!, $revision: Int) {
           collection(slug: $slug, viewAdultContent: true) {
             id name slug summary
             game { domainName }
             user { name }
             latestPublishedRevision { revisionNumber }
+            revisions { revisionNumber }
           }
-          collectionRevision(slug: $slug, viewAdultContent: true) {
+          collectionRevision(slug: $slug, revision: $revision, viewAdultContent: true) {
             id revisionNumber modCount totalSize
             modFiles { optional file { modId fileId name version size mod { name } } }
           }
@@ -72,14 +75,14 @@ public static class NexusService
     /// Accepts a full collection URL or just the slug.
     /// </summary>
     public static async Task<NexusCollection> GetCollectionAsync(string input, string? apiKey = null,
-        CancellationToken ct = default)
+        int? revision = null, CancellationToken ct = default)
     {
         var (slug, gameFromUrl) = ParseCollectionRef(input);
 
         var payload = JsonSerializer.Serialize(new
         {
             query = CollectionQuery,
-            variables = new { slug },
+            variables = new { slug, revision },
         });
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.nexusmods.com/v2/graphql");
         request.Headers.UserAgent.ParseAdd("SBModManager/1.3");
@@ -126,6 +129,17 @@ public static class NexusService
         var summary = coll.TryGetProperty("summary", out var sm) ? sm.GetString() ?? "" : "";
         var name = coll.TryGetProperty("name", out var nm) ? nm.GetString() ?? slug : slug;
 
+        var revisions = new List<int>();
+        if (coll.TryGetProperty("revisions", out var revs) && revs.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in revs.EnumerateArray())
+            {
+                var number = JsonInt(item, "revisionNumber");
+                if (number > 0) revisions.Add(number);
+            }
+        }
+        revisions.Sort((a, b) => b.CompareTo(a));
+
         var mods = new List<NexusCollectionMod>();
         if (rev.TryGetProperty("modFiles", out var files) && files.ValueKind == JsonValueKind.Array)
         {
@@ -168,6 +182,7 @@ public static class NexusService
             TotalSize = JsonLong(rev, "totalSize"),
             PageUrl = $"https://www.nexusmods.com/{game}/collections/{slug}",
             Mods = mods,
+            Revisions = revisions,
         };
     }
 

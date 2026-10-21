@@ -202,6 +202,7 @@ public sealed partial class MainWindow : Window
 
         var pageType = tag switch
         {
+            "collections" => typeof(CollectionsPage),
             "runtime" => typeof(RuntimePage),
             "settings" => typeof(SettingsPage),
             "about" => typeof(AboutPage),
@@ -210,6 +211,27 @@ public sealed partial class MainWindow : Window
         if (ContentFrame.CurrentSourcePageType != pageType)
         {
             ContentFrame.Navigate(pageType);
+        }
+    }
+
+    /// <summary>Open the Collections page and parse a collection URL/slug.</summary>
+    public void OpenCollection(string input)
+    {
+        CollectionsPage.QueueOpen(input);
+        SelectPage("collections");
+        if (ContentFrame.Content is CollectionsPage page)
+        {
+            page.HandlePendingOpen();
+        }
+    }
+
+    /// <summary>Navigate to the mod list and filter it (used by the collections page).</summary>
+    public void OpenModsWithFilter(string filter)
+    {
+        SelectPage("mods");
+        if (ContentFrame.Content is ModsPage page)
+        {
+            page.SetSearchFilter(filter);
         }
     }
 
