@@ -2,7 +2,7 @@
 
 一个用 **WinUI 3 + .NET 8 + Windows App SDK 1.8** 写的《Stellar Blade（剑星）》模组管理器。
 原生 Fluent / Mica 界面，支持亮暗主题，所有操作都有中文说明。
-当前版本 **v1.5.0**：新增独立「加载顺序」页（拖拽排序 + 应用部署）；UE4SS 安装改为与官方手动步骤一致（ue4ss 文件夹 + dwmapi.dll → SB/Binaries/Win64），支持下载或本地 zip；包含 `SB/` 根目录包合并、Windows 设置风格界面、内置 7z/RAR 解压、合集、更新检查、多版本、标签/备注、CNS、冲突链分析。
+当前版本 **v1.5.1**：修复 GitHub 检查 403（改为不依赖 API 配额）、修复 CNS 基础包这类「无 SB 前缀」压缩包未生效并自动迁移旧记录；包含独立加载顺序页、UE4SS 安装、`SB/` 根目录包合并、Windows 设置风格界面、内置 7z/RAR 解压、合集、更新检查、多版本、标签/备注、冲突链分析。
 
 ![模组管理](docs/screenshots/mods.png)
 ![合集](docs/screenshots/collections.png)
@@ -21,8 +21,8 @@
 - **标签与备注**：每个模组可自定义标签和备注，列表中直接显示标签，可按标签搜索。
 - **CNS 适配**：`.dekcns.json` / `.dekani.json` 会被识别为 CNS 外观模组，自动部署到
   `SB\Content\Paks\~mods\CustomNanosuitSystem\` 下并保留 Animations / Cosmetics 目录结构。
-- **游戏根目录合并**：压缩包内自带 `SB/` 目录时（例如 Custom Nanosuit System 基础包、UE4SS 脚本合集），
-  按原始 `SB/...` 结构整体合并到游戏根目录，而不是塞进 `~mods`；旧版本导入的这类包会自动迁移并重新部署。
+- **游戏根目录合并**：压缩包内自带 `SB/` 目录、或者直接以 `Binaries/`、`Content/` 开头（例如 Custom Nanosuit System 基础包、UE4SS 脚本合集）时，
+  按原始结构整体合并到游戏根目录，而不是塞进 `~mods`；旧版本导入的这类包会自动迁移（含库内文件搬迁）并重新部署。
 - **冲突链分析**：一键查看所有被多个已启用模组写入的文件，按加载顺序显示「A → B」覆盖链，
   并标出高冲突模组（默认冲突 ≥ 3 个文件，可在配置里调整阈值）。
 - **加载顺序页**：侧边栏独立页面，拖动条目即可调整优先级（也可上移/下移），点「应用顺序并重建部署」

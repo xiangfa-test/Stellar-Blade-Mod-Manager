@@ -91,7 +91,16 @@ public static class ModImporter
                 commonRoot = null; // files are already SB-relative
             }
 
-            var recordFiles = overlay ? stripped.Where(IsUnderSb).ToList() : stripped;
+            // Source path on disk vs. path recorded in the mod (the latter gets an SB\ prefix
+            // for game-root packs so the deployer can map it back to the game folder).
+            var pairs = overlay
+                ? stripped.Where(IsGameTreeFile)
+                    .Select(f => (Source: f,
+                        Record: f.StartsWith("SB\\", StringComparison.OrdinalIgnoreCase) ? f : "SB\\" + f))
+                    .ToList()
+                : stripped.Select(f => (Source: f, Record: f)).ToList();
+
+            var recordFiles = pairs.Select(p => p.Record).ToList();
             var type = overlay ? ModType.GameRoot : DetectType(recordFiles);
 
             var name = displayName;
@@ -119,10 +128,10 @@ public static class ModImporter
 
             var dest = AppPaths.ModDir(record.Id);
             Directory.CreateDirectory(dest);
-            foreach (var rel in recordFiles)
+            foreach (var (sourceRel, recordRel) in pairs)
             {
-                var from = Path.Combine(srcDir, commonRoot is null ? rel : Path.Combine(commonRoot, rel));
-                var to = Path.Combine(dest, rel);
+                var from = Path.Combine(srcDir, commonRoot is null ? sourceRel : Path.Combine(commonRoot, sourceRel));
+                var to = Path.Combine(dest, recordRel);
                 Directory.CreateDirectory(Path.GetDirectoryName(to)!);
                 if (move)
                 {
@@ -156,6 +165,76 @@ public static class ModImporter
         }
     }
 
+    /// <summary>
+    /// Packs recorded without the SB\ prefix (archive starts at Binaries/ or Content/) were
+    /// previously deployed below ~mods. Move them to GameRoot and add the SB\ prefix.
+    /// </summary>
+    public static int MigrateGameRootOverlaysV2()
+    {
+        var state = AppState.Instance;
+        var migrated = 0;
+
+        foreach (var record in state.Library.ToList())
+        {
+            if (record.Type is ModType.GameRoot) continue;
+            if (record.Type is not (ModType.Pak or ModType.Loose or ModType.Cns)) continue;
+            if (record.Files.Count == 0) continue;
+            if (record.Files.Any(f => f.StartsWith(@"SB\", StringComparison.OrdinalIgnoreCase))) continue;
+
+            var gameTree = record.Files.All(f =>
+                f.StartsWith(@"Binaries\", StringComparison.OrdinalIgnoreCase) ||
+                f.StartsWith(@"Content\", StringComparison.OrdinalIgnoreCase) ||
+                f.StartsWith(@"Engine\", StringComparison.OrdinalIgnoreCase));
+            if (!gameTree) continue;
+
+            var wasEnabled = state.IsEnabled(record.Id);
+            if (wasEnabled)
+            {
+                Deployer.Undeploy(record.Id);
+            }
+
+            record.Files = AddSbPrefixAndMoveFiles(record);
+            record.Type = ModType.GameRoot;
+            ModStore.Save(record);
+
+            if (wasEnabled && state.GameDir is { } gameDir)
+            {
+                Deployer.Deploy(record, gameDir, force: true);
+            }
+
+            migrated++;
+        }
+
+        if (migrated > 0)
+        {
+            state.ReloadLibrary();
+            Log.Info($"已把 {migrated} 个无 SB 前缀的包迁移为「游戏根目录」类型");
+        }
+        return migrated;
+    }
+
+    /// <summary>
+    /// Add the SB\ prefix to recorded paths and move the matching files in the mod library.
+    /// </summary>
+    private static List<string> AddSbPrefixAndMoveFiles(ModRecord record)
+    {
+        var modDir = record.ModDir;
+        var newFiles = new List<string>(record.Files.Count);
+        foreach (var rel in record.Files)
+        {
+            var newRel = rel.StartsWith(@"SB\", StringComparison.OrdinalIgnoreCase) ? rel : @"SB\" + rel;
+            var src = Path.Combine(modDir, rel);
+            var dst = Path.Combine(modDir, newRel);
+            if (!string.Equals(src, dst, StringComparison.OrdinalIgnoreCase) && File.Exists(src))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(dst)!);
+                File.Move(src, dst, overwrite: true);
+            }
+            newFiles.Add(newRel);
+        }
+        return newFiles;
+    }
+
     /// <summary>True when every file is either under SB\ or a harmless documentation file.</summary>
     /// <summary>
     /// Older versions stripped the SB\ prefix from CNS/UE4SS packs and deployed them below ~mods.
@@ -174,6 +253,7 @@ public static class ModImporter
 
             var looksOverlay = record.Files.All(f =>
                 f.StartsWith(@"Content\Paks\~mods\CustomNanosuitSystem\", StringComparison.OrdinalIgnoreCase) ||
+                f.StartsWith(@"Content\Paks\LogicMods\", StringComparison.OrdinalIgnoreCase) ||
                 f.StartsWith(@"Binaries\Win64\ue4ss\", StringComparison.OrdinalIgnoreCase));
             if (!looksOverlay) continue;
 
@@ -208,12 +288,16 @@ public static class ModImporter
     public static bool IsGameRootOverlay(IReadOnlyList<string> relFiles)
     {
         if (relFiles.Count == 0) return false;
-        if (!relFiles.Any(IsUnderSb)) return false;
-        return relFiles.Where(r => !IsUnderSb(r)).All(IsDocumentationFile);
+        if (!relFiles.Any(IsGameTreeFile)) return false;
+        return relFiles.Where(r => !IsGameTreeFile(r)).All(IsDocumentationFile);
     }
 
-    private static bool IsUnderSb(string rel)
-        => rel.StartsWith("SB\\", StringComparison.OrdinalIgnoreCase);
+    /// <summary>True when the path is relative to the game root (with or without the SB\ prefix).</summary>
+    private static bool IsGameTreeFile(string rel)
+        => rel.StartsWith("SB\\", StringComparison.OrdinalIgnoreCase)
+           || rel.StartsWith("Binaries\\", StringComparison.OrdinalIgnoreCase)
+           || rel.StartsWith("Content\\", StringComparison.OrdinalIgnoreCase)
+           || rel.StartsWith("Engine\\", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsDocumentationFile(string rel)
     {

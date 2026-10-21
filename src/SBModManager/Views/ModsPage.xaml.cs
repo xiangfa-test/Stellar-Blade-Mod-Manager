@@ -621,7 +621,13 @@ public sealed partial class ModsPage : Page
     private async void DeleteMod_Click(object sender, RoutedEventArgs e)
     {
         if (ModList.SelectedItem is not ModItem item) return;
-        if (!await ConfirmAsync("删除模组", $"确定要从库中删除「{item.Name}」吗？\n如果它已启用，游戏中的文件也会一并移除。")) return;
+        var deleteMessage = $"确定要从库中删除「{item.Name}」吗？\n如果它已启用，游戏中的文件也会一并移除。";
+        if (item.Record.Type == ModType.Ue4ssRuntime)
+        {
+            deleteMessage += "\n\n注意：这是 UE4SS 运行库，删除会把 ue4ss 文件夹和 dwmapi.dll 从 SB\\Binaries\\Win64 移除，" +
+                             "所有脚本类模组都会停止工作。";
+        }
+        if (!await ConfirmAsync("删除模组", deleteMessage)) return;
 
         try
         {

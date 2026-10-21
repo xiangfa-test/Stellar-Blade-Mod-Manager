@@ -110,6 +110,9 @@ public sealed class AppConfig
 
     /// <summary>One-time migration for packs that should merge into the game root.</summary>
     public bool GameRootOverlayMigrated { get; set; }
+
+    /// <summary>Second pass: packs recorded without the SB\ prefix (Binaries/Content at root).</summary>
+    public bool GameRootOverlayMigratedV2 { get; set; }
 }
 
 public sealed class DeployState

@@ -195,6 +195,79 @@ public static class SelfTest
                 AppState.Instance.ReloadLibrary();
             }
 
+            // 2a4) CNS base pack without the SB\ prefix (Binaries/ + Content/ at archive root)
+            var noPrefixZip = Path.Combine(AppPaths.TempRoot, "selftest-cnsbase.zip");
+            if (File.Exists(noPrefixZip)) File.Delete(noPrefixZip);
+            using (var zip = ZipFile.Open(noPrefixZip, ZipArchiveMode.Create))
+            {
+                void AddNoPrefix(string entryName, string content)
+                {
+                    var entry = zip.CreateEntry(entryName);
+                    using var w = new StreamWriter(entry.Open());
+                    w.Write(content);
+                }
+
+                AddNoPrefix("Binaries/Win64/ue4ss/Mods/DekCNS/enabled.txt", "");
+                AddNoPrefix("Content/Paks/LogicMods/DekCNS_P.pak", "pak");
+                AddNoPrefix("Content/Paks/~mods/CustomNanosuitSystem/Cosmetics/X.dekcns.json", "{}");
+                AddNoPrefix("readme.txt", "merge into game root");
+            }
+
+            var noPrefixResult = ModImporter.ImportArchive(noPrefixZip);
+            Check("无 SB 前缀的根目录包导入", noPrefixResult.Mod is not null, noPrefixResult.Error);
+            if (noPrefixResult.Mod is { } noPrefixMod)
+            {
+                madeMods.Add(noPrefixMod);
+                Check("无 SB 前缀包识别为游戏根目录", noPrefixMod.Type == ModType.GameRoot,
+                    noPrefixMod.Type.ToString());
+                Check("无 SB 前缀包补齐 SB 路径",
+                    noPrefixMod.Files.All(f => f.StartsWith(@"SB\", StringComparison.OrdinalIgnoreCase)),
+                    noPrefixMod.Files.FirstOrDefault() ?? "");
+                var deploy = Deployer.Deploy(noPrefixMod, gameDir, force: true);
+                Check("无 SB 前缀包部署成功", deploy.Success, deploy.Error);
+                var cnsJson = Path.Combine(gameDir, "SB", "Content", "Paks", "~mods",
+                    "CustomNanosuitSystem", "Cosmetics", "X.dekcns.json");
+                var logicPak = Path.Combine(gameDir, "SB", "Content", "Paks", "LogicMods", "DekCNS_P.pak");
+                Check("无 SB 前缀包文件落位", File.Exists(cnsJson) && File.Exists(logicPak), cnsJson);
+                Deployer.Undeploy(noPrefixMod.Id);
+            }
+
+            // 2a5) legacy record without SB\ prefix (Binaries/Content at root) migrates to GameRoot
+            var legacyNoPrefix = new ModRecord
+            {
+                Name = "selftest-legacy-noprefix",
+                Type = ModType.Loose,
+                Files = new List<string>
+                {
+                    @"Binaries\Win64\ue4ss\Mods\DekCNS\enabled.txt",
+                    @"Content\Paks\LogicMods\DekCNS_P.pak",
+                },
+            };
+            var legacyDir = AppPaths.ModDir(legacyNoPrefix.Id);
+            Directory.CreateDirectory(Path.Combine(legacyDir, "Binaries", "Win64", "ue4ss", "Mods", "DekCNS"));
+            Directory.CreateDirectory(Path.Combine(legacyDir, "Content", "Paks", "LogicMods"));
+            File.WriteAllText(Path.Combine(legacyDir, "Binaries", "Win64", "ue4ss", "Mods", "DekCNS", "enabled.txt"), "");
+            File.WriteAllText(Path.Combine(legacyDir, "Content", "Paks", "LogicMods", "DekCNS_P.pak"), "pak");
+
+            ModStore.Save(legacyNoPrefix);
+            AppState.Instance.ReloadLibrary();
+            ModImporter.MigrateGameRootOverlaysV2();
+            AppState.Instance.ReloadLibrary();
+            var migratedNoPrefix = AppState.Instance.Library.FirstOrDefault(r => r.Id == legacyNoPrefix.Id);
+            var movedFile = Path.Combine(legacyDir, "SB", "Content", "Paks", "LogicMods", "DekCNS_P.pak");
+            var oldFile = Path.Combine(legacyDir, "Content", "Paks", "LogicMods", "DekCNS_P.pak");
+            Check("无 SB 前缀旧记录迁移",
+                migratedNoPrefix is { Type: ModType.GameRoot } &&
+                migratedNoPrefix.Files.All(f => f.StartsWith(@"SB\", StringComparison.OrdinalIgnoreCase)),
+                migratedNoPrefix?.Type.ToString());
+            Check("迁移同步移动库内文件", File.Exists(movedFile) && !File.Exists(oldFile), movedFile);
+            if (migratedNoPrefix is not null)
+            {
+                ModStore.Delete(migratedNoPrefix);
+                AppState.Instance.ReloadLibrary();
+            }
+            try { Directory.Delete(legacyDir, recursive: true); } catch { }
+
             // 2b) CNS addon detection + special deploy path
             var cnsZip = Path.Combine(AppPaths.TempRoot, "selftest-cns.zip");
             if (File.Exists(cnsZip)) File.Delete(cnsZip);
@@ -300,6 +373,23 @@ public static class SelfTest
                 Deployer.Undeploy(modB.Id);
             }
 
+            // Optional live GitHub check (SBMM_TEST_GITHUB=owner/repo)
+            if (Environment.GetEnvironmentVariable("SBMM_TEST_GITHUB") is { Length: > 0 } repo)
+            {
+                try
+                {
+                    var release = GitHubService.GetLatestReleaseAsync(repo).GetAwaiter().GetResult();
+                    var asset = GitHubService.PickUe4ssAsset(release);
+                    Check("GitHub Release 解析 (" + repo + ")",
+                        !string.IsNullOrWhiteSpace(release.TagName) && asset is not null,
+                        $"{release.TagName} / {asset?.Name ?? "无 zip"} / {release.Assets.Count} 个资源");
+                }
+                catch (Exception ex)
+                {
+                    Check("GitHub Release 解析 (" + repo + ")", false, ex.Message);
+                }
+            }
+
             // Optional UE4SS release fixture (SBMM_TEST_UE4SS_ZIP=/path/to/UE4SS.zip)
             if (Environment.GetEnvironmentVariable("SBMM_TEST_UE4SS_ZIP") is { Length: > 0 } ue4ssFixture &&
                 File.Exists(ue4ssFixture))
@@ -309,6 +399,12 @@ public static class SelfTest
                 if (releaseResult.Mod is { } releaseMod)
                 {
                     madeMods.Add(releaseMod);
+                    Check("UE4SS 类型为运行库", releaseMod.Type == ModType.Ue4ssRuntime, releaseMod.Type.ToString());
+                    var releaseTargets = Deployer.ComputeTargets(releaseMod, gameDir);
+                    var proxyTarget = Path.Combine(gameDir, "SB", "Binaries", "Win64", "dwmapi.dll");
+                    Check("UE4SS 部署目标包含 dwmapi.dll",
+                        releaseTargets.Any(t => string.Equals(t.Target, proxyTarget, StringComparison.OrdinalIgnoreCase)),
+                        string.Join("; ", releaseTargets.Take(3).Select(t => t.Target)));
                     var files = releaseMod.Files.Select(f => f.Replace('/', '\\')).ToList();
                     Check("UE4SS 包含 dwmapi.dll",
                         files.Any(f => Path.GetFileName(f).Equals("dwmapi.dll", StringComparison.OrdinalIgnoreCase)));
