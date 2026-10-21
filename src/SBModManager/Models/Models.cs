@@ -16,6 +16,8 @@ public enum ModType
     GameRoot,
     /// <summary>Home-menu video replacement (.bk2 files -> SB\Content\Movies).</summary>
     Video,
+    /// <summary>BPModLoader pak that lives in SB\Content\Paks\LogicMods.</summary>
+    LogicMod,
 }
 
 public sealed class ModRecord
@@ -97,6 +99,7 @@ public sealed class ModRecord
         ModType.Cns => "CNS 外观",
         ModType.GameRoot => "游戏根目录",
         ModType.Video => "主页视频",
+        ModType.LogicMod => "逻辑模组",
         _ => "未知",
     };
 

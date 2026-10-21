@@ -66,6 +66,9 @@ public static class Deployer
                 case ModType.Video:
                     targetRel = rel; // already normalized to SB\Content\Movies\...
                     break;
+                case ModType.LogicMod:
+                    targetRel = rel; // already normalized to SB\Content\Paks\LogicMods\...
+                    break;
                 case ModType.IniTweak:
                     targetRel = Path.Combine("..", "..", "..", "..", "..", "..", "SB", "Saved", "Config", "WindowsNoEditor",
                         Path.GetFileName(rel));
@@ -188,6 +191,7 @@ public static class Deployer
                 HardLinked = useHardLink,
             };
             AppState.Instance.SaveDeployed();
+            Ue4ssConfig.Apply(mod, gameDir, enabled: true);
             Log.Info($"已启用模组 {mod.Name}，部署 {deployed.Count} 个文件 (hardlink={useHardLink})");
             return new DeployResult { Success = true, DeployedFiles = deployed };
         }
@@ -207,6 +211,21 @@ public static class Deployer
     {
         var state = AppState.Instance.Deployed;
         if (!state.Mods.Remove(modId, out var deployed)) return;
+
+        if (AppState.Instance.GameDir is { } gameDir)
+        {
+            var record = AppState.Instance.Library.FirstOrDefault(m => m.Id == modId);
+            if (record is not null)
+            {
+                Ue4ssConfig.Apply(record, gameDir, enabled: false);
+            }
+            else
+            {
+                // Library entry already gone: infer the UE4SS folder names from deployed paths.
+                Ue4ssConfig.ApplyFromPaths(deployed.Files, gameDir, enabled: false);
+            }
+        }
+
         foreach (var file in deployed.Files)
         {
             TryDelete(file);

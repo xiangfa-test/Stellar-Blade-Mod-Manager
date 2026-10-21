@@ -85,7 +85,12 @@ public static class ModImporter
             string Rel(string rel) => commonRoot is null ? rel : rel[(commonRoot.Length + 1)..];
 
             var stripped = overlayFromRaw ? relFiles : relFiles.Select(Rel).ToList();
-            var overlay = overlayFromRaw || IsGameRootOverlay(stripped);
+
+            // BPModLoader paks look like a game-root tree (Content\Paks\LogicMods) but belong to a
+            // dedicated type so they are not merged as a generic overlay.
+            var logicFiles = new List<string>();
+            var logicOnly = IsLogicModArchive(stripped, out logicFiles);
+            var overlay = !logicOnly && (overlayFromRaw || IsGameRootOverlay(stripped));
             if (overlayFromRaw)
             {
                 commonRoot = null; // files are already SB-relative
@@ -102,6 +107,16 @@ public static class ModImporter
 
             var recordFiles = pairs.Select(p => p.Record).ToList();
             var type = overlay ? ModType.GameRoot : DetectType(recordFiles);
+
+            // BPModLoader paks belong in Paks\LogicMods, not in ~mods.
+            if (logicOnly)
+            {
+                pairs = logicFiles
+                    .Select(f => (Source: f, Record: NormalizeLogicModRel(f)))
+                    .ToList();
+                recordFiles = pairs.Select(p => p.Record).ToList();
+                type = ModType.LogicMod;
+            }
 
             // Home-menu video mods (.bk2). Only take over a video-only archive, otherwise a pack
             // that happens to contain a bk2 would be split incorrectly.
@@ -277,6 +292,29 @@ public static class ModImporter
             newFiles.Add(newRel);
         }
         return newFiles;
+    }
+
+    private static bool IsLogicModPath(string rel)
+        => rel.Replace('/', '\\').Contains(@"\LogicMods\", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>True when the archive is only BPModLoader files (plus docs).</summary>
+    public static bool IsLogicModArchive(IReadOnlyList<string> files, out List<string> logicFiles)
+    {
+        logicFiles = files.Where(IsLogicModPath).ToList();
+        if (logicFiles.Count == 0) return false;
+        return files.Where(f => !IsLogicModPath(f)).All(IsDocumentationFile);
+    }
+
+    /// <summary>Normalize any LogicMods path to SB\Content\Paks\LogicMods\...</summary>
+    private static string NormalizeLogicModRel(string rel)
+    {
+        var normalized = rel.Replace('/', '\\');
+        var index = normalized.IndexOf(@"\LogicMods\", StringComparison.OrdinalIgnoreCase);
+        if (index >= 0)
+        {
+            return @"SB\Content\Paks" + normalized[index..];
+        }
+        return @"SB\Content\Paks\LogicMods\" + normalized;
     }
 
     private static bool HasPrefix(string value, string prefix)

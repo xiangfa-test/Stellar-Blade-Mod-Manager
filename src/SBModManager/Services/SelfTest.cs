@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using SBModManager.Models;
 using SharpCompress.Common;
 using SharpCompress.Writers;
@@ -300,6 +301,40 @@ public static class SelfTest
             Check("版本分组 GroupKey", ModImporter.NormalizeGroup("My Cool Mod v1.2.3") == "my cool mod",
                 ModImporter.NormalizeGroup("My Cool Mod v1.2.3"));
 
+            // 2c2) BPModLoader pak -> SB\Content\Paks\LogicMods
+            var logicZip = Path.Combine(AppPaths.TempRoot, "selftest-logicmod.zip");
+            if (File.Exists(logicZip)) File.Delete(logicZip);
+            using (var zip = ZipFile.Open(logicZip, ZipArchiveMode.Create))
+            {
+                void AddLogic(string entryName, string content)
+                {
+                    var entry = zip.CreateEntry(entryName);
+                    using var writer = new StreamWriter(entry.Open());
+                    writer.Write(content);
+                }
+
+                AddLogic("Content/Paks/LogicMods/BPMod_P.pak", "pak");
+                AddLogic("Content/Paks/LogicMods/BPMod.ucas", "ucas");
+                AddLogic("readme.txt", "BPModLoader pak");
+            }
+
+            var logicResult = ModImporter.ImportArchive(logicZip);
+            Check("逻辑模组包导入", logicResult.Mod is not null, logicResult.Error);
+            if (logicResult.Mod is { } logicMod)
+            {
+                madeMods.Add(logicMod);
+                Check("逻辑模组类型识别", logicMod.Type == ModType.LogicMod, logicMod.Type.ToString());
+                Check("逻辑模组路径规范化",
+                    logicMod.Files.All(f => f.StartsWith(@"SB\Content\Paks\LogicMods\",
+                        StringComparison.OrdinalIgnoreCase)),
+                    string.Join(",", logicMod.Files));
+                var logicDeploy = Deployer.Deploy(logicMod, gameDir, force: true);
+                var logicTarget = Path.Combine(gameDir, "SB", "Content", "Paks", "LogicMods", "BPMod_P.pak");
+                Check("逻辑模组部署到 LogicMods", logicDeploy.Success && File.Exists(logicTarget), logicTarget);
+                Deployer.Undeploy(logicMod.Id);
+                Check("逻辑模组停用后移除", !File.Exists(logicTarget));
+            }
+
             // 2d) home-menu video mods (.bk2 -> SB\Content\Movies)
             var videoZip = Path.Combine(AppPaths.TempRoot, "selftest-video.zip");
             if (File.Exists(videoZip)) File.Delete(videoZip);
@@ -447,11 +482,23 @@ public static class SelfTest
             {
                 madeMods.Add(scriptMod);
                 Check("UE4SS 类型识别", scriptMod.Type == ModType.Ue4ss, scriptMod.Type.ToString());
+
+                var modsDir = Deployer.Ue4ssModsDir(gameDir);
+                Directory.CreateDirectory(modsDir);
+                var modsJsonPath = Path.Combine(modsDir, "mods.json");
+                File.WriteAllText(modsJsonPath,
+                    "[ { \"mod_name\": \"CheatManagerEnablerMod\", \"mod_enabled\": true } ]");
+
                 var deploy = Deployer.Deploy(scriptMod, gameDir, force: false);
                 Check("UE4SS 模组部署成功", deploy.Success, deploy.Error);
                 var target = Path.Combine(Deployer.Ue4ssModsDir(gameDir), scriptMod.FolderName, "scripts", "main.lua");
                 Check("脚本文件出现在 ue4ss/Mods", File.Exists(target), target);
+                Check("UE4SS mods.json 记录为启用", ModEnabledInJson(modsJsonPath, scriptMod.FolderName) == true,
+                    File.Exists(modsJsonPath) ? File.ReadAllText(modsJsonPath) : "missing");
+
                 Deployer.Undeploy(scriptMod.Id);
+                Check("UE4SS mods.json 记录为停用", ModEnabledInJson(modsJsonPath, scriptMod.FolderName) == false,
+                    File.Exists(modsJsonPath) ? File.ReadAllText(modsJsonPath) : "missing");
             }
 
             // 3b) nxm:// parsing
@@ -619,4 +666,27 @@ public static class SelfTest
             Log.Info("自检结束: " + (failures == 0 ? "全部通过" : failures + " 项失败"));
         }
     }
+    private static bool? ModEnabledInJson(string path, string modName)
+    {
+        try
+        {
+            if (!File.Exists(path)) return null;
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            foreach (var entry in doc.RootElement.EnumerateArray())
+            {
+                if (entry.TryGetProperty("mod_name", out var name) &&
+                    string.Equals(name.GetString(), modName, StringComparison.OrdinalIgnoreCase) &&
+                    entry.TryGetProperty("mod_enabled", out var enabled))
+                {
+                    return enabled.ValueKind == JsonValueKind.True;
+                }
+            }
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
 }
