@@ -221,7 +221,7 @@ public static class NexusService
     }
 
     /// <summary>Published mod name/version, used so Nexus downloads keep the page title.</summary>
-    public static async Task<(string Name, string Version)?> GetModInfoAsync(string domain, int modId,
+    public static async Task<(string Name, string Version, string PictureUrl)?> GetModInfoAsync(string domain, int modId,
         string apiKey, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(apiKey) || modId <= 0) return null;
@@ -238,7 +238,8 @@ public static class NexusService
             using var doc = JsonDocument.Parse(body);
             var name = GetString(doc.RootElement, "name");
             var version = GetString(doc.RootElement, "version");
-            return string.IsNullOrWhiteSpace(name) ? null : (name, version);
+            var picture = GetString(doc.RootElement, "picture_url");
+            return string.IsNullOrWhiteSpace(name) ? null : (name, version, picture);
         }
         catch (Exception ex)
         {

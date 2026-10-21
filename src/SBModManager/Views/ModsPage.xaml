@@ -103,6 +103,7 @@
                         <MenuFlyoutItem Click="OpenLibraryFolder_Click" Text="打开模组库" />
                         <MenuFlyoutItem Click="OpenGameFolder_Click" Text="打开游戏目录" />
                         <MenuFlyoutItem Click="CheckAllUpdates_Click" Text="检查模组更新" />
+                        <MenuFlyoutItem Click="RenameNexusNames_Click" Text="从 N 网补全模组名称" />
                         <MenuFlyoutItem Click="ShowConflicts_Click" Text="冲突链分析" />
                         <MenuFlyoutItem Click="ShowAssetConflicts_Click" Text="资源级冲突分析（实验）" />
                         <MenuFlyoutItem Click="RedeployInOrder_Click" Text="按加载顺序重建部署" />
@@ -270,6 +271,12 @@
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap" />
                                 <Image
+                                    x:Name="DetailNexusThumb"
+                                    MaxHeight="160"
+                                    HorizontalAlignment="Left"
+                                    Stretch="Uniform"
+                                    Visibility="Collapsed" />
+                                <Image
                                     x:Name="DetailPreview"
                                     MaxHeight="180"
                                     HorizontalAlignment="Left"
@@ -325,6 +332,17 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Button Click="EditMeta_Click" Content="标签 / 备注" />
                                     <Button Click="CheckOneUpdate_Click" Content="检查更新" />
+                                    <Button
+                                        x:Name="UpdateModButton"
+                                        Click="UpdateMod_Click"
+                                        Content="下载并更新"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        Visibility="Collapsed" />
+                                    <Button
+                                        x:Name="NexusPageButton"
+                                        Click="OpenNexusPage_Click"
+                                        Content="Nexus 页面"
+                                        Visibility="Collapsed" />
                                 </StackPanel>
 
                                 <TextBlock

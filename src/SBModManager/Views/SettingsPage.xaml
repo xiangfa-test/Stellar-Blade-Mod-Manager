@@ -216,6 +216,31 @@
                 </StackPanel>
             </Border>
 
+            <!--  ===== 窗口 =====  -->
+            <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="窗口" />
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid Style="{StaticResource SettingsRowStyle}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Grid.Column="0" Glyph="&#xE740;" Style="{StaticResource SettingsRowIconStyle}" />
+                    <StackPanel Grid.Column="1" Spacing="0">
+                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="窗口大小" />
+                        <TextBlock
+                            Style="{StaticResource SettingsRowDescriptionStyle}"
+                            Text="恢复为默认大小（1280 × 820），并清除已记住的尺寸。" />
+                    </StackPanel>
+                    <Button
+                        Grid.Column="2"
+                        Click="ResetWindowSize_Click"
+                        Content="重置为默认大小"
+                        VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+
             <!--  ===== 网络与集成 =====  -->
             <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="网络与集成" />
 

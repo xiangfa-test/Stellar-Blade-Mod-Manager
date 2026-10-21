@@ -196,6 +196,14 @@ public static class SelfTest
             ProfileStore.Delete(profile.Id);
             Check("方案删除", ProfileStore.LoadAll().All(p => p.Id != profile.Id));
 
+            // 1e) nexus helpers
+            Check("识别通用文件名", ModUpdater.IsGenericName("nxm-976-4217") &&
+                ModUpdater.IsGenericName("file 4217") &&
+                !ModUpdater.IsGenericName("Eve Off Duty CNS"));
+            var nexusRecord = new ModRecord { NexusModId = 976, NexusDomain = "stellarblade" };
+            Check("生成 Nexus 页面地址",
+                nexusRecord.NexusPageUrl.Contains("/stellarblade/mods/976"), nexusRecord.NexusPageUrl);
+
             // 2) Loose mod import + deploy
             var looseZip = Path.Combine(AppPaths.TempRoot, "selftest-loose.zip");
             if (File.Exists(looseZip)) File.Delete(looseZip);

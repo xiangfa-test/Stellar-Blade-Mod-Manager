@@ -694,6 +694,23 @@ public sealed partial class ModsPage : Page
         DetailCns.Visibility = DetailCns.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         DetailNotes.Text = string.IsNullOrWhiteSpace(item.Record.Notes) ? "" : "备注: " + item.Record.Notes;
         DetailPriority.Text = $"加载顺序 {item.PriorityText}";
+        UpdateModButton.Visibility = item.Record.UpdateAvailable ? Visibility.Visible : Visibility.Collapsed;
+        NexusPageButton.Visibility = item.Record.NexusModId is > 0 ? Visibility.Visible : Visibility.Collapsed;
+        DetailNexusThumb.Source = null;
+        DetailNexusThumb.Visibility = Visibility.Collapsed;
+        if (!string.IsNullOrWhiteSpace(item.Record.NexusThumbnailUrl))
+        {
+            try
+            {
+                DetailNexusThumb.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(
+                    new Uri(item.Record.NexusThumbnailUrl));
+                DetailNexusThumb.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("加载 Nexus 缩略图失败: " + ex.Message);
+            }
+        }
         DetailUpdate.Text = item.Record.UpdateAvailable
             ? $"可更新: {item.Record.VersionLabel} → {item.Record.LatestVersion}"
             : (item.Record.LastCheckedAt is { } checkedAt
@@ -1399,6 +1416,84 @@ public sealed partial class ModsPage : Page
         await dialog.ShowAsync();
     }
 
+    private async void UpdateMod_Click(object sender, RoutedEventArgs e)
+    {
+        if (ModList.SelectedItem is not ModItem item) return;
+        var record = item.Record;
+        if (record.NexusModId is not > 0)
+        {
+            ShowMessage(InfoBarSeverity.Warning, "无法更新", "这个模组没有 Nexus 模组 ID。");
+            return;
+        }
+
+        var confirm = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "下载并更新",
+            Content = $"将从 Nexus 下载最新主文件并替换「{record.Name}」。\n标签、备注、加载顺序和启用状态会保留。",
+            PrimaryButtonText = "更新",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+
+        SetBusy(true);
+        try
+        {
+            var progress = new Progress<string>(text => ShowMessage(InfoBarSeverity.Informational, "更新中", text));
+            var updated = await ModUpdater.UpdateAsync(record, State.Config.NexusApiKey ?? "",
+                State.Config.NexusApiKey, progress);
+            Reload();
+            ShowMessage(InfoBarSeverity.Success, "更新完成",
+                $"「{updated.Name}」已更新到 {updated.VersionLabel}。");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("模组更新失败", ex);
+            ShowMessage(InfoBarSeverity.Error, "更新失败", ex.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+            Reload();
+        }
+    }
+
+    private async void OpenNexusPage_Click(object sender, RoutedEventArgs e)
+    {
+        if (ModList.SelectedItem is not ModItem item) return;
+        var url = item.Record.NexusPageUrl;
+        if (string.IsNullOrWhiteSpace(url)) return;
+        await Windows.System.Launcher.LaunchUriAsync(new Uri(url));
+    }
+
+    private async void RenameNexusNames_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(State.Config.NexusApiKey))
+        {
+            ShowMessage(InfoBarSeverity.Warning, "缺少 Nexus API Key", "请先在「设置」中填写 Nexus API Key。");
+            return;
+        }
+
+        SetBusy(true);
+        try
+        {
+            var renamed = await ModUpdater.RenameGenericAsync();
+            Reload();
+            ShowMessage(renamed > 0 ? InfoBarSeverity.Success : InfoBarSeverity.Informational,
+                "补全名称", renamed > 0 ? $"已从 N 网补全 {renamed} 个模组的名称。" : "没有需要补全的模组。");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("补全 N 网名称失败", ex);
+            ShowMessage(InfoBarSeverity.Error, "补全失败", ex.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
     private void OpenLoadOrder_Click(object sender, RoutedEventArgs e)
         => (App.MainWindow as MainWindow)?.SelectPage("loadorder");
 
@@ -1512,6 +1607,10 @@ public sealed partial class ModsPage : Page
                     if (!string.IsNullOrWhiteSpace(info.Value.Version))
                     {
                         record.Version = info.Value.Version;
+                    }
+                    if (!string.IsNullOrWhiteSpace(info.Value.PictureUrl))
+                    {
+                        record.NexusThumbnailUrl = info.Value.PictureUrl;
                     }
                 }
             }

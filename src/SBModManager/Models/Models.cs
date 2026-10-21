@@ -61,6 +61,14 @@ public sealed class ModRecord
     /// <summary>Relative path (under the mod folder) of a preview image shipped with the mod.</summary>
     public string PreviewImage { get; set; } = "";
 
+    /// <summary>Nexus mod page thumbnail (https URL), filled when the mod has a Nexus id.</summary>
+    public string NexusThumbnailUrl { get; set; } = "";
+
+    [JsonIgnore]
+    public string NexusPageUrl => NexusModId is > 0
+        ? $"https://www.nexusmods.com/{NexusDomain ?? "stellarblade"}/mods/{NexusModId}"
+        : "";
+
     [JsonIgnore]
     public bool LooksCnsCompatible =>
         HasCnsContent || Name.Contains("CNS", StringComparison.OrdinalIgnoreCase) ||

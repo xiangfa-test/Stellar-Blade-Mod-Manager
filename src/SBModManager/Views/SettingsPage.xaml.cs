@@ -334,6 +334,27 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    private void ResetWindowSize_Click(object sender, RoutedEventArgs e)
+    {
+        State.Config.WindowWidth = 0;
+        State.Config.WindowHeight = 0;
+        State.Config.WindowSizePromptDone = true;
+        State.Config.RememberWindowSize = true;
+        State.SaveConfig();
+
+        if (App.MainWindow is { } window)
+        {
+            try
+            {
+                window.AppWindow.Resize(new Windows.Graphics.SizeInt32(1280, 820));
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("重置窗口大小失败: " + ex.Message);
+            }
+        }
+    }
+
     private void PakPrefix_Toggled(object sender, RoutedEventArgs e)
     {
         if (_loading) return;
