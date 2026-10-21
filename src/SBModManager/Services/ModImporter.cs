@@ -259,6 +259,7 @@ public static class ModImporter
             }
 
             CnsAnalyzer.Analyze(record);
+            record.PreviewImage = PickPreviewImage(record);
 
             ModStore.Save(record);
             Log.Info($"已导入模组 [{record.Name}] 类型={record.Type} 文件数={record.Files.Count}");
@@ -362,6 +363,17 @@ public static class ModImporter
             return @"SB\Content\Paks" + normalized[index..];
         }
         return @"SB\Content\Paks\LogicMods\" + normalized;
+    }
+
+    /// <summary>First shipped image that is not part of the game tree (screenshots/cover).</summary>
+    private static string PickPreviewImage(ModRecord record)
+    {
+        var images = record.Files
+            .Where(f => !IsGameTreeFile(f))
+            .Where(f => Path.GetExtension(f).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".webp" or ".gif")
+            .OrderBy(f => f.Length)
+            .ToList();
+        return images.FirstOrDefault() ?? "";
     }
 
     private static bool HasPrefix(string value, string prefix)

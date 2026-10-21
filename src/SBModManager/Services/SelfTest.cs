@@ -161,6 +161,41 @@ public static class SelfTest
                     string.Join(",", fomodMod.Files));
             }
 
+            // 1d) preview image + .utoc asset list + profiles roundtrip
+            var previewZip = Path.Combine(AppPaths.TempRoot, "selftest-preview.zip");
+            if (File.Exists(previewZip)) File.Delete(previewZip);
+            using (var zip = ZipFile.Open(previewZip, ZipArchiveMode.Create))
+            {
+                void AddPreview(string entryName, string content)
+                {
+                    var entry = zip.CreateEntry(entryName);
+                    using var writer = new StreamWriter(entry.Open());
+                    writer.Write(content);
+                }
+
+                AddPreview("preview.png", "PNG");
+                AddPreview("Animations/Test.utoc", "junk PC_TestAsset.uasset junk");
+            }
+
+            var previewResult = ModImporter.ImportArchive(previewZip);
+            Check("预览图与资源清单包导入", previewResult.Mod is not null, previewResult.Error);
+            if (previewResult.Mod is { } previewMod)
+            {
+                madeMods.Add(previewMod);
+                Check("识别预览图", previewMod.PreviewImage.EndsWith("preview.png", StringComparison.OrdinalIgnoreCase),
+                    previewMod.PreviewImage);
+                var assets = PakInspector.GetAssetNames(previewMod);
+                Check("解析 utoc 资源名", assets.Contains("PC_TestAsset.uasset"), string.Join(",", assets));
+            }
+
+            var profile = ProfileStore.Capture("selftest-profile");
+            ProfileStore.Save(profile);
+            var loadedProfile = ProfileStore.LoadAll().FirstOrDefault(p => p.Id == profile.Id);
+            Check("方案保存/读取", loadedProfile is { } lp && lp.Name == "selftest-profile" &&
+                lp.Entries.Count == AppState.Instance.Library.Count);
+            ProfileStore.Delete(profile.Id);
+            Check("方案删除", ProfileStore.LoadAll().All(p => p.Id != profile.Id));
+
             // 2) Loose mod import + deploy
             var looseZip = Path.Combine(AppPaths.TempRoot, "selftest-loose.zip");
             if (File.Exists(looseZip)) File.Delete(looseZip);

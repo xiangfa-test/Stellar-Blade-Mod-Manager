@@ -665,6 +665,24 @@ public sealed partial class ModsPage : Page
         DetailMeta.Text = item.ImportedText + "   ·   " + item.FileCountText +
                           (State.IsEnabled(item.Record.Id) ? "   ·   当前已部署" : "");
         DetailSource.Text = string.IsNullOrWhiteSpace(item.SourceText) ? "" : "来源: " + item.SourceText;
+        DetailPreview.Source = null;
+        DetailPreview.Visibility = Visibility.Collapsed;
+        if (!string.IsNullOrWhiteSpace(item.Record.PreviewImage))
+        {
+            var previewPath = Path.Combine(item.Record.ModDir, item.Record.PreviewImage);
+            if (File.Exists(previewPath))
+            {
+                try
+                {
+                    DetailPreview.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(previewPath));
+                    DetailPreview.Visibility = Visibility.Visible;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("加载预览图失败: " + ex.Message);
+                }
+            }
+        }
         DetailTargetsText.Text = string.Join(Environment.NewLine, item.TargetPaths);
         DetailTags.Text = item.Record.Tags.Count == 0 ? "标签: （未设置）" : "标签: " + string.Join(" · ", item.Record.Tags);
         var cnsParts = new List<string>();
@@ -1325,6 +1343,62 @@ public sealed partial class ModsPage : Page
         _ = dialog.ShowAsync();
     }
 
+    private async void ShowAssetConflicts_Click(object sender, RoutedEventArgs e)
+    {
+        var enabled = State.Library.Where(m => State.IsEnabled(m.Id)).ToList();
+        if (enabled.Count == 0)
+        {
+            ShowMessage(InfoBarSeverity.Informational, "没有已启用的模组", "先启用模组再分析。");
+            return;
+        }
+
+        var progressDialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "资源级冲突分析",
+            Content = new TextBlock { Text = "正在读取 pak 的 .utoc 资源清单…", TextWrapping = TextWrapping.Wrap },
+            CloseButtonText = "取消",
+        };
+        _ = progressDialog.ShowAsync();
+
+        var conflicts = await Task.Run(() => PakInspector.FindConflicts(enabled));
+        progressDialog.Hide();
+
+        if (conflicts.Count == 0)
+        {
+            await ShowInfoDialogAsync("资源级冲突分析",
+                "没有发现同名资源。\n\n注意：这是近似分析，只读取 .utoc 中明文存在的资源名；" +
+                "加密或压缩的 TOC 无法解析。");
+            return;
+        }
+
+        var lines = conflicts
+            .OrderByDescending(kv => kv.Value.Count)
+            .ThenBy(kv => kv.Key)
+            .Take(50)
+            .Select(kv => $"• {kv.Key}\n    {string.Join(" / ", kv.Value.Distinct())}");
+        await ShowInfoDialogAsync("资源级冲突分析",
+            $"发现 {conflicts.Count} 个资源被多个模组包含（显示前 50 个）：\n\n" +
+            string.Join("\n", lines) +
+            "\n\n后加载的模组会覆盖前面的资源（可用 PAK 顺序前缀控制）。");
+    }
+
+    private async Task ShowInfoDialogAsync(string title, string message)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = title,
+            Content = new ScrollViewer
+            {
+                MaxHeight = 460,
+                Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
+            },
+            CloseButtonText = "好",
+        };
+        await dialog.ShowAsync();
+    }
+
     private void OpenLoadOrder_Click(object sender, RoutedEventArgs e)
         => (App.MainWindow as MainWindow)?.SelectPage("loadorder");
 
@@ -1426,6 +1500,21 @@ public sealed partial class ModsPage : Page
             record.NexusModId = link.ModId;
             record.NexusFileId = link.FileId;
             record.NexusDomain = domain;
+
+            // Keep the Nexus page title instead of the archive filename.
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                var info = await NexusService.GetModInfoAsync(domain, link.ModId, apiKey);
+                if (info is { Name.Length: > 0 })
+                {
+                    record.Name = info.Value.Name.Trim();
+                    record.GroupKey = ModImporter.NormalizeGroup(record.Name);
+                    if (!string.IsNullOrWhiteSpace(info.Value.Version))
+                    {
+                        record.Version = info.Value.Version;
+                    }
+                }
+            }
             if (string.IsNullOrWhiteSpace(record.Version)) record.Version = "file " + link.FileId;
             CollectionInstaller.TagAsLocal(record);
             ModStore.Save(record);

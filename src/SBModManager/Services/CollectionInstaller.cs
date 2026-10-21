@@ -215,6 +215,11 @@ public static class CollectionInstaller
                 }
 
                 var record = imported.Mod;
+                if (!string.IsNullOrWhiteSpace(mod.DisplayName))
+                {
+                    record.Name = mod.DisplayName.Trim();
+                    record.GroupKey = ModImporter.NormalizeGroup(record.Name);
+                }
                 record.NexusModId = mod.ModId;
                 record.NexusFileId = mod.FileId;
                 record.NexusDomain = collection.GameDomain;

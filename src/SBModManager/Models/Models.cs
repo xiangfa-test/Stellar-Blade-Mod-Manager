@@ -58,6 +58,9 @@ public sealed class ModRecord
     /// <summary>Requirements declared by the CNS json (anything other than "None").</summary>
     public List<string> CnsRequirements { get; set; } = new();
 
+    /// <summary>Relative path (under the mod folder) of a preview image shipped with the mod.</summary>
+    public string PreviewImage { get; set; } = "";
+
     [JsonIgnore]
     public bool LooksCnsCompatible =>
         HasCnsContent || Name.Contains("CNS", StringComparison.OrdinalIgnoreCase) ||
@@ -156,6 +159,12 @@ public sealed class AppConfig
 
     /// <summary>Check GitHub for a new app release when the app starts.</summary>
     public bool AutoCheckUpdates { get; set; } = true;
+
+    /// <summary>Remember the window size between runs (asked after the first manual resize).</summary>
+    public bool RememberWindowSize { get; set; } = true;
+    public bool WindowSizePromptDone { get; set; }
+    public double WindowWidth { get; set; }
+    public double WindowHeight { get; set; }
 
     /// <summary>One-time migration for packs that should merge into the game root.</summary>
     public bool GameRootOverlayMigrated { get; set; }

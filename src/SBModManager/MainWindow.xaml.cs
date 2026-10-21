@@ -34,6 +34,7 @@ public sealed partial class MainWindow : Window
 
         ApplyConfiguredTheme();
         ApplyTitleBarTheme();
+        AttachSizeMemory();
         RootGrid.ActualThemeChanged += (_, _) => ApplyTitleBarTheme();
         Activated += (_, _) => ApplyCaptionInsets();
 
@@ -195,6 +196,94 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _resizeTimer;
+    private bool _applyingSavedSize;
+
+    private void AttachSizeMemory()
+    {
+        var config = Services.AppState.Instance.Config;
+        if (config.RememberWindowSize && config.WindowWidth >= 640 && config.WindowHeight >= 480)
+        {
+            try
+            {
+                AppWindow.Resize(new Windows.Graphics.SizeInt32(
+                    (int)config.WindowWidth, (int)config.WindowHeight));
+                _applyingSavedSize = true;
+            }
+            catch (Exception ex)
+            {
+                Services.Log.Warn("恢复窗口大小失败: " + ex.Message);
+            }
+        }
+
+        AppWindow.Changed += (_, args) =>
+        {
+            if (!args.DidSizeChange) return;
+            _resizeTimer ??= CreateResizeTimer();
+            _resizeTimer.Stop();
+            _resizeTimer.Start();
+        };
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateResizeTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(700);
+        timer.IsRepeating = false;
+        timer.Tick += (_, _) => OnWindowResized();
+        return timer;
+    }
+
+    private void OnWindowResized()
+    {
+        var state = Services.AppState.Instance;
+        var config = state.Config;
+        var size = AppWindow.Size;
+
+        if (config.RememberWindowSize)
+        {
+            config.WindowWidth = size.Width;
+            config.WindowHeight = size.Height;
+            state.SaveConfig();
+        }
+
+        if (_applyingSavedSize)
+        {
+            _applyingSavedSize = false;
+            return;
+        }
+
+        if (!config.WindowSizePromptDone)
+        {
+            _ = PromptWindowSizeAsync(size);
+        }
+    }
+
+    private async Task PromptWindowSizeAsync(Windows.Graphics.SizeInt32 size)
+    {
+        var state = Services.AppState.Instance;
+        if (state.Config.WindowSizePromptDone) return;
+        state.Config.WindowSizePromptDone = true;
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = RootGrid.XamlRoot,
+            Title = "记住窗口大小？",
+            Content = $"下次启动时使用当前窗口大小（{size.Width} × {size.Height}）吗？",
+            PrimaryButtonText = "记住",
+            CloseButtonText = "不记住",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        var result = await dialog.ShowAsync();
+        state.Config.RememberWindowSize = result == ContentDialogResult.Primary;
+        if (state.Config.RememberWindowSize)
+        {
+            state.Config.WindowWidth = size.Width;
+            state.Config.WindowHeight = size.Height;
+        }
+        state.SaveConfig();
+    }
+
     private void ApplyConfiguredTheme()
     {
         RootGrid.RequestedTheme = Services.AppState.Instance.Config.Theme switch
@@ -330,6 +419,7 @@ public sealed partial class MainWindow : Window
         {
             "collections" => typeof(CollectionsPage),
             "loadorder" => typeof(LoadOrderPage),
+            "profiles" => typeof(ProfilesPage),
             "runtime" => typeof(RuntimePage),
             "settings" => typeof(SettingsPage),
             "about" => typeof(AboutPage),
@@ -374,6 +464,7 @@ public sealed partial class MainWindow : Window
             "mods" => typeof(ModsPage),
             "collections" => typeof(CollectionsPage),
             "loadorder" => typeof(LoadOrderPage),
+            "profiles" => typeof(ProfilesPage),
             "runtime" => typeof(RuntimePage),
             "settings" => typeof(SettingsPage),
             "about" => typeof(AboutPage),

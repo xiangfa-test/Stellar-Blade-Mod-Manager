@@ -220,6 +220,33 @@ public static class NexusService
         return (slugMatch.Groups[1].Value.ToLowerInvariant(), "stellarblade");
     }
 
+    /// <summary>Published mod name/version, used so Nexus downloads keep the page title.</summary>
+    public static async Task<(string Name, string Version)?> GetModInfoAsync(string domain, int modId,
+        string apiKey, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey) || modId <= 0) return null;
+        try
+        {
+            var url = $"https://api.nexusmods.com/v1/games/{Uri.EscapeDataString(domain)}/mods/{modId}.json";
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.TryAddWithoutValidation("apikey", apiKey);
+            request.Headers.UserAgent.ParseAdd("SBModManager/1.9");
+            request.Headers.Accept.ParseAdd("application/json");
+            using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
+            var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode) return null;
+            using var doc = JsonDocument.Parse(body);
+            var name = GetString(doc.RootElement, "name");
+            var version = GetString(doc.RootElement, "version");
+            return string.IsNullOrWhiteSpace(name) ? null : (name, version);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("获取 Nexus 模组信息失败: " + ex.Message);
+            return null;
+        }
+    }
+
     public static async Task<List<NexusFileInfo>> GetFilesAsync(string domain, int modId, string apiKey,
         CancellationToken ct = default)
     {

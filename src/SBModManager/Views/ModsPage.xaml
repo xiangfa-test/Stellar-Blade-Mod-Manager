@@ -104,6 +104,7 @@
                         <MenuFlyoutItem Click="OpenGameFolder_Click" Text="打开游戏目录" />
                         <MenuFlyoutItem Click="CheckAllUpdates_Click" Text="检查模组更新" />
                         <MenuFlyoutItem Click="ShowConflicts_Click" Text="冲突链分析" />
+                        <MenuFlyoutItem Click="ShowAssetConflicts_Click" Text="资源级冲突分析（实验）" />
                         <MenuFlyoutItem Click="RedeployInOrder_Click" Text="按加载顺序重建部署" />
                         <MenuFlyoutItem Click="OpenLoadOrder_Click" Text="打开加载顺序页…" />
                         <MenuFlyoutItem Click="EditMeta_Click" Text="编辑标签 / 备注…" />
@@ -268,6 +269,12 @@
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap" />
+                                <Image
+                                    x:Name="DetailPreview"
+                                    MaxHeight="180"
+                                    HorizontalAlignment="Left"
+                                    Stretch="Uniform"
+                                    Visibility="Collapsed" />
 
                                 <StackPanel
                                     x:Name="VersionPanel"
