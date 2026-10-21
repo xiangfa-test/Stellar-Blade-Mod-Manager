@@ -839,11 +839,165 @@ public sealed partial class ModsPage : Page
             return;
         }
 
-        var tagsBox = new TextBox
+        var localTag = CollectionInstaller.LocalTag;
+        var tags = new List<string>(item.Record.Tags);
+
+        // Existing user tags across the library, most used first, for one-click adding.
+        var suggestions = State.Library
+            .SelectMany(r => r.Tags)
+            .Where(t => !string.IsNullOrWhiteSpace(t) &&
+                        !t.StartsWith("合集:", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(t => t, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count())
+            .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.Key)
+            .Take(16)
+            .ToList();
+
+        var tagPanel = new StackPanel { Spacing = 4 };
+        var suggestPanel = new StackPanel { Spacing = 6 };
+        var tagInput = new TextBox
         {
-            Text = string.Join(", ", item.Record.Tags),
-            PlaceholderText = "用逗号分隔，例如：服装, NSFW, 替换",
+            PlaceholderText = "输入标签后按回车添加，例如：服装",
         };
+        var tagHint = new TextBlock
+        {
+            Text = "「" + localTag + "」是默认合集标签，不可移除；其它标签点 × 删除。",
+            TextWrapping = TextWrapping.Wrap,
+            Style = ResourceStyle("CaptionTextBlockStyle"),
+            Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
+        };
+
+        void AddTag(string raw)
+        {
+            var text = (raw ?? "").Trim();
+            if (text.Length == 0) return;
+            if (text.Length > 24) text = text[..24];
+            if (!tags.Any(t => string.Equals(t, text, StringComparison.OrdinalIgnoreCase)))
+            {
+                tags.Add(text);
+            }
+        }
+
+        void RebuildSuggestions()
+        {
+            suggestPanel.Children.Clear();
+            var available = suggestions
+                .Where(t => !tags.Any(x => string.Equals(x, t, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+            if (available.Count == 0)
+            {
+                suggestPanel.Children.Add(new TextBlock
+                {
+                    Text = "（暂无其它可用标签）",
+                    Style = ResourceStyle("CaptionTextBlockStyle"),
+                    Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
+                });
+                return;
+            }
+
+            // Lay the quick-add buttons out in rows of four.
+            for (var i = 0; i < available.Count; i += 4)
+            {
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                foreach (var tag in available.Skip(i).Take(4))
+                {
+                    var add = new Button
+                    {
+                        Content = "+ " + tag,
+                        Padding = new Thickness(8, 2, 8, 2),
+                        FontSize = 12,
+                    };
+                    add.Click += (_, _) =>
+                    {
+                        AddTag(tag);
+                        RebuildChips();
+                    };
+                    row.Children.Add(add);
+                }
+                suggestPanel.Children.Add(row);
+            }
+        }
+
+        void RebuildChips()
+        {
+            tagPanel.Children.Clear();
+            if (tags.Count == 0)
+            {
+                tagPanel.Children.Add(new TextBlock
+                {
+                    Text = "（还没有标签，输入后按回车添加）",
+                    Style = ResourceStyle("CaptionTextBlockStyle"),
+                    Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
+                });
+            }
+
+            foreach (var tag in tags.ToList())
+            {
+                var isLocal = string.Equals(tag, localTag, StringComparison.OrdinalIgnoreCase);
+
+                var chipRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                chipRow.Children.Add(new TextBlock { Text = tag, VerticalAlignment = VerticalAlignment.Center });
+
+                if (isLocal)
+                {
+                    chipRow.Children.Add(new TextBlock
+                    {
+                        Text = "默认",
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Style = ResourceStyle("CaptionTextBlockStyle"),
+                        Foreground = ResourceBrush("TextFillColorTertiaryBrush"),
+                    });
+                }
+                else
+                {
+                    var remove = new Button
+                    {
+                        Content = new FontIcon { Glyph = "\uE711", FontSize = 10 },
+                        Padding = new Thickness(4, 2, 4, 2),
+                        Background = null,
+                        BorderThickness = new Thickness(0),
+                        VerticalAlignment = VerticalAlignment.Center,
+                    };
+                    ToolTipService.SetToolTip(remove, "移除标签");
+                    remove.Click += (_, _) =>
+                    {
+                        tags.Remove(tag);
+                        RebuildChips();
+                    };
+                    chipRow.Children.Add(remove);
+                }
+
+                tagPanel.Children.Add(new Border
+                {
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Padding = new Thickness(10, 4, 10, 4),
+                    CornerRadius = new CornerRadius(12),
+                    BorderThickness = new Thickness(1),
+                    BorderBrush = ResourceBrush("CardStrokeColorDefaultBrush"),
+                    Background = ResourceBrush("SubtleFillColorSecondaryBrush"),
+                    Child = chipRow,
+                });
+            }
+
+            RebuildSuggestions();
+        }
+
+        tagInput.KeyDown += (_, args) =>
+        {
+            if (args.Key != Windows.System.VirtualKey.Enter)
+            {
+                return;
+            }
+
+            args.Handled = true;
+            AddTag(tagInput.Text);
+            tagInput.Text = "";
+            RebuildChips();
+        };
+
+        RebuildChips();
+
         var notesBox = new TextBox
         {
             Text = item.Record.Notes,
@@ -852,9 +1006,14 @@ public sealed partial class ModsPage : Page
             TextWrapping = TextWrapping.Wrap,
             PlaceholderText = "自定义备注（仅本地保存）",
         };
+
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock { Text = "标签" });
-        panel.Children.Add(tagsBox);
+        panel.Children.Add(tagPanel);
+        panel.Children.Add(tagInput);
+        panel.Children.Add(tagHint);
+        panel.Children.Add(new TextBlock { Text = "快速添加已有标签" });
+        panel.Children.Add(suggestPanel);
         panel.Children.Add(new TextBlock { Text = "备注" });
         panel.Children.Add(notesBox);
 
@@ -862,19 +1021,21 @@ public sealed partial class ModsPage : Page
         {
             XamlRoot = XamlRoot,
             Title = "编辑标签 / 备注",
-            Content = panel,
+            Content = new ScrollViewer { MaxHeight = 480, Content = panel },
             PrimaryButtonText = "保存",
             CloseButtonText = "取消",
             DefaultButton = ContentDialogButton.Primary,
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
 
-        item.Record.Tags = tagsBox.Text
-            .Split(new[] { ',', '，' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(t => t.Trim())
-            .Where(t => t.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        // The default local collection tag is part of the collection membership and is kept.
+        if (item.Record.Tags.Any(t => string.Equals(t, localTag, StringComparison.OrdinalIgnoreCase)) &&
+            !tags.Any(t => string.Equals(t, localTag, StringComparison.OrdinalIgnoreCase)))
+        {
+            tags.Insert(0, localTag);
+        }
+
+        item.Record.Tags = tags;
         item.Record.Notes = notesBox.Text.Trim();
         ModStore.Save(item.Record);
         item.Refresh();

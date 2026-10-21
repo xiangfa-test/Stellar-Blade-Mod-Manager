@@ -2,7 +2,7 @@
 
 一个用 **WinUI 3 + .NET 8 + Windows App SDK 1.8** 写的《Stellar Blade（剑星）》模组管理器。
 原生 Fluent / Mica 界面，支持亮暗主题，所有操作都有中文说明。
-当前版本 **v1.5.1**：修复 GitHub 检查 403（改为不依赖 API 配额）、修复 CNS 基础包这类「无 SB 前缀」压缩包未生效并自动迁移旧记录；包含独立加载顺序页、UE4SS 安装、`SB/` 根目录包合并、Windows 设置风格界面、内置 7z/RAR 解压、合集、更新检查、多版本、标签/备注、冲突链分析。
+当前版本 **v1.5.2**：标签编辑改为标签芯片 + 回车添加 + 快速添加已有标签，「本地安装」默认标签不可移除；包含无 SB 前缀包合并与旧记录迁移、GitHub 检查、独立加载顺序页、UE4SS 安装、Windows 设置风格界面、内置 7z/RAR 解压、合集、更新检查、多版本、冲突链分析。
 
 ![模组管理](docs/screenshots/mods.png)
 ![合集](docs/screenshots/collections.png)
@@ -18,7 +18,8 @@
   按官方手动步骤把 `ue4ss` 文件夹与 `dwmapi.dll` 放到 `SB\Binaries\Win64`，安装后自动校验，也可以检查版本。
 - **模组更新检查**：配置 Nexus API Key 后，可对带 Nexus 模组 ID 的模组一键检查更新。
 - **多版本管理**：同名模组的多个版本会归入同一组，详情面板用「已安装版本」下拉切换，启用一个版本会自动停用同组其它版本。
-- **标签与备注**：每个模组可自定义标签和备注，列表中直接显示标签，可按标签搜索。
+- **标签与备注**：每个模组可自定义标签和备注，列表中直接显示标签，可按标签搜索；编辑时标签以芯片展示，
+  输入文字按回车添加、点 × 删除，并可一键快速添加库里已有的标签；「合集:本地安装」是默认合集标签，不可移除。
 - **CNS 适配**：`.dekcns.json` / `.dekani.json` 会被识别为 CNS 外观模组，自动部署到
   `SB\Content\Paks\~mods\CustomNanosuitSystem\` 下并保留 Animations / Cosmetics 目录结构。
 - **游戏根目录合并**：压缩包内自带 `SB/` 目录、或者直接以 `Binaries/`、`Content/` 开头（例如 Custom Nanosuit System 基础包、UE4SS 脚本合集）时，

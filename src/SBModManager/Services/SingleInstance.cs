@@ -60,7 +60,10 @@ public static class SingleInstance
     /// <summary>Try to become the primary instance. When another instance is alive, this is false.</summary>
     public static void Acquire(bool waitForElevatedHandoff, string[] args, string? nxmUrl)
     {
-        var name = $"Local\\SBModManager-{Environment.UserName}";
+        // Optional suffix lets a second portable copy run next to the installed one
+        // (also used by the UI tests to avoid forwarding into an already running instance).
+        var suffix = Environment.GetEnvironmentVariable("SBMM_INSTANCE_SUFFIX") ?? "";
+        var name = $"Local\\SBModManager-{Environment.UserName}{suffix}";
         var attempts = waitForElevatedHandoff ? 12 : 1;
         for (var attempt = 0; attempt < attempts; attempt++)
         {
