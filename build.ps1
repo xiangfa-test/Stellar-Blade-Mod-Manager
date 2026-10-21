@@ -65,6 +65,11 @@ try {
     Copy-Item (Join-Path $binDir "*") $outDir -Recurse -Force -Exclude "SBMM-Data"
     # Never ship a data folder that leaked into the build output directory.
     if (Test-Path (Join-Path $outDir "SBMM-Data")) { Remove-Item (Join-Path $outDir "SBMM-Data") -Recurse -Force }
+    # Drop screenshot artifacts accidentally written next to the exe during UI tests.
+    foreach ($stray in @("navcol.png", "shot.png", "screenshot.png")) {
+        $path = Join-Path $outDir $stray
+        if (Test-Path $path) { Remove-Item $path -Force }
+    }
     if ($hasData) { Move-Item $stash $portableData -Force }
 
     # Drop stale empty language folders left behind by earlier self-contained builds.
