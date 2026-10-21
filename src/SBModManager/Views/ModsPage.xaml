@@ -78,14 +78,28 @@
                 <FontIcon Glyph="&#xE72C;" />
             </Button>
 
-            <AutoSuggestBox
-                x:Name="SearchBox"
+            <StackPanel
                 Grid.Column="4"
-                Width="190"
                 HorizontalAlignment="Right"
-                PlaceholderText="搜索模组…"
-                QueryIcon="Find"
-                TextChanged="Search_TextChanged" />
+                Orientation="Horizontal"
+                Spacing="8">
+                <ComboBox
+                    x:Name="RoleFilter"
+                    Width="120"
+                    PlaceholderText="角色"
+                    SelectionChanged="Filter_Changed" />
+                <ComboBox
+                    x:Name="TypeFilter"
+                    Width="132"
+                    PlaceholderText="服装类型"
+                    SelectionChanged="Filter_Changed" />
+                <AutoSuggestBox
+                    x:Name="SearchBox"
+                    Width="190"
+                    PlaceholderText="搜索模组…"
+                    QueryIcon="Find"
+                    TextChanged="Search_TextChanged" />
+            </StackPanel>
 
             <ProgressRing
                 x:Name="BusyRing"

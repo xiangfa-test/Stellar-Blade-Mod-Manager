@@ -150,6 +150,7 @@ public sealed partial class ModsPage : Page
     private void Reload()
     {
         State.ReloadLibrary();
+        UpdateCnsFilters();
         RebuildMods();
         RebuildExternals();
         UpdateHeader();
@@ -207,6 +208,18 @@ public sealed partial class ModsPage : Page
                 !record.DisplayType.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !record.CnsSummary.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !record.Tags.Any(t => t.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            if (RoleFilter.SelectedItem is string role && !role.StartsWith("全部") &&
+                !record.CnsCharacters.Contains(role, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (TypeFilter.SelectedItem is string outfitType && !outfitType.StartsWith("全部") &&
+                !record.CnsOutfitTypes.Contains(outfitType, StringComparer.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -855,6 +868,46 @@ public sealed partial class ModsPage : Page
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
         {
             RebuildMods();
+        }
+    }
+
+    private void Filter_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressFilterRebuild) return;
+        RebuildMods();
+    }
+
+    private bool _suppressFilterRebuild;
+
+    private void UpdateCnsFilters()
+    {
+        _suppressFilterRebuild = true;
+        try
+        {
+            var selectedRole = RoleFilter.SelectedItem as string;
+            var selectedType = TypeFilter.SelectedItem as string;
+
+            var roles = State.Library.SelectMany(r => r.CnsCharacters)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(r => r, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var types = State.Library.SelectMany(r => r.CnsOutfitTypes)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            RoleFilter.ItemsSource = new[] { "全部角色" }.Concat(roles).ToList();
+            TypeFilter.ItemsSource = new[] { "全部类型" }.Concat(types).ToList();
+            RoleFilter.SelectedItem = selectedRole is not null && roles.Contains(selectedRole, StringComparer.OrdinalIgnoreCase)
+                ? selectedRole
+                : "全部角色";
+            TypeFilter.SelectedItem = selectedType is not null && types.Contains(selectedType, StringComparer.OrdinalIgnoreCase)
+                ? selectedType
+                : "全部类型";
+        }
+        finally
+        {
+            _suppressFilterRebuild = false;
         }
     }
 
