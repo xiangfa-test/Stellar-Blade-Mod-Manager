@@ -31,6 +31,81 @@
                 </StackPanel>
             </Border>
 
+            <!--  Network & integrations  -->
+            <Border
+                Padding="20"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+                <StackPanel Spacing="14">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="网络与集成" />
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Nexus Mods API Key" />
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="用于「检查更新」以及 nxm:// 链接的直链下载（需要 Premium 账号）。在 Nexus 账户设置中生成 Personal API Key。"
+                            TextWrapping="Wrap" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox
+                                x:Name="NexusKeyBox"
+                                Grid.Column="0"
+                                PlaceholderText="粘贴 API Key（仅保存在本机配置）" />
+                            <Button
+                                Grid.Column="1"
+                                Click="SaveNexusKey_Click"
+                                Content="保存" />
+                        </Grid>
+                    </StackPanel>
+
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="启动时请求管理员权限" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="默认开启：启动时通过 UAC 以管理员身份重新运行，避免写入游戏目录/读取受保护目录被拒绝。"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <ToggleSwitch
+                            x:Name="ElevateToggle"
+                            Grid.Column="1"
+                            MinWidth="0"
+                            Toggled="Elevate_Toggled" />
+                    </Grid>
+
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="接管 nxm:// 链接（临时替代 Vortex）" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="开启后，Nexus 的「Mod Manager Download」按钮会交给本工具处理；关闭时恢复之前的处理程序。"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <ToggleSwitch
+                            x:Name="NxmToggle"
+                            Grid.Column="1"
+                            MinWidth="0"
+                            Toggled="Nxm_Toggled" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <!--  Deploy options  -->
             <Border
                 Padding="20"

@@ -51,6 +51,9 @@ public static class Deployer
                 case ModType.Loose:
                     targetRel = Path.Combine("SB", "Content", "Paks", "~mods", mod.FolderName, rel);
                     break;
+                case ModType.Cns:
+                    targetRel = Path.Combine("SB", "Content", "Paks", "~mods", "CustomNanosuitSystem", StripCnsPrefix(rel));
+                    break;
                 case ModType.Ue4ss:
                     targetRel = Path.Combine("SB", "Binaries", "Win64", "ue4ss", "Mods", mod.FolderName, rel);
                     break;
@@ -70,6 +73,18 @@ public static class Deployer
             list.Add((src, Path.Combine(gameDir, targetRel)));
         }
         return list;
+    }
+
+    private static string StripCnsPrefix(string rel)
+    {
+        foreach (var prefix in new[] { @"CustomNanosuitSystem\", @"~mods\CustomNanosuitSystem\" })
+        {
+            if (rel.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return rel[prefix.Length..];
+            }
+        }
+        return rel;
     }
 
     private static string StripRuntimePrefix(string rel)
@@ -136,6 +151,13 @@ public static class Deployer
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 if (File.Exists(target))
                 {
+                    var previousOwner = DeployingModOf(target);
+                    if (force && previousOwner is not null && previousOwner != mod.Id
+                        && state.Mods.TryGetValue(previousOwner, out var previousDeployment))
+                    {
+                        previousDeployment.Files.RemoveAll(f =>
+                            string.Equals(f, target, StringComparison.OrdinalIgnoreCase));
+                    }
                     File.Delete(target);
                 }
                 if (useHardLink)
@@ -278,6 +300,94 @@ public static class Deployer
             TryDelete(f);
         }
         Log.Info($"已删除外部文件组: {external.Name}");
+    }
+
+    /// <summary>Build a readable conflict graph across currently enabled mods.</summary>
+    public static ConflictReport BuildConflictReport(string gameDir)
+    {
+        var state = AppState.Instance;
+        var enabled = state.Library.Where(m => state.IsEnabled(m.Id)).ToList();
+        var byFile = new Dictionary<string, List<ModRecord>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var mod in enabled)
+        {
+            try
+            {
+                foreach (var (_, target) in ComputeTargets(mod, gameDir))
+                {
+                    if (!byFile.TryGetValue(target, out var list))
+                    {
+                        list = new List<ModRecord>();
+                        byFile[target] = list;
+                    }
+                    list.Add(mod);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("冲突分析失败: " + mod.Name + " " + ex.Message);
+            }
+        }
+
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var chains = new List<ConflictChain>();
+        foreach (var (file, mods) in byFile)
+        {
+            if (mods.Count < 2) continue;
+            var ordered = mods.OrderBy(m => m.Priority).ThenBy(m => m.Name).ToList();
+            chains.Add(new ConflictChain
+            {
+                TargetPath = file,
+                Mods = ordered.Select(m => m.Name).ToList(),
+            });
+            foreach (var mod in ordered)
+            {
+                counts.TryGetValue(mod.Id, out var c);
+                counts[mod.Id] = c + 1;
+            }
+        }
+
+        var threshold = Math.Max(2, AppState.Instance.Config.HighConflictThreshold);
+        var stats = counts
+            .Select(kv => new ModConflictStat
+            {
+                ModId = kv.Key,
+                ModName = state.Library.FirstOrDefault(m => m.Id == kv.Key)?.Name ?? kv.Key,
+                ConflictCount = kv.Value,
+                IsHigh = kv.Value >= threshold,
+            })
+            .OrderByDescending(s => s.ConflictCount)
+            .ToList();
+
+        return new ConflictReport
+        {
+            Chains = chains.OrderByDescending(c => c.Mods.Count).ThenBy(c => c.TargetPath).ToList(),
+            HighConflictMods = stats,
+        };
+    }
+
+    /// <summary>Undeploy and re-deploy every enabled mod in load-order priority.</summary>
+    public static (int Deployed, int Failed) RedeployAll(string gameDir)
+    {
+        var state = AppState.Instance;
+        var enabled = state.Library.Where(m => state.IsEnabled(m.Id))
+            .OrderBy(m => m.Priority).ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        foreach (var mod in enabled)
+        {
+            Undeploy(mod.Id);
+        }
+
+        var ok = 0;
+        var failed = 0;
+        foreach (var mod in enabled)
+        {
+            var result = Deploy(mod, gameDir, force: true);
+            if (result.Success) ok++;
+            else failed++;
+        }
+        Log.Info($"按加载顺序重建部署: 成功 {ok}，失败 {failed}");
+        return (ok, failed);
     }
 
     public static bool IsUe4ssInstalled(string gameDir)

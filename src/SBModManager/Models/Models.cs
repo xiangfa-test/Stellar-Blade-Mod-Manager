@@ -10,6 +10,8 @@ public enum ModType
     Ue4ss,
     Ue4ssRuntime,
     IniTweak,
+    /// <summary>Dekita CustomNanosuitSystem addon (.dekcns.json / .dekani.json).</summary>
+    Cns,
 }
 
 public sealed class ModRecord
@@ -29,6 +31,23 @@ public sealed class ModRecord
     public List<string> Files { get; set; } = new();
     public bool Favorite { get; set; }
 
+    /// <summary>Normalized name used to group multiple installed versions of the same mod.</summary>
+    public string GroupKey { get; set; } = "";
+
+    public List<string> Tags { get; set; } = new();
+    public string Notes { get; set; } = "";
+
+    /// <summary>Load-order priority: lower values deploy first, higher values win file conflicts.</summary>
+    public int Priority { get; set; }
+
+    public int? NexusModId { get; set; }
+    public int? NexusFileId { get; set; }
+    public string? NexusDomain { get; set; }
+
+    public string? LatestVersion { get; set; }
+    public bool UpdateAvailable { get; set; }
+    public DateTimeOffset? LastCheckedAt { get; set; }
+
     [JsonIgnore]
     public string ModDir => Services.AppPaths.ModDir(Id);
 
@@ -40,8 +59,12 @@ public sealed class ModRecord
         ModType.Ue4ss => "UE4SS 模组",
         ModType.Ue4ssRuntime => "UE4SS 运行库",
         ModType.IniTweak => "INI 配置",
+        ModType.Cns => "CNS 外观",
         _ => "未知",
     };
+
+    [JsonIgnore]
+    public string VersionLabel => string.IsNullOrWhiteSpace(Version) ? "未标注版本" : "v" + Version.TrimStart('v', 'V');
 }
 
 public sealed class AppConfig
@@ -53,6 +76,25 @@ public sealed class AppConfig
     public string LaunchMode { get; set; } = "steam";
     public bool ConfirmOverwrite { get; set; } = true;
     public string Theme { get; set; } = "system";
+
+    /// <summary>Nexus Mods personal API key (used for update checks and nxm:// downloads).</summary>
+    public string? NexusApiKey { get; set; }
+
+    public string NexusGameDomain { get; set; } = "stellarblade";
+
+    /// <summary>Ask for administrator rights on startup (relaunches itself elevated).</summary>
+    public bool ElevateOnStartup { get; set; } = true;
+
+    /// <summary>Register this app as the handler for nxm:// links (replaces Vortex temporarily).</summary>
+    public bool HandleNxmLinks { get; set; }
+
+    /// <summary>Previous HKCU value of nxm\shell\open\command, kept so it can be restored.</summary>
+    public string? PreviousNxmHandler { get; set; }
+
+    /// <summary>Conflict count at which a mod is labelled as a high-conflict ("high debt") mod.</summary>
+    public int HighConflictThreshold { get; set; } = 3;
+
+    public string Ue4ssRepository { get; set; } = "Chrisr0/RE-UE4SS";
 }
 
 public sealed class DeployState
@@ -81,4 +123,41 @@ public sealed class ImportResult
     public ModRecord? Mod { get; init; }
     public string? Error { get; init; }
     public bool IsExternal { get; init; }
+}
+
+/// <summary>Flattened conflict report used by the conflict-chain visualisation.</summary>
+public sealed class ConflictReport
+{
+    public List<ConflictChain> Chains { get; init; } = new();
+    public List<ModConflictStat> HighConflictMods { get; init; } = new();
+    public int ConflictFileCount => Chains.Count;
+}
+
+public sealed class ConflictChain
+{
+    public required string TargetPath { get; init; }
+    /// <summary>Mod names ordered by load priority (last one wins).</summary>
+    public List<string> Mods { get; init; } = new();
+    public string DisplayPath => TargetPath;
+    public string ChainText => string.Join("  →  ", Mods);
+}
+
+public sealed class ModConflictStat
+{
+    public required string ModId { get; init; }
+    public required string ModName { get; init; }
+    public int ConflictCount { get; init; }
+    public bool IsHigh { get; init; }
+}
+
+public sealed class UpdateInfo
+{
+    public required string ModId { get; init; }
+    public required string ModName { get; init; }
+    public string? CurrentVersion { get; init; }
+    public string? LatestVersion { get; init; }
+    public int? LatestFileId { get; init; }
+    public bool HasUpdate { get; init; }
+    public string? Error { get; init; }
+    public string? PageUrl { get; init; }
 }

@@ -2,6 +2,7 @@
 
 一个用 **WinUI 3 + .NET 8 + Windows App SDK 1.8** 写的《Stellar Blade（剑星）》模组管理器。
 原生 Fluent / Mica 界面，支持亮暗主题，所有操作都有中文说明。
+当前版本 **v1.1.0**：加入 UE4SS 一键安装、模组更新检查、nxm:// 接管、多版本管理、标签/备注、CNS 适配、冲突链分析与加载顺序。
 
 ![模组管理](docs/screenshots/mods.png)
 
@@ -9,6 +10,19 @@
 
 - **自动检测游戏**：读取 Steam 注册表与 `libraryfolders.vdf`，按 AppID `3489700` 找到游戏目录；也可手动选择。
 - **导入模组**：压缩包（`.zip` / `.7z` / `.rar`）、文件夹、或直接选 `.pak/.ucas/.utoc`；支持把文件/文件夹直接拖进窗口。
+- **UE4SS 一键安装**：在「运行环境」里直接下载 [Chrisr0/RE-UE4SS](https://github.com/Chrisr0/RE-UE4SS) 的最新 Release，
+  自动解压、识别为运行库并部署到 `SB\Binaries\Win64`，也可以检查本地安装版本。
+- **模组更新检查**：配置 Nexus API Key 后，可对带 Nexus 模组 ID 的模组一键检查更新。
+- **多版本管理**：同名模组的多个版本会归入同一组，详情面板用「已安装版本」下拉切换，启用一个版本会自动停用同组其它版本。
+- **标签与备注**：每个模组可自定义标签和备注，列表中直接显示标签，可按标签搜索。
+- **CNS 适配**：`.dekcns.json` / `.dekani.json` 会被识别为 CNS 外观模组，自动部署到
+  `SB\Content\Paks\~mods\CustomNanosuitSystem\` 下并保留 Animations / Cosmetics 目录结构。
+- **冲突链分析**：一键查看所有被多个已启用模组写入的文件，按加载顺序显示「A → B」覆盖链，
+  并标出高冲突模组（默认冲突 ≥ 3 个文件，可在配置里调整阈值）。
+- **加载顺序**：每个模组有加载优先级，可用 ↑/↓ 调整；「按加载顺序重建部署」会按顺序重新部署，
+  后面的模组覆盖前面的同名文件。
+- **nxm:// 接管**：可在设置里临时接管 Nexus 的「Mod Manager Download」链接（替代 Vortex），
+  收到链接后解析并尝试下载导入；关闭时恢复原来的处理程序。
 - **自动识别类型**，并部署到正确位置：
 
   | 类型 | 判定依据 | 部署位置 |
@@ -46,6 +60,8 @@ SBModManager.exe
 
 - 需要系统安装 **Windows App Runtime 1.8**（64 位）。本机已安装；换机器时如提示缺少运行时，
   安装 [Windows App SDK 1.8 Runtime](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads) 即可。
+- **默认以管理员身份运行**：为避免写入游戏目录或读取受保护目录被拒绝，启动时会通过 UAC 请求管理员权限。
+  不需要的话可以在「设置 → 网络与集成」关闭「启动时请求管理员权限」，或启动时加 `--no-elevate`。
 - 应用数据默认在 `%LOCALAPPDATA%\SBModManager`。如果该目录不可写（例如被安全软件拦截），
   会按顺序自动退回：`%USERPROFILE%\SBModManager` → exe 旁的 `SBMM-Data` → `%TEMP%\SBModManager`，
   并在设置页显示实际使用的数据目录。也可以显式指定：
@@ -56,6 +72,15 @@ SBModManager.exe
   ```
 
   > 真正失败时也会弹出错误框并写入 `crash.log`，不会再无提示退出。
+
+## UE4SS / Nexus 集成说明
+
+- UE4SS 下载地址固定为 [Chrisr0/RE-UE4SS](https://github.com/Chrisr0/RE-UE4SS) 的最新 Release，
+  自动跳过 `zDEV`、`zCustomGameConfigs`、`zMapGen` 等辅助压缩包，只取标准 UE4SS zip。
+- 更新检查与 nxm:// 直链下载需要 **Nexus API Key**：在 <https://www.nexusmods.com/users/myaccount?tab=api>
+  生成 Personal API Key 后填入「设置 → 网络与集成」。
+- Nexus 的 `download_link` 接口只对 **Premium** 账号返回直链；非 Premium 账号会收到 403，
+  工具会提示并给出模组页面链接。`nxm://` 接管是本地 HKCU 协议注册，可随时关闭并恢复原处理程序。
 
 ## 从源码编译
 
@@ -121,7 +146,8 @@ stellar-mod-manager/
 .\SBModManager.exe --selftest selftest.txt
 ```
 
-自检覆盖：PAK 导入/部署/停用、散装资源模组、UE4SS 脚本模组、外部文件扫描。
+自检覆盖：PAK 导入/部署/停用、散装资源模组、CNS 外观模组（`CustomNanosuitSystem` 路径）、UE4SS 脚本模组、
+版本分组键、nxm:// 链接解析、同名文件冲突链与高冲突统计、外部文件扫描。
 
 界面截图 / 回归：
 
@@ -141,4 +167,6 @@ stellar-mod-manager/
 - 冲突检测以“目标文件路径”为单位；PAK 之间更深层的资源覆盖由游戏加载顺序决定，本工具不做 pak 合并。
 - `.rar` / `.7z` 解压需要系统装有 7-Zip 或 Bandizip（会自动寻找常见安装路径）。
 - 只负责“文件部署”这一层；启用/停用前建议先退出游戏，避免文件被占用。
+- Nexus 更新检查只对通过 nxm:// 导入且带模组 ID 的模组有效；从普通 zip 导入的模组没有 ID，只能手动检查。
+- nxm:// 直链下载需要 Premium；非 Premium 账号请使用工具提供的「打开 Nexus 页面」回退方案。
 - 仅支持 Windows x64。

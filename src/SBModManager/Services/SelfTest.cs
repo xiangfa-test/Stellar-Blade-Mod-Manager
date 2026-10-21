@@ -79,6 +79,32 @@ public static class SelfTest
                 Check("资源模组停用后文件被移除", !File.Exists(target));
             }
 
+            // 2b) CNS addon detection + special deploy path
+            var cnsZip = Path.Combine(AppPaths.TempRoot, "selftest-cns.zip");
+            if (File.Exists(cnsZip)) File.Delete(cnsZip);
+            using (var zip = ZipFile.Open(cnsZip, ZipArchiveMode.Create))
+            {
+                var entry = zip.CreateEntry("CustomNanosuitSystem/Animations/TestOutfit.dekcns.json");
+                using var s = entry.Open();
+                s.Write(Encoding.UTF8.GetBytes("{}"));
+            }
+            var cnsResult = ModImporter.ImportArchive(cnsZip);
+            Check("CNS 模组导入成功", cnsResult.Mod is not null, cnsResult.Error);
+            if (cnsResult.Mod is { } cnsMod)
+            {
+                madeMods.Add(cnsMod);
+                Check("CNS 类型识别", cnsMod.Type == ModType.Cns, cnsMod.Type.ToString());
+                var deploy = Deployer.Deploy(cnsMod, gameDir, force: false);
+                Check("CNS 部署成功", deploy.Success, deploy.Error);
+                var target = Path.Combine(Deployer.PaksModsDir(gameDir), "CustomNanosuitSystem", "Animations", "TestOutfit.dekcns.json");
+                Check("CNS 文件进入 CustomNanosuitSystem", File.Exists(target), target);
+                Deployer.Undeploy(cnsMod.Id);
+            }
+
+            // 2c) version grouping key
+            Check("版本分组 GroupKey", ModImporter.NormalizeGroup("My Cool Mod v1.2.3") == "my cool mod",
+                ModImporter.NormalizeGroup("My Cool Mod v1.2.3"));
+
             // 3) UE4SS script mod detection
             var ue4ssZip = Path.Combine(AppPaths.TempRoot, "selftest-ue4ss.zip");
             if (File.Exists(ue4ssZip)) File.Delete(ue4ssZip);
@@ -99,6 +125,45 @@ public static class SelfTest
                 var target = Path.Combine(Deployer.Ue4ssModsDir(gameDir), ue4ssMod.FolderName, "scripts", "main.lua");
                 Check("脚本文件出现在 ue4ss/Mods", File.Exists(target), target);
                 Deployer.Undeploy(ue4ssMod.Id);
+            }
+
+            // 3b) nxm:// parsing
+            var nxmOk = NxmHandler.TryParse("nxm://stellarblade/mods/1234/files/5678?key=abc&expires=99", out var nxmLink)
+                        && nxmLink.Domain == "stellarblade" && nxmLink.ModId == 1234 && nxmLink.FileId == 5678;
+            Check("nxm 链接解析", nxmOk);
+
+            // 3c) conflict chain + high-conflict detection (two mods writing the same pak)
+            var dupA = Path.Combine(AppPaths.TempRoot, "selftest-dup-a.zip");
+            var dupB = Path.Combine(AppPaths.TempRoot, "selftest-dup-b.zip");
+            foreach (var f in new[] { dupA, dupB }) { if (File.Exists(f)) File.Delete(f); }
+            using (var zip = ZipFile.Open(dupA, ZipArchiveMode.Create))
+            {
+                var e = zip.CreateEntry("DupShared_P.pak");
+                using var s = e.Open();
+                s.Write(new byte[64]);
+            }
+            using (var zip = ZipFile.Open(dupB, ZipArchiveMode.Create))
+            {
+                var e = zip.CreateEntry("DupShared_P.pak");
+                using var s = e.Open();
+                s.Write(new byte[64]);
+            }
+            var modA = ModImporter.ImportArchive(dupA).Mod;
+            var modB = ModImporter.ImportArchive(dupB).Mod;
+            if (modA is not null && modB is not null)
+            {
+                AppState.Instance.ReloadLibrary();
+                madeMods.Add(modA);
+                madeMods.Add(modB);
+                var deployA = Deployer.Deploy(modA, gameDir, force: false);
+                var deployB = Deployer.Deploy(modB, gameDir, force: true);
+                Check("冲突模组可强制覆盖", deployA.Success && deployB.Success);
+                var conflictReport = Deployer.BuildConflictReport(gameDir);
+                Check("冲突链检测", conflictReport.Chains.Any(c => c.Mods.Contains(modA.Name) && c.Mods.Contains(modB.Name)),
+                    $"{conflictReport.Chains.Count} 条链");
+                Check("高冲突模组统计", conflictReport.HighConflictMods.Count >= 2);
+                Deployer.Undeploy(modA.Id);
+                Deployer.Undeploy(modB.Id);
             }
 
             // 4) External scan should not throw

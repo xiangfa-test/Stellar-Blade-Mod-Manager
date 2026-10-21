@@ -101,6 +101,10 @@
                         <MenuFlyoutItem Click="OpenModsFolder_Click" Text="打开 ~mods 目录" />
                         <MenuFlyoutItem Click="OpenLibraryFolder_Click" Text="打开模组库" />
                         <MenuFlyoutItem Click="OpenGameFolder_Click" Text="打开游戏目录" />
+                        <MenuFlyoutItem Click="CheckAllUpdates_Click" Text="检查模组更新" />
+                        <MenuFlyoutItem Click="ShowConflicts_Click" Text="冲突链分析" />
+                        <MenuFlyoutItem Click="RedeployInOrder_Click" Text="按加载顺序重建部署" />
+                        <MenuFlyoutItem Click="EditMeta_Click" Text="编辑标签 / 备注…" />
                         <MenuFlyoutSeparator />
                         <MenuFlyoutItem Click="OpenLogs_Click" Text="打开日志目录" />
                     </MenuFlyout>
@@ -175,6 +179,22 @@
                                         Style="{StaticResource CaptionTextBlockStyle}"
                                         Text="{x:Bind Subtitle}"
                                         TextTrimming="CharacterEllipsis" />
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock
+                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind TagsText}" />
+                                        <TextBlock
+                                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind UpdateText}"
+                                            Visibility="{x:Bind UpdateVisibility}" />
+                                        <TextBlock
+                                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind ConflictText}"
+                                            Visibility="{x:Bind ConflictVisibility}" />
+                                    </StackPanel>
                                 </StackPanel>
 
                                 <TextBlock
@@ -223,6 +243,51 @@
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap" />
+
+                                <StackPanel
+                                    x:Name="VersionPanel"
+                                    Orientation="Horizontal"
+                                    Spacing="8"
+                                    Visibility="Collapsed">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="已安装版本" />
+                                    <ComboBox
+                                        x:Name="VersionBox"
+                                        MinWidth="210"
+                                        DisplayMemberPath="VersionLabel"
+                                        SelectionChanged="VersionBox_SelectionChanged" />
+                                </StackPanel>
+
+                                <TextBlock
+                                    x:Name="DetailTags"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    TextWrapping="Wrap" />
+                                <TextBlock
+                                    x:Name="DetailNotes"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    TextWrapping="Wrap" />
+                                <TextBlock
+                                    x:Name="DetailUpdate"
+                                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Visibility="Collapsed" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock
+                                        x:Name="DetailPriority"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Style="{StaticResource CaptionTextBlockStyle}" />
+                                    <Button Click="MovePriorityUp_Click" Content="↑ 上移" />
+                                    <Button Click="MovePriorityDown_Click" Content="↓ 下移" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Click="EditMeta_Click" Content="标签 / 备注" />
+                                    <Button Click="CheckOneUpdate_Click" Content="检查更新" />
+                                </StackPanel>
 
                                 <TextBlock
                                     Margin="0,6,0,0"

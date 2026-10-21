@@ -102,6 +102,7 @@ public static class ModImporter
                 Type = type,
                 SourceName = sourceName,
                 FolderName = Sanitize(name),
+                GroupKey = NormalizeGroup(string.IsNullOrWhiteSpace(name) ? "未命名模组" : name),
                 Files = stripped,
             };
 
@@ -152,6 +153,10 @@ public static class ModImporter
         {
             return ModType.Pak;
         }
+        if (lower.Any(f => f.EndsWith(".dekcns.json") || f.EndsWith(".dekani.json")))
+        {
+            return ModType.Cns;
+        }
         if (lower.Any(f => f.EndsWith("dwmapi.dll") || f.EndsWith("xinput1_3.dll") || f.Contains(@"\ue4ss\")))
         {
             return ModType.Ue4ssRuntime;
@@ -175,6 +180,14 @@ public static class ModImporter
         {
             File.WriteAllText(Path.Combine(destDir, "enabled.txt"), "");
         }
+    }
+
+    /// <summary>Group key used to treat different installed versions as one mod.</summary>
+    public static string NormalizeGroup(string name)
+    {
+        var s = Regex.Replace(name, @"(?i)[\s_\-.]*(?:v)?\d+(?:\.\d+){1,3}[a-z]?[\s_\-.]*$", " ");
+        s = Regex.Replace(s, @"[\s_\-]+", " ").Trim().ToLowerInvariant();
+        return string.IsNullOrWhiteSpace(s) ? name.Trim().ToLowerInvariant() : s;
     }
 
     public static string Sanitize(string name)

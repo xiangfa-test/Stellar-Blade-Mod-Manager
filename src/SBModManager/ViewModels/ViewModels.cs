@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using SBModManager.Models;
+using Microsoft.UI.Xaml;
 using SBModManager.Services;
 
 namespace SBModManager.ViewModels;
@@ -108,6 +109,30 @@ public sealed class ModItem : ObservableObject
     }
 
     public string SourceText => string.IsNullOrWhiteSpace(Record.SourceName) ? "" : Record.SourceName;
+
+    public string VersionLabel => Record.VersionLabel;
+    public string TagsText => Record.Tags.Count == 0 ? "" : string.Join(" · ", Record.Tags);
+    public string NotesText => Record.Notes;
+    public string UpdateText => Record.UpdateAvailable
+        ? $"有更新{(string.IsNullOrWhiteSpace(Record.LatestVersion) ? "" : " → " + Record.LatestVersion)}"
+        : "";
+    public Visibility UpdateVisibility => Record.UpdateAvailable ? Visibility.Visible : Visibility.Collapsed;
+
+    public int Priority => Record.Priority;
+    public string PriorityText => $"#{Record.Priority}";
+
+    /// <summary>Filled by the mods page from the conflict report.</summary>
+    public int ConflictCount { get; set; }
+    public bool IsHighConflict { get; set; }
+    public string ConflictText => ConflictCount <= 0 ? "" : (IsHighConflict ? $"高冲突 ×{ConflictCount}" : $"冲突 ×{ConflictCount}");
+    public Visibility ConflictVisibility => ConflictCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public string ConflictBadgeBackground => IsHighConflict ? "#33C42B1C" : "#22FFB900";
+    public string ConflictBadgeForeground => IsHighConflict ? "#FFC42B1C" : "#FF9D5D00";
+
+    public void Refresh()
+    {
+        OnPropertyChanged(string.Empty);
+    }
 
     public static string FormatSize(long bytes)
     {

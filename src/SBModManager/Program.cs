@@ -1,14 +1,18 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Security.Principal;
 using System.Text;
+using System.Text.Json;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using SBModManager.Models;
 
 namespace SBModManager;
 
 /// <summary>
 /// Custom entry point instead of the XAML-generated one so that startup failures
 /// are recorded in crash.log (WinUI otherwise exits with a silent 0xC000027B).
-/// Supports --selftest, --screenshot, --page and --data-dir.
+/// Supports --selftest, --screenshot, --page, --data-dir, --nxm and --no-elevate.
 /// </summary>
 public static class Program
 {
@@ -29,6 +33,11 @@ public static class Program
 
     public static bool SelectFirst { get; private set; }
 
+    public static bool NoElevate { get; private set; }
+
+    /// <summary>nxm:// URL passed by the browser / Nexus "Mod Manager Download" button.</summary>
+    public static string? NxmUrl { get; private set; }
+
     [STAThread]
     private static void Main(string[] args)
     {
@@ -48,9 +57,25 @@ public static class Program
                 case "--data-dir" when i + 1 < args.Length:
                     DataDirOverride = args[++i];
                     break;
+                case "--nxm" when i + 1 < args.Length:
+                    NxmUrl = args[++i];
+                    break;
                 case "--select-first":
                     SelectFirst = true;
                     break;
+                case "--no-elevate":
+                    NoElevate = true;
+                    break;
+            }
+        }
+
+        // The user asked for administrator rights by default (the game folder and some
+        // security products block writes otherwise). Test modes never elevate.
+        if (ScreenshotPath is null && SelfTestPath is null && !NoElevate && !IsElevated() && ShouldElevate())
+        {
+            if (RelaunchElevated(args))
+            {
+                return;
             }
         }
 
@@ -82,6 +107,62 @@ public static class Program
             throw;
         }
     }
+
+    private static bool ShouldElevate()
+    {
+        try
+        {
+            var configPath = Services.AppPaths.ConfigFile;
+            if (!File.Exists(configPath)) return true;
+            var config = JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(configPath));
+            return config?.ElevateOnStartup ?? true;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static bool IsElevated()
+    {
+        try
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool RelaunchElevated(string[] args)
+    {
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(exe)) return false;
+            var arguments = string.Join(" ", args.Select(QuoteArgument));
+            Process.Start(new ProcessStartInfo(exe)
+            {
+                UseShellExecute = true,
+                Verb = "runas",
+                Arguments = arguments,
+            });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // User declined UAC or elevation is not available: continue without admin rights.
+            Trace("elevation cancelled/failed: " + ex.Message);
+            return false;
+        }
+    }
+
+    private static string QuoteArgument(string argument)
+        => argument.Contains(' ') || argument.Contains('"')
+            ? "\"" + argument.Replace("\"", "\\\"") + "\""
+            : argument;
 
     public static void Trace(string message)
     {
