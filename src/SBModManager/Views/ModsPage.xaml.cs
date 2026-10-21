@@ -261,8 +261,15 @@ public sealed partial class ModsPage : Page
             var result = ArchiveService.IsPakPart(path) && !ArchiveService.IsArchive(path)
                 ? ModImporter.ImportPakFiles(new[] { path })
                 : ModImporter.ImportArchive(path);
-            if (result.Mod is not null) imported++;
-            else errors.Add($"{Path.GetFileName(path)}: {result.Error}");
+            if (result.Mod is not null)
+            {
+                CollectionInstaller.TagAsLocal(result.Mod);
+                imported++;
+            }
+            else
+            {
+                errors.Add($"{Path.GetFileName(path)}: {result.Error}");
+            }
         }
         SetBusy(false);
         Reload();
@@ -281,6 +288,7 @@ public sealed partial class ModsPage : Page
         Reload();
         if (result.Mod is not null)
         {
+            CollectionInstaller.TagAsLocal(result.Mod);
             ShowMessage(InfoBarSeverity.Success, "导入完成", $"已导入「{result.Mod.Name}」（{result.Mod.DisplayType}）");
         }
         else
@@ -1050,6 +1058,7 @@ public sealed partial class ModsPage : Page
             record.NexusFileId = link.FileId;
             record.NexusDomain = domain;
             if (string.IsNullOrWhiteSpace(record.Version)) record.Version = "file " + link.FileId;
+            CollectionInstaller.TagAsLocal(record);
             ModStore.Save(record);
             Reload();
 

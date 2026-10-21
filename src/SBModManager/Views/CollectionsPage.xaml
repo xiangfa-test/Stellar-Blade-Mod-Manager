@@ -5,8 +5,11 @@
     xmlns:local="using:SBModManager.Views"
     NavigationCacheMode="Required">
 
-    <ScrollViewer Padding="24,8,24,24">
-        <StackPanel MaxWidth="920" HorizontalAlignment="Left" Spacing="12">
+    <ScrollViewer
+        Padding="24,8,24,24"
+        HorizontalContentAlignment="Stretch"
+        HorizontalScrollBarVisibility="Disabled">
+        <StackPanel HorizontalAlignment="Stretch" Spacing="12">
             <TextBlock Margin="0,4,0,8" Style="{StaticResource TitleTextBlockStyle}" Text="合集" />
             <TextBlock
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -214,11 +217,24 @@
                                             Style="{StaticResource CaptionTextBlockStyle}"
                                             Text="{x:Bind CountText}" />
                                     </StackPanel>
-                                    <Button
+                                    <StackPanel
                                         Grid.Column="1"
-                                        Click="FilterInstalled_Click"
-                                        Content="筛选模组"
-                                        Tag="{x:Bind Tag}" />
+                                        Orientation="Horizontal"
+                                        Spacing="6">
+                                        <Button
+                                            Click="ActivateInstalled_Click"
+                                            Content="启用"
+                                            Tag="{x:Bind Tag}"
+                                            ToolTipService.ToolTip="启用该合集，并停用其它合集（可在本地安装和他人合集之间切换）" />
+                                        <Button
+                                            Click="DeactivateInstalled_Click"
+                                            Content="停用"
+                                            Tag="{x:Bind Tag}" />
+                                        <Button
+                                            Click="FilterInstalled_Click"
+                                            Content="筛选"
+                                            Tag="{x:Bind Tag}" />
+                                    </StackPanel>
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>

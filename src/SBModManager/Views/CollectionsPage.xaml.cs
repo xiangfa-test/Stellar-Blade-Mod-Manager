@@ -388,7 +388,24 @@ public sealed partial class CollectionsPage : Page
     private void RefreshInstalled()
     {
         Installed.Clear();
-        foreach (var (tag, name, count) in CollectionInstaller.InstalledCollections())
+        var groups = CollectionInstaller.InstalledCollections();
+        var localCount = groups
+            .Where(g => string.Equals(g.Tag, CollectionInstaller.LocalTag, StringComparison.OrdinalIgnoreCase))
+            .Select(g => g.Count)
+            .FirstOrDefault();
+        var localEnabled = State.Library
+            .Where(r => r.Tags.Any(t => string.Equals(t, CollectionInstaller.LocalTag, StringComparison.OrdinalIgnoreCase)))
+            .Count(r => State.IsEnabled(r.Id));
+
+        // The built-in "local installs" collection is always present, even when empty.
+        Installed.Add(new InstalledCollectionRow
+        {
+            Tag = CollectionInstaller.LocalTag,
+            Name = "本地安装（自己导入的模组）",
+            CountText = $"{localCount} 个模组" + (localCount > 0 ? $"，已启用 {localEnabled}" : ""),
+        });
+        foreach (var (tag, name, count) in groups
+                     .Where(g => !string.Equals(g.Tag, CollectionInstaller.LocalTag, StringComparison.OrdinalIgnoreCase)))
         {
             Installed.Add(new InstalledCollectionRow
             {
@@ -397,8 +414,8 @@ public sealed partial class CollectionsPage : Page
                 CountText = $"{count} 个模组",
             });
         }
-        InstalledEmpty.Visibility = Installed.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        InstalledList.Visibility = Installed.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        InstalledEmpty.Visibility = Visibility.Collapsed;
+        InstalledList.Visibility = Visibility.Visible;
 
         Recent.Clear();
         foreach (var item in State.Config.RecentCollections)
@@ -434,6 +451,34 @@ public sealed partial class CollectionsPage : Page
         if (e.ClickedItem is not string value) return;
         UrlBox.Text = value;
         await ParseAsync(value);
+    }
+
+    private async void ActivateInstalled_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string tag } || string.IsNullOrWhiteSpace(tag)) return;
+
+        var (enabled, failed, errors) = CollectionInstaller.Activate(tag, exclusive: true);
+        RefreshInstalled();
+        var message = $"已启用「{tag["合集:".Length..]}」：{enabled} 个模组" +
+                      (failed > 0 ? $"，{failed} 个失败" : "") +
+                      "。其它合集的模组已停用。";
+        if (errors.Count > 0)
+        {
+            message += Environment.NewLine + string.Join(Environment.NewLine, errors.Take(6));
+        }
+        StatusLine.Text = message;
+        await Task.CompletedTask;
+    }
+
+    private async void DeactivateInstalled_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string tag } || string.IsNullOrWhiteSpace(tag)) return;
+
+        var (disabled, errors) = CollectionInstaller.Deactivate(tag);
+        RefreshInstalled();
+        StatusLine.Text = $"已停用「{tag["合集:".Length..]}」：{disabled} 个模组" +
+                          (errors.Count > 0 ? $"（{errors.Count} 个失败）" : "") + "。";
+        await Task.CompletedTask;
     }
 
     private void FilterInstalled_Click(object sender, RoutedEventArgs e)

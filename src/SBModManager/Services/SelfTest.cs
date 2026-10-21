@@ -192,6 +192,18 @@ public static class SelfTest
                                  && colLink.IsCollection && colLink.CollectionSlug == "n7zgom";
             Check("nxm 合集链接解析", collectionNxm);
             Check("合集标签生成", CollectionInstaller.TagFor(new NexusCollection { Name = "Demo" }) == "合集:Demo");
+
+            var localRecord = new ModRecord { Name = "selftest-local-tag" };
+            CollectionInstaller.TagAsLocal(localRecord);
+            Check("本地安装默认合集标签", localRecord.Tags.Contains(CollectionInstaller.LocalTag));
+
+            var foreignRecord = new ModRecord { Name = "selftest-foreign-tag", Tags = { "合集:别人的合集" } };
+            CollectionInstaller.TagAsLocal(foreignRecord);
+            Check("已有合集标签不改成本地", !foreignRecord.Tags.Contains(CollectionInstaller.LocalTag));
+
+            var deactivateEmpty = CollectionInstaller.Deactivate("合集:不存在的合集");
+            Check("停用不存在的合集不报错", deactivateEmpty.Disabled == 0);
+
             Check("nxm 免会员直链参数", linkUrl.Contains("key=abc") && linkUrl.Contains("expires=99"), linkUrl);
 
             // 3c) conflict chain + high-conflict detection (two mods writing the same pak)

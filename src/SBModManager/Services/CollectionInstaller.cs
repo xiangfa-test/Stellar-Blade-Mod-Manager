@@ -22,7 +22,99 @@ public sealed class CollectionInstallReport
 /// </summary>
 public static class CollectionInstaller
 {
+    /// <summary>Tag given to mods the user imported manually, so they can be switched back to.</summary>
+    public const string LocalTag = "合集:本地安装";
+
     public static string TagFor(NexusCollection collection) => "合集:" + collection.Name;
+
+    public static bool IsCollectionTag(string tag)
+        => tag.StartsWith("合集:", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Enable every mod of one collection, optionally disabling mods from other collections first.
+    /// This is the "switch back to my own mods" operation.
+    /// </summary>
+    public static (int Enabled, int Failed, List<string> Errors) Activate(string tag, bool exclusive)
+    {
+        var state = AppState.Instance;
+        var errors = new List<string>();
+        if (state.GameDir is not { } gameDir)
+        {
+            errors.Add("还没有设置游戏目录。");
+            return (0, 0, errors);
+        }
+
+        var target = state.Library
+            .Where(r => r.Tags.Any(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (exclusive)
+        {
+            foreach (var other in state.Library)
+            {
+                if (other.Tags.Any(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase))) continue;
+                if (!other.Tags.Any(IsCollectionTag)) continue;
+                if (state.IsEnabled(other.Id))
+                {
+                    Deployer.Undeploy(other.Id);
+                }
+            }
+        }
+
+        var enabled = 0;
+        foreach (var record in target)
+        {
+            if (state.IsEnabled(record.Id))
+            {
+                enabled++;
+                continue;
+            }
+            var result = Deployer.Deploy(record, gameDir, force: false);
+            if (result.Success)
+            {
+                enabled++;
+            }
+            else
+            {
+                errors.Add($"{record.Name}: {result.Error ?? "文件冲突"}");
+            }
+        }
+
+        state.ReloadLibrary();
+        return (enabled, errors.Count, errors);
+    }
+
+    public static (int Disabled, List<string> Errors) Deactivate(string tag)
+    {
+        var state = AppState.Instance;
+        var errors = new List<string>();
+        var disabled = 0;
+        foreach (var record in state.Library
+                     .Where(r => r.Tags.Any(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase)))
+                     .ToList())
+        {
+            if (!state.IsEnabled(record.Id)) continue;
+            try
+            {
+                Deployer.Undeploy(record.Id);
+                disabled++;
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{record.Name}: {ex.Message}");
+            }
+        }
+        state.ReloadLibrary();
+        return (disabled, errors);
+    }
+
+    /// <summary>Tag a manually imported mod as part of the local collection (unless it already has one).</summary>
+    public static void TagAsLocal(ModRecord record)
+    {
+        if (record.Tags.Any(IsCollectionTag)) return;
+        record.Tags.Add(LocalTag);
+        ModStore.Save(record);
+    }
 
     public static async Task<CollectionInstallReport> InstallAsync(
         NexusCollection collection,
