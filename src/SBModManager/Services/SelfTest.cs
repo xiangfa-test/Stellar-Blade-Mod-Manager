@@ -368,6 +368,98 @@ public static class SelfTest
                 Check("主页视频停用后移除", !File.Exists(videoTarget));
             }
 
+            // 2d2) overwriting a game file is backed up and restored on undeploy
+            var vanillaDir = Path.Combine(gameDir, "SB", "Content", "Movies");
+            Directory.CreateDirectory(vanillaDir);
+            var vanillaFile = Path.Combine(vanillaDir, "VanillaLoop.bk2");
+            File.WriteAllText(vanillaFile, "ORIGINAL");
+
+            var overrideZip = Path.Combine(AppPaths.TempRoot, "selftest-video-override.zip");
+            if (File.Exists(overrideZip)) File.Delete(overrideZip);
+            using (var zip = ZipFile.Open(overrideZip, ZipArchiveMode.Create))
+            {
+                var entry = zip.CreateEntry("VanillaLoop.bk2");
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write("MODDED");
+            }
+
+            var overrideResult = ModImporter.ImportArchive(overrideZip);
+            Check("覆盖视频包导入", overrideResult.Mod is not null, overrideResult.Error);
+            if (overrideResult.Mod is { } overrideMod)
+            {
+                madeMods.Add(overrideMod);
+                var overrideDeploy = Deployer.Deploy(overrideMod, gameDir, force: true);
+                Check("覆盖游戏文件部署成功", overrideDeploy.Success, overrideDeploy.Error);
+                Check("游戏文件已被替换", File.ReadAllText(vanillaFile) == "MODDED");
+
+                var backupDir = Path.Combine(AppPaths.BackupsRoot, overrideMod.Id);
+                var backupFiles = Directory.Exists(backupDir)
+                    ? Directory.EnumerateFiles(backupDir, "*", SearchOption.AllDirectories).ToList()
+                    : new List<string>();
+                Check("覆盖前已备份原文件", backupFiles.Count == 1 &&
+                    File.ReadAllText(backupFiles[0]) == "ORIGINAL", string.Join(",", backupFiles));
+
+                Deployer.Undeploy(overrideMod.Id);
+                Check("停用后恢复游戏原文件", File.Exists(vanillaFile) && File.ReadAllText(vanillaFile) == "ORIGINAL");
+                Check("备份目录已清理", !Directory.Exists(backupDir));
+            }
+            try
+            {
+                File.Delete(vanillaFile);
+            }
+            catch
+            {
+                // ignore
+            }
+
+            // 2d3) same-name PAK takeover: disabling the winner gives the file back to the loser
+            var pakAZip = Path.Combine(AppPaths.TempRoot, "selftest-samename-a.zip");
+            var pakBZip = Path.Combine(AppPaths.TempRoot, "selftest-samename-b.zip");
+            foreach (var path in new[] { pakAZip, pakBZip })
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+
+            using (var zip = ZipFile.Open(pakAZip, ZipArchiveMode.Create))
+            {
+                var entry = zip.CreateEntry("Conflict_P.pak");
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write("AAA");
+            }
+            using (var zip = ZipFile.Open(pakBZip, ZipArchiveMode.Create))
+            {
+                var entry = zip.CreateEntry("Conflict_P.pak");
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write("BBB");
+            }
+
+            var pakAResult = ModImporter.ImportArchive(pakAZip);
+            var pakBResult = ModImporter.ImportArchive(pakBZip);
+            Check("同名 PAK 两个包导入", pakAResult.Mod is not null && pakBResult.Mod is not null,
+                pakAResult.Error ?? pakBResult.Error);
+            if (pakAResult.Mod is { } pakA && pakBResult.Mod is { } pakB)
+            {
+                madeMods.Add(pakA);
+                madeMods.Add(pakB);
+                var sharedTarget = Path.Combine(Deployer.PaksModsDir(gameDir), "Conflict_P.pak");
+
+                Check("同名 PAK 先装 A", Deployer.Deploy(pakA, gameDir, force: true).Success &&
+                    File.ReadAllText(sharedTarget) == "AAA");
+                Check("同名 PAK 后装 B 覆盖", Deployer.Deploy(pakB, gameDir, force: true).Success &&
+                    File.ReadAllText(sharedTarget) == "BBB");
+
+                var takenOver = AppState.Instance.Deployed.Mods.TryGetValue(pakB.Id, out var pakBDeployment) &&
+                    pakBDeployment.Displaced.ContainsKey(sharedTarget);
+                Check("记录被覆盖的模组", takenOver);
+
+                Deployer.Undeploy(pakB.Id);
+                Check("停用赢家后恢复输家文件", File.Exists(sharedTarget) &&
+                    File.ReadAllText(sharedTarget) == "AAA");
+
+                Deployer.Undeploy(pakA.Id);
+                Check("停用全部后文件移除", !File.Exists(sharedTarget));
+            }
+
             // 2e) archive already using Content\Movies and the SB\Content\Movies tree
             var videoZip2 = Path.Combine(AppPaths.TempRoot, "selftest-video2.zip");
             if (File.Exists(videoZip2)) File.Delete(videoZip2);

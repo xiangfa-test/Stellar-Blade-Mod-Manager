@@ -168,6 +168,18 @@ public sealed class DeployedMod
     public List<string> Files { get; set; } = new();
     public DateTimeOffset DeployedAt { get; set; } = DateTimeOffset.Now;
     public bool HardLinked { get; set; }
+
+    /// <summary>Target path -> backup path for game files this mod overwrote (restored on undeploy).</summary>
+    public Dictionary<string, string> Backups { get; set; } = new();
+
+    /// <summary>Target path -> other mod id whose file this mod replaced (re-deployed when this mod is disabled).</summary>
+    public Dictionary<string, string> Displaced { get; set; } = new();
+
+    /// <summary>Target path -> library source of the displaced file, so restore works even after a restart.</summary>
+    public Dictionary<string, string> DisplacedSources { get; set; } = new();
+
+    /// <summary>Target path -> library source for every deployed file (used when restoring takeovers).</summary>
+    public Dictionary<string, string> Sources { get; set; } = new();
 }
 
 public sealed record DeployFile(string SourceRelPath, string TargetRelPath);

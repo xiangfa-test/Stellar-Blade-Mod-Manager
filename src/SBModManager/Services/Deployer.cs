@@ -147,6 +147,18 @@ public static class Deployer
         }
 
         var deployed = new List<string>();
+        var backups = state.Mods.TryGetValue(mod.Id, out var existingDeployment)
+            ? new Dictionary<string, string>(existingDeployment.Backups, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var displaced = existingDeployment is not null
+            ? new Dictionary<string, string>(existingDeployment.Displaced, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var displacedSources = existingDeployment is not null
+            ? new Dictionary<string, string>(existingDeployment.DisplacedSources, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var sources = existingDeployment is not null
+            ? new Dictionary<string, string>(existingDeployment.Sources, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         try
         {
             var useHardLink = AppState.Instance.Config.UseHardLinks && SameVolume(mod.ModDir, gameDir);
@@ -166,7 +178,38 @@ public static class Deployer
                     {
                         previousDeployment.Files.RemoveAll(f =>
                             string.Equals(f, target, StringComparison.OrdinalIgnoreCase));
+                        displaced[target] = previousOwner;
+                        string? previousSource = null;
+                        if (previousDeployment.Sources.TryGetValue(target, out var recordedSource))
+                        {
+                            previousSource = recordedSource;
+                        }
+                        if (string.IsNullOrEmpty(previousSource))
+                        {
+                            var previousRecord = AppState.Instance.Library.FirstOrDefault(m => m.Id == previousOwner);
+                            if (previousRecord is not null)
+                            {
+                                previousSource = ComputeTargets(previousRecord, gameDir)
+                                    .FirstOrDefault(t => string.Equals(t.Target, target, StringComparison.OrdinalIgnoreCase))
+                                    .Source;
+                            }
+                        }
+                        if (!string.IsNullOrEmpty(previousSource))
+                        {
+                            displacedSources[target] = previousSource;
+                        }
                     }
+
+                    // Untracked file = game / Vortex / manual file: keep a copy so undeploy can restore it.
+                    if (previousOwner is null && !backups.ContainsKey(target))
+                    {
+                        var backupPath = BackupFile(target, gameDir, mod.Id);
+                        if (backupPath is not null)
+                        {
+                            backups[target] = backupPath;
+                        }
+                    }
+
                     File.Delete(target);
                 }
                 if (useHardLink)
@@ -181,6 +224,7 @@ public static class Deployer
                     File.Copy(src, target, overwrite: true);
                 }
                 deployed.Add(target);
+                sources[target] = src;
                 progress?.Report($"部署 {targets.Count}/{targets.Count}... {Path.GetFileName(target)}");
             }
 
@@ -189,6 +233,10 @@ public static class Deployer
                 Files = deployed,
                 DeployedAt = DateTimeOffset.Now,
                 HardLinked = useHardLink,
+                Backups = backups,
+                Displaced = displaced,
+                DisplacedSources = displacedSources,
+                Sources = sources,
             };
             AppState.Instance.SaveDeployed();
             Ue4ssConfig.Apply(mod, gameDir, enabled: true);
@@ -203,6 +251,22 @@ public static class Deployer
             {
                 TryDelete(f);
             }
+            // put back game files that were already replaced during this attempt
+            foreach (var (target, backup) in backups)
+            {
+                try
+                {
+                    if (!File.Exists(backup)) continue;
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                    File.Copy(backup, target, overwrite: true);
+                    File.Delete(backup);
+                }
+                catch (Exception restoreError)
+                {
+                    Log.Warn($"回滚备份失败 {target}: {restoreError.Message}");
+                }
+            }
+            CleanupBackupDir(mod.Id);
             return new DeployResult { Success = false, Error = ex.Message };
         }
     }
@@ -230,8 +294,132 @@ public static class Deployer
         {
             TryDelete(file);
         }
+        RestoreBackups(modId, deployed, AppState.Instance.GameDir);
+        RestoreDisplaced(deployed);
         AppState.Instance.SaveDeployed();
         Log.Info($"已停用模组 {modId}，移除 {deployed.Files.Count} 个文件");
+    }
+
+    /// <summary>Copy an overwritten game file into the backup store before replacing it.</summary>
+    private static string? BackupFile(string target, string gameDir, string modId)
+    {
+        try
+        {
+            var rel = Path.GetRelativePath(gameDir, target);
+            if (rel.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(rel))
+            {
+                rel = Path.GetFileName(target);
+            }
+
+            var backup = Path.Combine(AppPaths.BackupsRoot, modId, rel);
+            Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
+            File.Copy(target, backup, overwrite: true);
+            Log.Info($"已备份游戏原文件: {target}");
+            return backup;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"备份游戏文件失败 {target}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>Put back files the mod replaced, unless another mod now owns that path.</summary>
+    private static void RestoreBackups(string modId, DeployedMod deployed, string? gameDir)
+    {
+        if (deployed.Backups.Count == 0) return;
+        foreach (var (target, backup) in deployed.Backups)
+        {
+            try
+            {
+                if (!File.Exists(backup)) continue;
+                var owner = DeployingModOf(target);
+                if (owner is not null && owner != modId)
+                {
+                    Log.Warn($"跳过恢复 {target}: 已被其它模组接管");
+                    continue;
+                }
+
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                if (File.Exists(target)) File.Delete(target);
+                File.Copy(backup, target, overwrite: true);
+                File.Delete(backup);
+                Log.Info($"已恢复游戏原文件: {target}");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"恢复游戏文件失败 {target}: {ex.Message}");
+            }
+        }
+
+        CleanupBackupDir(modId);
+    }
+
+    /// <summary>When this mod took over another mod's file, give it back if that mod is still enabled.</summary>
+    private static void RestoreDisplaced(DeployedMod deployed)
+    {
+        if (deployed.Displaced.Count == 0) return;
+        var state = AppState.Instance;
+        if (state.GameDir is not { } gameDir) return;
+
+        foreach (var (target, ownerId) in deployed.Displaced)
+        {
+            try
+            {
+                if (!state.IsEnabled(ownerId)) continue;
+                if (DeployingModOf(target) is not null) continue;
+
+                var owner = state.Library.FirstOrDefault(m => m.Id == ownerId);
+                var source = owner is not null
+                    ? ComputeTargets(owner, gameDir)
+                        .FirstOrDefault(t => string.Equals(t.Target, target, StringComparison.OrdinalIgnoreCase)).Source
+                    : null;
+                if (string.IsNullOrEmpty(source) &&
+                    deployed.DisplacedSources.TryGetValue(target, out var storedSource))
+                {
+                    source = storedSource;
+                }
+                if (string.IsNullOrEmpty(source) &&
+                    state.Deployed.Mods.TryGetValue(ownerId, out var ownerDeploymentNow) &&
+                    ownerDeploymentNow.Sources.TryGetValue(target, out var deployedSource))
+                {
+                    source = deployedSource;
+                }
+                if (string.IsNullOrEmpty(source) || !File.Exists(source)) continue;
+
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                File.Copy(source, target, overwrite: true);
+                if (state.Deployed.Mods.TryGetValue(ownerId, out var ownerDeployment) &&
+                    !ownerDeployment.Files.Contains(target, StringComparer.OrdinalIgnoreCase))
+                {
+                    ownerDeployment.Files.Add(target);
+                }
+                Log.Info($"已恢复被覆盖的模组文件: {owner.Name} -> {target}");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"恢复被覆盖文件失败 {target}: {ex.Message}");
+            }
+        }
+    }
+
+    private static void CleanupBackupDir(string modId)
+    {
+        try
+        {
+            var dir = Path.Combine(AppPaths.BackupsRoot, modId);
+            if (!Directory.Exists(dir)) return;
+            foreach (var sub in Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories)
+                         .OrderByDescending(p => p.Length))
+            {
+                if (!Directory.EnumerateFileSystemEntries(sub).Any()) Directory.Delete(sub);
+            }
+            if (!Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"清理备份目录失败: {ex.Message}");
+        }
     }
 
     private static void TryDelete(string file)
