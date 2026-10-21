@@ -55,6 +55,9 @@ public sealed class ModRecord
     /// <summary>Outfit categories advertised by CNS (Dress, Body, ...).</summary>
     public List<string> CnsOutfitTypes { get; set; } = new();
 
+    /// <summary>Requirements declared by the CNS json (anything other than "None").</summary>
+    public List<string> CnsRequirements { get; set; } = new();
+
     [JsonIgnore]
     public bool LooksCnsCompatible =>
         HasCnsContent || Name.Contains("CNS", StringComparison.OrdinalIgnoreCase) ||
@@ -112,6 +115,9 @@ public sealed class AppConfig
     public string? GameDir { get; set; }
     public string? LibraryDir { get; set; }
     public bool UseHardLinks { get; set; } = true;
+
+    /// <summary>Prefix PAK files with the load-order number so UE mounts them in that order.</summary>
+    public bool PakOrderPrefixEnabled { get; set; } = true;
     public bool AutoDetectGame { get; set; } = true;
     public string LaunchMode { get; set; } = "steam";
     public bool ConfirmOverwrite { get; set; } = true;

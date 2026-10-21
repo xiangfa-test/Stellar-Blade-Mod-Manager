@@ -112,6 +112,29 @@
                             <ComboBoxItem Content="直接运行 SB.exe" Tag="direct" />
                         </ComboBox>
                     </Grid>
+
+                    <Border Style="{StaticResource SettingsRowSeparatorStyle}" />
+
+                    <Grid Style="{StaticResource SettingsRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE8CB;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="PAK 加载顺序前缀" />
+                            <TextBlock
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="给 ~mods 里的 pak 加 0001_ 这类序号前缀，让加载顺序真正影响覆盖；改变后需点「应用顺序并重建部署」重新部署。" />
+                        </StackPanel>
+                        <ToggleSwitch
+                            x:Name="PakPrefixToggle"
+                            Grid.Column="2"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            Toggled="PakPrefix_Toggled" />
+                    </Grid>
                 </StackPanel>
             </Border>
 

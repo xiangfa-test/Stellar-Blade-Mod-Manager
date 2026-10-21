@@ -46,7 +46,8 @@ public static class Deployer
             switch (mod.Type)
             {
                 case ModType.Pak:
-                    targetRel = Path.Combine("SB", "Content", "Paks", "~mods", Path.GetFileName(rel));
+                    targetRel = Path.Combine("SB", "Content", "Paks", "~mods",
+                        PakFileName(mod, Path.GetFileName(rel)));
                     break;
                 case ModType.Loose:
                     targetRel = Path.Combine("SB", "Content", "Paks", "~mods", mod.FolderName, rel);
@@ -82,6 +83,17 @@ public static class Deployer
             list.Add((src, Path.Combine(gameDir, targetRel)));
         }
         return list;
+    }
+
+    /// <summary>
+    /// Prefix a pak basename with the mod's load-order number (0001_...) so UE mounts it in the
+    /// expected order; .pak / .ucas / .utoc must keep the same basename.
+    /// </summary>
+    public static string PakFileName(ModRecord mod, string fileName)
+    {
+        if (!AppState.Instance.Config.PakOrderPrefixEnabled) return fileName;
+        var priority = Math.Max(0, mod.Priority);
+        return priority.ToString("D4") + "_" + fileName;
     }
 
     private static string StripCnsPrefix(string rel)

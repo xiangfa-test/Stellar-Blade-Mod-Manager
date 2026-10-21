@@ -35,6 +35,7 @@ public static class CnsAnalyzer
 
         var fits = new List<string>();
         var types = new List<string>();
+        var requirements = new List<string>();
         var characters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var rel in jsonFiles)
@@ -54,12 +55,12 @@ public static class CnsAnalyzer
                 {
                     foreach (var item in doc.RootElement.EnumerateArray())
                     {
-                        ParseOutfit(item, fits, types, characters);
+                        ParseOutfit(item, fits, types, requirements, characters);
                     }
                 }
                 else if (doc.RootElement.ValueKind == JsonValueKind.Object)
                 {
-                    ParseOutfit(doc.RootElement, fits, types, characters);
+                    ParseOutfit(doc.RootElement, fits, types, requirements, characters);
                 }
             }
             catch (Exception ex)
@@ -78,18 +79,31 @@ public static class CnsAnalyzer
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(12)
             .ToList();
+        record.CnsRequirements = requirements
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
         record.CnsCharacters = characters
             .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
     private static void ParseOutfit(JsonElement item, List<string> fits, List<string> types,
-        HashSet<string> characters)
+        List<string> requirements, HashSet<string> characters)
     {
         var display = GetString(item, "DisplayName");
         var description = GetString(item, "Description");
         var fitId = GetString(item, "UniqueFitID");
         var meshType = GetString(item, "FitMeshType");
+
+        var requirement = GetString(item, "Requirement");
+        if (!string.IsNullOrWhiteSpace(requirement) &&
+            !requirement.Equals("None", StringComparison.OrdinalIgnoreCase) &&
+            !requirement.Equals("null", StringComparison.OrdinalIgnoreCase))
+        {
+            requirements.Add(requirement.Trim());
+        }
 
         if (!string.IsNullOrWhiteSpace(display)) fits.Add(display.Trim());
         if (!string.IsNullOrWhiteSpace(meshType)) types.Add(meshType.Trim());

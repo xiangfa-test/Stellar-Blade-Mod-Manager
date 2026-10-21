@@ -357,7 +357,7 @@ public sealed partial class ModsPage : Page
         {
             var result = ArchiveService.IsPakPart(path) && !ArchiveService.IsArchive(path)
                 ? ModImporter.ImportPakFiles(new[] { path })
-                : ModImporter.ImportArchive(path);
+                : await ModImporter.ImportArchiveAsync(path, ShowFomodDialogAsync);
             if (result.Mod is not null)
             {
                 CollectionInstaller.TagAsLocal(result.Mod);
@@ -378,6 +378,100 @@ public sealed partial class ModsPage : Page
         {
             ShowMessage(InfoBarSeverity.Warning, "部分文件导入失败", string.Join(Environment.NewLine, errors.Take(6)));
         }
+    }
+
+    /// <summary>Simple FOMOD option picker: radio for "exactly one", checkboxes for "any".</summary>
+    private async Task<IReadOnlyList<FomodPlugin>?> ShowFomodDialogAsync(FomodConfig config)
+    {
+        var panel = new StackPanel { Spacing = 10 };
+        var radios = new List<(FomodGroup Group, RadioButton Button, FomodPlugin Plugin)>();
+        var boxes = new List<(FomodPlugin Plugin, CheckBox Box)>();
+
+        foreach (var step in config.Steps)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = string.IsNullOrWhiteSpace(step.Name) ? "安装选项" : step.Name,
+                Style = ResourceStyle("BodyStrongTextBlockStyle"),
+            });
+
+            foreach (var group in step.Groups)
+            {
+                if (group.Plugins.Count == 0) continue;
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = group.Name,
+                    Style = ResourceStyle("CaptionTextBlockStyle"),
+                    Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
+                });
+
+                var single = group.Type.Contains("ExactlyOne", StringComparison.OrdinalIgnoreCase) ||
+                             group.Type.Contains("AtMostOne", StringComparison.OrdinalIgnoreCase) ||
+                             group.Type.Equals("Required", StringComparison.OrdinalIgnoreCase);
+
+                if (single)
+                {
+                    var groupName = "fomod-" + Guid.NewGuid().ToString("N")[..6];
+                    for (var i = 0; i < group.Plugins.Count; i++)
+                    {
+                        var plugin = group.Plugins[i];
+                        var button = new RadioButton
+                        {
+                            GroupName = groupName,
+                            Content = plugin.Name,
+                            IsChecked = i == 0,
+                            Tag = plugin,
+                        };
+                        radios.Add((group, button, plugin));
+                        panel.Children.Add(button);
+                        AddFomodDescription(panel, plugin);
+                    }
+                }
+                else
+                {
+                    foreach (var plugin in group.Plugins)
+                    {
+                        var box = new CheckBox { Content = plugin.Name, Tag = plugin, IsChecked = false };
+                        boxes.Add((plugin, box));
+                        panel.Children.Add(box);
+                        AddFomodDescription(panel, plugin);
+                    }
+                }
+            }
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "FOMOD 安装选项",
+            Content = new ScrollViewer { MaxHeight = 480, Content = panel },
+            PrimaryButtonText = "安装",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return null;
+        }
+
+        var selected = new List<FomodPlugin>();
+        selected.AddRange(radios.Where(r => r.Button.IsChecked == true).Select(r => r.Plugin));
+        selected.AddRange(boxes.Where(b => b.Box.IsChecked == true).Select(b => b.Plugin));
+        return selected;
+    }
+
+    private void AddFomodDescription(Panel panel, FomodPlugin plugin)
+    {
+        if (string.IsNullOrWhiteSpace(plugin.Description)) return;
+        panel.Children.Add(new TextBlock
+        {
+            Text = plugin.Description,
+            Margin = new Thickness(28, 0, 0, 4),
+            TextWrapping = TextWrapping.Wrap,
+            Style = ResourceStyle("CaptionTextBlockStyle"),
+            Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
+        });
     }
 
     private void ApplyImportResult(ImportResult result)
@@ -577,6 +671,7 @@ public sealed partial class ModsPage : Page
         if (item.Record.CnsFits.Count > 0) cnsParts.Add("服装: " + string.Join(" / ", item.Record.CnsFits.Take(6)));
         if (item.Record.CnsCharacters.Count > 0) cnsParts.Add("角色: " + string.Join(" / ", item.Record.CnsCharacters));
         if (item.Record.CnsOutfitTypes.Count > 0) cnsParts.Add("类型: " + string.Join(" / ", item.Record.CnsOutfitTypes.Take(4)));
+        if (item.Record.CnsRequirements.Count > 0) cnsParts.Add("依赖: " + string.Join(" / ", item.Record.CnsRequirements.Take(4)));
         DetailCns.Text = cnsParts.Count == 0 ? "" : "CNS  " + string.Join("   ·   ", cnsParts);
         DetailCns.Visibility = DetailCns.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         DetailNotes.Text = string.IsNullOrWhiteSpace(item.Record.Notes) ? "" : "备注: " + item.Record.Notes;

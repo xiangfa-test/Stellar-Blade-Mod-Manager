@@ -10,14 +10,56 @@ public static class ModImporter
 
     /// <summary>Import a packaged mod (.zip/.7z/.rar) or a set of pak files.</summary>
     public static ImportResult ImportArchive(string path)
+        => ImportArchiveAsync(path, null).GetAwaiter().GetResult();
+
+    /// <summary>
+    /// Extract + import. When the archive is a FOMOD and <paramref name="chooser"/> is provided,
+    /// the caller can pick options and only the selected files are imported.
+    /// Returning null from the chooser cancels the install.
+    /// </summary>
+    public static async Task<ImportResult> ImportArchiveAsync(string path,
+        Func<FomodConfig, Task<IReadOnlyList<FomodPlugin>>>? chooser)
     {
         var tempRoot = Path.Combine(AppPaths.TempRoot, "import-" + Guid.NewGuid().ToString("N")[..8]);
+        string? fomodStage = null;
         try
         {
             Directory.CreateDirectory(tempRoot);
             var err = ArchiveService.Extract(path, tempRoot);
             if (err is not null) return new ImportResult { Error = err };
-            return ImportDirectory(tempRoot, Path.GetFileNameWithoutExtension(path), path, move: false);
+
+            var sourceRoot = tempRoot;
+            if (FomodInstaller.IsFomod(tempRoot))
+            {
+                var config = FomodInstaller.Load(tempRoot);
+                if (config is null || !config.HasChoices)
+                {
+                    Log.Info("检测到 FOMOD（没有可选步骤），按整个压缩包导入");
+                }
+                else if (chooser is null)
+                {
+                    Log.Warn("FOMOD 需要选择选项，但当前流程无法交互，按整个压缩包导入");
+                }
+                else
+                {
+                    var selected = await chooser(config).ConfigureAwait(false);
+                    if (selected is null)
+                    {
+                        return new ImportResult { Error = "已取消 FOMOD 安装" };
+                    }
+
+                    fomodStage = Path.Combine(AppPaths.TempRoot, "fomod-" + Guid.NewGuid().ToString("N")[..8]);
+                    Directory.CreateDirectory(fomodStage);
+                    var copied = FomodInstaller.Apply(tempRoot, fomodStage, selected);
+                    Log.Info($"FOMOD: 选择 {selected.Count} 项，复制 {copied} 个文件");
+                    if (copied > 0)
+                    {
+                        sourceRoot = fomodStage;
+                    }
+                }
+            }
+
+            return ImportDirectory(sourceRoot, Path.GetFileNameWithoutExtension(path), path, move: false);
         }
         catch (Exception ex)
         {
@@ -26,6 +68,7 @@ public static class ModImporter
         }
         finally
         {
+            if (fomodStage is not null) TryDeleteDirectory(fomodStage);
             TryDeleteDirectory(tempRoot);
         }
     }
@@ -167,8 +210,12 @@ public static class ModImporter
                 name = name.Replace(version, "").Trim(' ', '_', '-', '[', ']');
             }
 
+            var library = AppState.Instance.Library;
+            var nextPriority = library.Count == 0 ? 0 : library.Max(m => m.Priority) + 1;
+
             var record = new ModRecord
             {
+                Priority = nextPriority,
                 Name = string.IsNullOrWhiteSpace(name) ? "未命名模组" : name,
                 Version = version,
                 Type = type,

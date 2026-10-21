@@ -33,6 +33,7 @@ public sealed partial class SettingsPage : Page
             LaunchModeBox.SelectedIndex = State.Config.LaunchMode == "direct" ? 1 : 0;
             UpdateStatusText.Text = "当前版本 " + AppUpdater.CurrentVersion;
             AutoUpdateToggle.IsOn = State.Config.AutoCheckUpdates;
+            PakPrefixToggle.IsOn = State.Config.PakOrderPrefixEnabled;
             LibraryPathText.Text = "模组库: " + AppPaths.ModsRoot;
             DataPathText.Text = "数据目录: " + AppPaths.Root;
             ThemeBox.SelectedIndex = State.Config.Theme switch
@@ -331,6 +332,13 @@ public sealed partial class SettingsPage : Page
             ApplyUpdateButton.IsEnabled = true;
             CheckUpdateButton.IsEnabled = true;
         }
+    }
+
+    private void PakPrefix_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        State.Config.PakOrderPrefixEnabled = PakPrefixToggle.IsOn;
+        State.SaveConfig();
     }
 
     private void AutoUpdate_Toggled(object sender, RoutedEventArgs e)

@@ -53,10 +53,112 @@ public static class SelfTest
                 Check("PAK 类型识别", pakMod.Type == ModType.Pak, pakMod.Type.ToString());
                 var deploy = Deployer.Deploy(pakMod, gameDir, force: false);
                 Check("PAK 部署成功", deploy.Success, deploy.Error ?? (deploy.Conflicts.Count > 0 ? "conflict" : null));
-                var target = Path.Combine(Deployer.PaksModsDir(gameDir), "TestPakMod_P.pak");
+                var target = Path.Combine(Deployer.PaksModsDir(gameDir),
+                    Deployer.PakFileName(pakMod, "TestPakMod_P.pak"));
                 Check("PAK 文件出现在 ~mods", File.Exists(target), target);
+                Check("PAK 文件名带加载顺序前缀", Path.GetFileName(target)[..4].All(char.IsDigit), target);
                 Deployer.Undeploy(pakMod.Id);
                 Check("PAK 停用后文件被移除", !File.Exists(target));
+            }
+
+            // 1b) different load-order priorities keep two same-named paks side by side
+            var prefixZipA = Path.Combine(AppPaths.TempRoot, "selftest-prefix-a.zip");
+            var prefixZipB = Path.Combine(AppPaths.TempRoot, "selftest-prefix-b.zip");
+            foreach (var path in new[] { prefixZipA, prefixZipB })
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+            using (var zip = ZipFile.Open(prefixZipA, ZipArchiveMode.Create))
+            {
+                var entry = zip.CreateEntry("SharedName_P.pak");
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write("A");
+            }
+            using (var zip = ZipFile.Open(prefixZipB, ZipArchiveMode.Create))
+            {
+                var entry = zip.CreateEntry("SharedName_P.pak");
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write("B");
+            }
+
+            var prefixA = ModImporter.ImportArchive(prefixZipA).Mod;
+            var prefixB = ModImporter.ImportArchive(prefixZipB).Mod;
+            Check("顺序前缀包导入", prefixA is not null && prefixB is not null);
+            if (prefixA is not null && prefixB is not null)
+            {
+                madeMods.Add(prefixA);
+                madeMods.Add(prefixB);
+                prefixA.Priority = 11;
+                prefixB.Priority = 12;
+                var targetA = Path.Combine(Deployer.PaksModsDir(gameDir), Deployer.PakFileName(prefixA, "SharedName_P.pak"));
+                var targetB = Path.Combine(Deployer.PaksModsDir(gameDir), Deployer.PakFileName(prefixB, "SharedName_P.pak"));
+
+                Check("不同顺序前缀可共存",
+                    Deployer.Deploy(prefixA, gameDir, force: true).Success &&
+                    Deployer.Deploy(prefixB, gameDir, force: true).Success &&
+                    File.Exists(targetA) && File.Exists(targetB),
+                    targetA + " | " + targetB);
+                Check("前缀按优先级递增",
+                    Path.GetFileName(targetA).CompareTo(Path.GetFileName(targetB)) < 0,
+                    Path.GetFileName(targetA) + " < " + Path.GetFileName(targetB));
+
+                Deployer.Undeploy(prefixA.Id);
+                Deployer.Undeploy(prefixB.Id);
+            }
+
+            // 1c) FOMOD: only the selected option's files are imported
+            var fomodZip = Path.Combine(AppPaths.TempRoot, "selftest-fomod.zip");
+            if (File.Exists(fomodZip)) File.Delete(fomodZip);
+            using (var zip = ZipFile.Open(fomodZip, ZipArchiveMode.Create))
+            {
+                void AddFomod(string entryName, string content)
+                {
+                    var entry = zip.CreateEntry(entryName);
+                    using var writer = new StreamWriter(entry.Open());
+                    writer.Write(content);
+                }
+
+                AddFomod("fomod/ModuleConfig.xml", """
+                    <config>
+                      <installSteps>
+                        <installStep name="Choose variant">
+                          <optionalFileGroups>
+                            <group name="Variant" type="SelectExactlyOne">
+                              <plugins>
+                                <plugin name="Red"><description>Red variant</description>
+                                  <files><folder source="Red" /></files>
+                                </plugin>
+                                <plugin name="Blue"><description>Blue variant</description>
+                                  <files><folder source="Blue" /></files>
+                                </plugin>
+                              </plugins>
+                            </group>
+                          </optionalFileGroups>
+                        </installStep>
+                      </installSteps>
+                    </config>
+                    """);
+                AddFomod("Red/SB/Content/Paks/~mods/Red_P.pak", "RED");
+                AddFomod("Blue/SB/Content/Paks/~mods/Blue_P.pak", "BLUE");
+            }
+
+            var fomodResult = ModImporter.ImportArchiveAsync(fomodZip, config =>
+            {
+                var red = config.Steps
+                    .SelectMany(s => s.Groups)
+                    .SelectMany(g => g.Plugins)
+                    .First(p => p.Name == "Red");
+                return Task.FromResult<IReadOnlyList<FomodPlugin>>(new[] { red });
+            }).GetAwaiter().GetResult();
+
+            Check("FOMOD 包导入", fomodResult.Mod is not null, fomodResult.Error);
+            if (fomodResult.Mod is { } fomodMod)
+            {
+                madeMods.Add(fomodMod);
+                Check("FOMOD 只安装选中项",
+                    fomodMod.Files.Any(f => f.EndsWith("Red_P.pak", StringComparison.OrdinalIgnoreCase)) &&
+                    !fomodMod.Files.Any(f => f.EndsWith("Blue_P.pak", StringComparison.OrdinalIgnoreCase)),
+                    string.Join(",", fomodMod.Files));
             }
 
             // 2) Loose mod import + deploy
@@ -277,9 +379,10 @@ public static class SelfTest
                 var entry = zip.CreateEntry("CustomNanosuitSystem/Animations/TestOutfit.dekcns.json");
                 using var s = entry.Open();
                 s.Write(Encoding.UTF8.GetBytes(
-                    "[{\"UniqueFitID\":\"Eve_Off_Duty_CNS_378\",\"DisplayName\":\"Eve Off Duty\"," +
+                    "[{\"UniqueFitID\":\"Eve_Off_Duty_CNS_378\",\"Requirement\":\"None\",\"DisplayName\":\"Eve Off Duty\"," +
                     "\"Description\":\"Eve wears Lily's Off Duty outfit\",\"FitMeshType\":\"Body\"," +
-                    "\"OutfitTypes\":[\"Dress\"],\"OutfitPaths\":[\"/Game/Outfitmods/Eve_Off_Duty/body/x\"]}]"));
+                    "\"OutfitTypes\":[\"Dress\"],\"OutfitPaths\":[\"/Game/Outfitmods/Eve_Off_Duty/body/x\"]}," +
+                    "{\"UniqueFitID\":\"Req_Outfit\",\"Requirement\":\"CNS Base\",\"DisplayName\":\"Req Outfit\"}]"));
             }
             var cnsResult = ModImporter.ImportArchive(cnsZip);
             Check("CNS 模组导入成功", cnsResult.Mod is not null, cnsResult.Error);
@@ -290,6 +393,8 @@ public static class SelfTest
                 Check("CNS 服装名解析", cnsMod.CnsFits.Contains("Eve Off Duty"), string.Join(",", cnsMod.CnsFits));
                 Check("CNS 角色解析", cnsMod.CnsCharacters.Contains("Eve"), string.Join(",", cnsMod.CnsCharacters));
                 Check("CNS 类型解析", cnsMod.CnsOutfitTypes.Contains("Dress"), string.Join(",", cnsMod.CnsOutfitTypes));
+                Check("CNS 依赖解析", cnsMod.CnsRequirements.Contains("CNS Base") &&
+                    !cnsMod.CnsRequirements.Contains("None"), string.Join(",", cnsMod.CnsRequirements));
                 var deploy = Deployer.Deploy(cnsMod, gameDir, force: false);
                 Check("CNS 部署成功", deploy.Success, deploy.Error);
                 var target = Path.Combine(Deployer.PaksModsDir(gameDir), "CustomNanosuitSystem", "Animations", "TestOutfit.dekcns.json");
@@ -441,7 +546,11 @@ public static class SelfTest
             {
                 madeMods.Add(pakA);
                 madeMods.Add(pakB);
-                var sharedTarget = Path.Combine(Deployer.PaksModsDir(gameDir), "Conflict_P.pak");
+                // Equal priority => identical target name, which exercises the takeover path.
+                pakA.Priority = 7;
+                pakB.Priority = 7;
+                var sharedTarget = Path.Combine(Deployer.PaksModsDir(gameDir),
+                    Deployer.PakFileName(pakA, "Conflict_P.pak"));
 
                 Check("同名 PAK 先装 A", Deployer.Deploy(pakA, gameDir, force: true).Success &&
                     File.ReadAllText(sharedTarget) == "AAA");
