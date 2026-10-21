@@ -2,7 +2,7 @@
 
 一个用 **WinUI 3 + .NET 8 + Windows App SDK 1.8** 写的《Stellar Blade（剑星）》模组管理器。
 原生 Fluent / Mica 界面，支持亮暗主题，所有操作都有中文说明。
-当前版本 **v1.1.2**：nxm:// 下载改用 Nexus 的 key/expires 授权参数（免费账号也能直连下载，和 Vortex 一致）；包含 UE4SS 一键安装、更新检查、多版本管理、标签/备注、CNS 适配、冲突链分析与加载顺序。
+当前版本 **v1.1.3**：修复检查更新后误禁用模组、nxm 链接重复开窗的问题；包含 UE4SS 一键安装、更新检查、多版本管理、标签/备注、CNS 适配、冲突链分析与加载顺序。
 
 ![模组管理](docs/screenshots/mods.png)
 

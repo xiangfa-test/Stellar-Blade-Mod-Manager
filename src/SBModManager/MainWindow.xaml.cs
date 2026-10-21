@@ -159,6 +159,29 @@ public sealed partial class MainWindow : Window
 
     public string CurrentPageName => ContentFrame.CurrentSourcePageType?.Name ?? "null";
 
+    /// <summary>Handles a request forwarded from a second launch (e.g. an nxm:// link).</summary>
+    public void HandleExternalRequest(string? nxmUrl)
+    {
+        try
+        {
+            if (AppWindow.Presenter is OverlappedPresenter presenter &&
+                presenter.State == OverlappedPresenterState.Minimized)
+            {
+                presenter.Restore();
+            }
+            Activate();
+            SelectPage("mods");
+            if (nxmUrl is not null && ContentFrame.Content is ModsPage page)
+            {
+                _ = page.HandleNxmFromExternalAsync(nxmUrl);
+            }
+        }
+        catch (Exception ex)
+        {
+            Services.Log.Warn("处理外部启动请求失败: " + ex.Message);
+        }
+    }
+
     public void SelectPage(string tag)
     {
         var item = NavView.MenuItems.Concat(NavView.FooterMenuItems)

@@ -43,6 +43,7 @@ public partial class App : Application
             Program.Trace("window created");
             MainWindow.Activate();
             Program.Trace("window activated");
+            StartRequestPump(MainWindow);
 
             if (Program.ScreenshotPath is { } shotPath)
             {
@@ -58,6 +59,26 @@ public partial class App : Application
                 $"启动时发生错误，应用无法继续。\n\n{ex.Message}\n\n详细日志:\n{Path.Combine(AppContext.BaseDirectory, "crash.log")}");
             throw;
         }
+    }
+
+    private static Microsoft.UI.Dispatching.DispatcherQueueTimer? _requestTimer;
+
+    private static void StartRequestPump(MainWindow window)
+    {
+        var timer = window.DispatcherQueue.CreateTimer();
+        _requestTimer = timer;
+        timer.Interval = TimeSpan.FromSeconds(1);
+        timer.Tick += (_, _) =>
+        {
+            foreach (var request in Services.SingleInstance.Drain())
+            {
+                var nxm = request.Kind == "nxm" && !string.IsNullOrWhiteSpace(request.Payload)
+                    ? request.Payload
+                    : null;
+                window.HandleExternalRequest(nxm);
+            }
+        };
+        timer.Start();
     }
 
     /// <summary>Render the window content to a PNG (used for automated UI checks).</summary>

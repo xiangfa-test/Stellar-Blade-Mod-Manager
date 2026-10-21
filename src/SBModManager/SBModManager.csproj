@@ -18,7 +18,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
-    <Version>1.1.2</Version>
+    <Version>1.1.3</Version>
     <Product>剑星 MOD 管理器</Product>
     <AssemblyTitle>剑星 MOD 管理器</AssemblyTitle>
     <Company>xiangfa-test</Company>

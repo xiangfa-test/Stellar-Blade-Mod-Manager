@@ -35,6 +35,8 @@ public static class Program
 
     public static bool NoElevate { get; private set; }
 
+    private static bool ElevatedChild { get; set; }
+
     /// <summary>nxm:// URL passed by the browser / Nexus "Mod Manager Download" button.</summary>
     public static string? NxmUrl { get; private set; }
 
@@ -66,14 +68,32 @@ public static class Program
                 case "--no-elevate":
                     NoElevate = true;
                     break;
+                case "--elevated-child":
+                    ElevatedChild = true;
+                    break;
             }
+        }
+
+        // Single instance first: an nxm:// link clicked while the app is open must be
+        // forwarded to the running window instead of opening a second one.
+        Services.SingleInstance.Acquire(ElevatedChild, args, NxmUrl);
+        if (!Services.SingleInstance.IsFirstInstance)
+        {
+            return;
         }
 
         // The user asked for administrator rights by default (the game folder and some
         // security products block writes otherwise). Test modes never elevate.
         if (ScreenshotPath is null && SelfTestPath is null && !NoElevate && !IsElevated() && ShouldElevate())
         {
+            Services.SingleInstance.Release();
             if (RelaunchElevated(args))
+            {
+                return;
+            }
+            // Elevation was cancelled: keep running non-elevated and reclaim the instance lock.
+            Services.SingleInstance.Acquire(false, args, null);
+            if (!Services.SingleInstance.IsFirstInstance)
             {
                 return;
             }
@@ -142,7 +162,7 @@ public static class Program
         {
             var exe = Environment.ProcessPath;
             if (string.IsNullOrWhiteSpace(exe)) return false;
-            var arguments = string.Join(" ", args.Select(QuoteArgument));
+            var arguments = string.Join(" ", args.Append("--elevated-child").Select(QuoteArgument));
             Process.Start(new ProcessStartInfo(exe)
             {
                 UseShellExecute = true,

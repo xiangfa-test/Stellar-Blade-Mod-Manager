@@ -19,6 +19,8 @@ public sealed partial class ModsPage : Page
     private static bool _shownDataDirNotice;
     private bool _suppressVersionChange;
     private bool _nxmHandled;
+    private DateTime _suppressToggleUntil;
+    private readonly Queue<string> _pendingNxm = new();
 
     public ModsPage()
     {
@@ -29,6 +31,10 @@ public sealed partial class ModsPage : Page
             {
                 _initialized = true;
                 Reload();
+                while (_pendingNxm.Count > 0)
+                {
+                    _ = HandleNxmAsync(_pendingNxm.Dequeue());
+                }
                 if (!_nxmHandled && Program.NxmUrl is { } nxm)
                 {
                     _nxmHandled = true;
@@ -71,6 +77,9 @@ public sealed partial class ModsPage : Page
 
     private void RebuildMods()
     {
+        // Rebuilding the ItemsSource recycles ListView containers; a reused ToggleSwitch can
+        // raise Toggled with a stale DataContext and disable the wrong mod. Ignore these.
+        _suppressToggleUntil = DateTime.UtcNow.AddMilliseconds(800);
         var filter = SearchBox?.Text?.Trim() ?? "";
         var selectedId = (ModList.SelectedItem as ModItem)?.Record.Id;
 
@@ -287,6 +296,7 @@ public sealed partial class ModsPage : Page
 
     private async void ModToggle_Toggled(object sender, RoutedEventArgs e)
     {
+        if (DateTime.UtcNow < _suppressToggleUntil) return;
         if (sender is not ToggleSwitch toggle || toggle.DataContext is not ModItem item) return;
         if (item.Enabled == toggle.IsOn) return;
         await SetModEnabledAsync(item, toggle.IsOn);
@@ -295,6 +305,9 @@ public sealed partial class ModsPage : Page
     private async Task SetModEnabledAsync(ModItem item, bool enable)
     {
         if (item.Busy) return;
+        // A recycled ListView container can report a stale item that no longer belongs to the
+        // current list; never let it change the library.
+        if (!Mods.Contains(item)) return;
         if (!EnsureGame(out var gameDir))
         {
             item.Enabled = false;
@@ -833,7 +846,10 @@ public sealed partial class ModsPage : Page
             SetBusy(false);
         }
 
-        RebuildMods();
+        foreach (var candidate in Mods)
+        {
+            candidate.Refresh();
+        }
         UpdateDetails(ModList.SelectedItem as ModItem);
         ShowMessage(updates > 0 ? InfoBarSeverity.Success : InfoBarSeverity.Informational,
             "更新检查完成",
@@ -866,7 +882,6 @@ public sealed partial class ModsPage : Page
         {
             SetBusy(false);
             item.Refresh();
-            RebuildMods();
             UpdateDetails(item);
         }
     }
@@ -945,6 +960,16 @@ public sealed partial class ModsPage : Page
     }
 
     // ---------------------------------------------------------- nxm:// handoff
+
+    public async Task HandleNxmFromExternalAsync(string url)
+    {
+        if (!IsLoaded)
+        {
+            _pendingNxm.Enqueue(url);
+            return;
+        }
+        await HandleNxmAsync(url);
+    }
 
     private async Task HandleNxmAsync(string url)
     {
