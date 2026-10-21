@@ -4,224 +4,269 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     NavigationCacheMode="Required">
 
-    <ScrollViewer Padding="24,8,24,24">
-        <StackPanel MaxWidth="820" HorizontalAlignment="Left" Spacing="12">
-            <TextBlock Margin="0,4,0,8" Style="{StaticResource TitleTextBlockStyle}" Text="设置" />
+    <ScrollViewer
+        Padding="24,8,24,24"
+        HorizontalContentAlignment="Stretch"
+        HorizontalScrollBarVisibility="Disabled">
+        <StackPanel HorizontalAlignment="Stretch" Spacing="0">
+            <TextBlock Style="{StaticResource SettingsPageTitleStyle}" Text="设置" />
 
-            <!--  Game directory  -->
-            <Border
-                Padding="20"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="8">
-                <StackPanel Spacing="10">
-                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="游戏目录" />
-                    <TextBlock
-                        x:Name="GameDirText"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        TextWrapping="Wrap" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Click="Browse_Click" Content="浏览…" />
-                        <Button Click="AutoDetect_Click" Content="自动检测" />
-                        <Button Click="OpenGameDir_Click" Content="打开游戏目录" />
-                        <Button Click="Validate_Click" Content="验证安装" />
-                    </StackPanel>
-                </StackPanel>
-            </Border>
+            <!--  ===== 游戏 =====  -->
+            <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="游戏" />
 
-            <!--  Network & integrations  -->
-            <Border
-                Padding="20"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="8">
-                <StackPanel Spacing="14">
-                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="网络与集成" />
-
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Nexus Mods API Key" />
-                        <TextBlock
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="用于「检查更新」以及 nxm:// 链接的直链下载（需要 Premium 账号）。在 Nexus 账户设置中生成 Personal API Key。"
-                            TextWrapping="Wrap" />
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <PasswordBox
-                                x:Name="NexusKeyBox"
-                                Grid.Column="0"
-                                PlaceholderText="粘贴 API Key（仅保存在本机配置）" />
-                            <Button
-                                Grid.Column="1"
-                                Click="SaveNexusKey_Click"
-                                Content="保存" />
-                        </Grid>
-                    </StackPanel>
-
-                    <Grid ColumnSpacing="12">
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <StackPanel>
+                    <Grid Style="{StaticResource SettingsRowStyle}">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="启动时请求管理员权限" />
-                            <TextBlock
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="默认开启：启动时通过 UAC 以管理员身份重新运行，避免写入游戏目录/读取受保护目录被拒绝。"
-                                TextWrapping="Wrap" />
+                        <FontIcon Grid.Column="0" Glyph="&#xE7FC;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="游戏目录" />
+                            <TextBlock x:Name="GameDirText" Style="{StaticResource SettingsRowDescriptionStyle}" />
                         </StackPanel>
-                        <ToggleSwitch
-                            x:Name="ElevateToggle"
-                            Grid.Column="1"
-                            MinWidth="0"
-                            Toggled="Elevate_Toggled" />
+                        <StackPanel
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="8">
+                            <Button Click="Browse_Click" Content="浏览…" />
+                            <Button Click="AutoDetect_Click" Content="自动检测" />
+                        </StackPanel>
                     </Grid>
 
-                    <Grid ColumnSpacing="12">
+                    <Border Style="{StaticResource SettingsRowSeparatorStyle}" />
+
+                    <Grid Style="{StaticResource SettingsRowStyle}">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="接管 nxm:// 链接（临时替代 Vortex）" />
+                        <FontIcon Grid.Column="0" Glyph="&#xE8B7;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="打开位置" />
                             <TextBlock
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="开启后，Nexus 的「Mod Manager Download」按钮会交给本工具处理；关闭时恢复之前的处理程序。"
-                                TextWrapping="Wrap" />
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="游戏安装目录、模组库、~mods 目录、游戏配置与日志。" />
                         </StackPanel>
-                        <ToggleSwitch
-                            x:Name="NxmToggle"
-                            Grid.Column="1"
-                            MinWidth="0"
-                            Toggled="Nxm_Toggled" />
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!--  Deploy options  -->
-            <Border
-                Padding="20"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="8">
-                <StackPanel Spacing="14">
-                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="部署选项" />
-
-                    <Grid ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="使用硬链接部署" />
-                            <TextBlock
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="同一磁盘时几乎瞬间完成且不额外占用空间；跨磁盘或失败时自动回退为复制。"
-                                TextWrapping="Wrap" />
+                        <StackPanel
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="8">
+                            <Button Click="OpenGameDir_Click" Content="游戏目录" />
+                            <Button Click="OpenLibrary_Click" Content="模组库" />
+                            <Button Click="OpenModsFolder_Click" Content="~mods" />
+                            <Button Click="OpenConfig_Click" Content="配置" />
+                            <Button Click="OpenLogs_Click" Content="日志" />
                         </StackPanel>
-                        <ToggleSwitch
-                            x:Name="HardLinkToggle"
-                            Grid.Column="1"
-                            MinWidth="0"
-                            Toggled="HardLink_Toggled" />
                     </Grid>
 
-                    <Grid ColumnSpacing="12">
+                    <Border Style="{StaticResource SettingsRowSeparatorStyle}" />
+
+                    <Grid Style="{StaticResource SettingsRowStyle}">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="启动方式" />
+                        <FontIcon Grid.Column="0" Glyph="&#xE73E;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="验证安装" />
                             <TextBlock
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="通过 Steam 启动可保留成就与云存档。"
-                                TextWrapping="Wrap" />
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="检查目录里是否有 SB.exe 与 SB/Content/Paks。" />
+                        </StackPanel>
+                        <Button
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Click="Validate_Click"
+                            Content="验证" />
+                    </Grid>
+
+                    <Border Style="{StaticResource SettingsRowSeparatorStyle}" />
+
+                    <Grid Style="{StaticResource SettingsRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE8D8;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="游戏启动方式" />
+                            <TextBlock
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="通过 Steam 启动可保留成就与云存档。" />
                         </StackPanel>
                         <ComboBox
                             x:Name="LaunchModeBox"
-                            Grid.Column="1"
+                            Grid.Column="2"
                             MinWidth="180"
+                            VerticalAlignment="Center"
                             SelectionChanged="LaunchMode_Changed">
                             <ComboBoxItem Content="通过 Steam 启动" Tag="steam" />
                             <ComboBoxItem Content="直接运行 SB.exe" Tag="direct" />
                         </ComboBox>
                     </Grid>
+                </StackPanel>
+            </Border>
 
-                    <Grid ColumnSpacing="12">
+            <!--  ===== 外观与行为 =====  -->
+            <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="外观与行为" />
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <StackPanel>
+                    <Grid Style="{StaticResource SettingsRowStyle}">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="界面主题" />
+                        <FontIcon Grid.Column="0" Glyph="&#xE790;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="界面主题" />
                             <TextBlock
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="跟随系统时使用 Windows 的浅色/深色设置。"
-                                TextWrapping="Wrap" />
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="跟随系统时使用 Windows 的浅色/深色设置。" />
                         </StackPanel>
                         <ComboBox
                             x:Name="ThemeBox"
-                            Grid.Column="1"
+                            Grid.Column="2"
                             MinWidth="180"
+                            VerticalAlignment="Center"
                             SelectionChanged="Theme_Changed">
                             <ComboBoxItem Content="跟随系统" />
                             <ComboBoxItem Content="浅色" />
                             <ComboBoxItem Content="深色" />
                         </ComboBox>
                     </Grid>
+
+                    <Border Style="{StaticResource SettingsRowSeparatorStyle}" />
+
+                    <Grid Style="{StaticResource SettingsRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE8B7;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="使用硬链接部署" />
+                            <TextBlock
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="同一磁盘时几乎瞬间完成且不额外占用空间；跨磁盘或失败时自动回退为复制。" />
+                        </StackPanel>
+                        <ToggleSwitch
+                            x:Name="HardLinkToggle"
+                            Grid.Column="2"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            Toggled="HardLink_Toggled" />
+                    </Grid>
+
+                    <Border Style="{StaticResource SettingsRowSeparatorStyle}" />
+
+                    <Grid Style="{StaticResource SettingsRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE7EF;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="启动时请求管理员权限" />
+                            <TextBlock
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="默认开启：启动时通过 UAC 以管理员身份重新运行，避免写入游戏目录/读取受保护目录被拒绝。" />
+                        </StackPanel>
+                        <ToggleSwitch
+                            x:Name="ElevateToggle"
+                            Grid.Column="2"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            Toggled="Elevate_Toggled" />
+                    </Grid>
                 </StackPanel>
             </Border>
 
-            <!--  Folders  -->
-            <Border
-                Padding="20"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="8">
-                <StackPanel Spacing="10">
-                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="目录" />
-                    <TextBlock
-                        x:Name="LibraryPathText"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        TextWrapping="Wrap" />
-                    <TextBlock
-                        x:Name="DataPathText"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        TextWrapping="Wrap" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Click="OpenLibrary_Click" Content="模组库" />
-                        <Button Click="OpenModsFolder_Click" Content="~mods 目录" />
-                        <Button Click="OpenConfig_Click" Content="游戏配置目录" />
-                        <Button Click="OpenLogs_Click" Content="日志" />
-                    </StackPanel>
+            <!--  ===== 网络与集成 =====  -->
+            <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="网络与集成" />
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <StackPanel>
+                    <Grid Style="{StaticResource SettingsRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE774;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="Nexus Mods API Key" />
+                            <TextBlock
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="用于「检查更新」与 nxm:// 直链下载（Nexus 账户设置里生成 Personal API Key）。" />
+                            <Grid Margin="0,8,0,0" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <PasswordBox
+                                    x:Name="NexusKeyBox"
+                                    Grid.Column="0"
+                                    PlaceholderText="粘贴 API Key（仅保存在本机配置）" />
+                                <Button
+                                    Grid.Column="1"
+                                    Click="SaveNexusKey_Click"
+                                    Content="保存" />
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Style="{StaticResource SettingsRowSeparatorStyle}" />
+
+                    <Grid Style="{StaticResource SettingsRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE71B;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="接管 nxm:// 链接（临时替代 Vortex）" />
+                            <TextBlock
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="开启后，Nexus 的「Mod Manager Download」按钮会交给本工具处理；关闭时恢复之前的处理程序。" />
+                        </StackPanel>
+                        <ToggleSwitch
+                            x:Name="NxmToggle"
+                            Grid.Column="2"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            Toggled="Nxm_Toggled" />
+                    </Grid>
                 </StackPanel>
             </Border>
 
-            <!--  About  -->
-            <Border
-                Padding="20"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="8">
-                <StackPanel Spacing="8">
-                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="支持的模组类型" />
+            <!--  ===== 目录信息 =====  -->
+            <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="目录" />
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <StackPanel Padding="16,12" Spacing="6">
+                    <TextBlock x:Name="LibraryPathText" Style="{StaticResource SettingsRowDescriptionStyle}" />
+                    <TextBlock x:Name="DataPathText" Style="{StaticResource SettingsRowDescriptionStyle}" />
+                </StackPanel>
+            </Border>
+
+            <!--  ===== 支持的模组类型 =====  -->
+            <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="支持的模组类型" />
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <StackPanel Padding="16,12" Spacing="8">
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{StaticResource CaptionTextBlockStyle}"

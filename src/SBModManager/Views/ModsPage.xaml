@@ -135,7 +135,8 @@
                 ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition x:Name="DetailColumn" Width="300" />
                 </Grid.ColumnDefinitions>
 
                 <ListView
@@ -209,9 +210,31 @@
                     </ListView.ItemTemplate>
                 </ListView>
 
+                <!--  Drag handle between the list and the details pane  -->
+                <Border
+                    x:Name="DetailSplitter"
+                    Grid.Column="1"
+                    Width="10"
+                    Background="Transparent"
+                    DoubleTapped="DetailSplitter_DoubleTapped"
+                    PointerCaptureLost="DetailSplitter_PointerCaptureLost"
+                    PointerEntered="DetailSplitter_PointerEntered"
+                    PointerExited="DetailSplitter_PointerExited"
+                    PointerMoved="DetailSplitter_PointerMoved"
+                    PointerPressed="DetailSplitter_PointerPressed"
+                    PointerReleased="DetailSplitter_PointerReleased"
+                    ToolTipService.ToolTip="拖动调整模组列表与详情面板的宽度，双击恢复默认">
+                    <Border
+                        x:Name="DetailSplitterLine"
+                        Width="1"
+                        HorizontalAlignment="Center"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        Opacity="0.55" />
+                </Border>
+
                 <!--  Details  -->
                 <Border
-                    Grid.Column="1"
+                    Grid.Column="2"
                     Padding="16"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"

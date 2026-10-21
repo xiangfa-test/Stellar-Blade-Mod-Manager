@@ -4,6 +4,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using SBModManager.Views;
 using Windows.Graphics;
 
@@ -61,7 +62,11 @@ public sealed partial class MainWindow : Window
 
         TryApplyBackdrop();
 
-        ContentFrame.Navigated += (_, _) => UpdateBackButton();
+        ContentFrame.Navigated += (_, _) =>
+        {
+            UpdateBackButton();
+            AnimatePageIn();
+        };
         SelectPage(Program.PageTag ?? "mods");
 
         if (Program.NavTag is { Length: > 0 } navTag)
@@ -77,6 +82,69 @@ public sealed partial class MainWindow : Window
                 }
             });
         }
+    }
+
+    /// <summary>
+    /// Windows-Settings style page transition: the new page slides up slightly while fading in.
+    /// Also attaches the auto-hiding scrollbar to whatever ScrollViewer the page contains.
+    /// </summary>
+    private void AnimatePageIn()
+    {
+        if (ContentFrame.Content is not FrameworkElement page) return;
+
+        var transform = new TranslateTransform { Y = 26 };
+        page.RenderTransform = transform;
+        page.Opacity = 0;
+
+        var slide = new DoubleAnimation
+        {
+            From = 26,
+            To = 0,
+            Duration = TimeSpan.FromMilliseconds(260),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            EnableDependentAnimation = true,
+        };
+        Storyboard.SetTarget(slide, transform);
+        Storyboard.SetTargetProperty(slide, "Y");
+
+        var fade = new DoubleAnimation
+        {
+            From = 0,
+            To = 1,
+            Duration = TimeSpan.FromMilliseconds(200),
+            EnableDependentAnimation = true,
+        };
+        Storyboard.SetTarget(fade, page);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(slide);
+        storyboard.Children.Add(fade);
+        storyboard.Begin();
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            foreach (var viewer in FindScrollViewers(page))
+            {
+                Ui.ScrollBarAutoHide.Attach(viewer);
+            }
+        });
+    }
+
+    private static List<ScrollViewer> FindScrollViewers(DependencyObject root)
+    {
+        var result = new List<ScrollViewer>();
+        var count = VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is ScrollViewer viewer)
+            {
+                result.Add(viewer);
+            }
+            result.AddRange(FindScrollViewers(child));
+        }
+        return result;
     }
 
     private void BackButton_Click(object sender, RoutedEventArgs e)

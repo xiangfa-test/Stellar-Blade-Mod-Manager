@@ -6,7 +6,22 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+                <ResourceDictionary Source="ms-appx:///Styles/SettingsStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!--  Let the window Mica show through both the pane and the content area,
+                  so the title bar, navigation pane and page share one background.  -->
+            <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent" />
+            <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="Transparent" />
+            <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="Transparent" />
+            <SolidColorBrush x:Key="NavigationViewTopPaneBackground" Color="Transparent" />
+            <SolidColorBrush x:Key="NavigationViewMinimalPaneBackground" Color="Transparent" />
+
+            <!--  No hard separator lines between pane / content on top of Mica  -->
+            <Thickness x:Key="NavigationViewContentGridBorderThickness">0</Thickness>
+            <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent" />
+            <Thickness x:Key="NavigationViewPaneBorderThickness">0</Thickness>
+            <SolidColorBrush x:Key="NavigationViewPaneBorderBrush" Color="Transparent" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -23,9 +23,31 @@ public sealed partial class ModsPage : Page
     private static readonly Queue<string> PendingExternal = new();
     private static readonly object PendingLock = new();
 
+    private bool _splitterDragging;
+    private double _splitterStartX;
+    private double _splitterStartWidth;
+    private const double MinListWidth = 320;
+    private const double MinDetailWidth = 260;
+    private const double DefaultDetailWidth = 300;
+
     public ModsPage()
     {
         InitializeComponent();
+        try
+        {
+            var saved = State.Config.ModsDetailWidth;
+            DetailColumn.Width = new GridLength(
+                Math.Clamp(saved <= 0 ? DefaultDetailWidth : saved, MinDetailWidth, 900));
+        }
+        catch
+        {
+            DetailColumn.Width = new GridLength(DefaultDetailWidth);
+        }
+        // The detail pane starts collapsed; hook its scrollbar anyway so the first
+        // selection already gets the auto-hiding behaviour.
+        Ui.ScrollBarAutoHide.Attach(DetailsScroll);
+        Ui.ScrollBarAutoHide.AttachToElement(ModList);
+        Ui.ScrollBarAutoHide.AttachToElement(ExternalList);
         Loaded += (_, _) =>
         {
             if (!_initialized)
@@ -49,6 +71,79 @@ public sealed partial class ModsPage : Page
     private AppState State => AppState.Instance;
 
     private string? GameDir => State.GameDir;
+
+    // ---------------------------------------------------------------- detail splitter
+
+    private void DetailSplitter_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        _splitterDragging = true;
+        _splitterStartX = e.GetCurrentPoint(ModsView).Position.X;
+        _splitterStartWidth = DetailColumn.ActualWidth;
+        DetailSplitter.CapturePointer(e.Pointer);
+        DetailSplitterLine.Opacity = 1;
+        e.Handled = true;
+    }
+
+    private void DetailSplitter_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_splitterDragging) return;
+
+        var pointerX = e.GetCurrentPoint(ModsView).Position.X;
+        var delta = _splitterStartX - pointerX; // dragging left widens the details pane
+        var available = ModsView.ActualWidth;
+        var maxDetail = Math.Max(MinDetailWidth, available - MinListWidth - DetailSplitter.ActualWidth - 40);
+        var width = Math.Clamp(_splitterStartWidth + delta, MinDetailWidth, maxDetail);
+
+        DetailColumn.Width = new GridLength(width);
+        e.Handled = true;
+    }
+
+    private void DetailSplitter_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_splitterDragging) return;
+        _splitterDragging = false;
+        DetailSplitter.ReleasePointerCapture(e.Pointer);
+        DetailSplitterLine.Opacity = 0.55;
+        SaveDetailWidth();
+        e.Handled = true;
+    }
+
+    private void DetailSplitter_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        _splitterDragging = false;
+        DetailSplitterLine.Opacity = 0.55;
+    }
+
+    private void DetailSplitter_PointerEntered(object sender, PointerRoutedEventArgs e)
+        => DetailSplitterLine.Opacity = 1;
+
+    private void DetailSplitter_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_splitterDragging)
+        {
+            DetailSplitterLine.Opacity = 0.55;
+        }
+    }
+
+    private void DetailSplitter_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        DetailColumn.Width = new GridLength(DefaultDetailWidth);
+        SaveDetailWidth();
+        e.Handled = true;
+    }
+
+    private void SaveDetailWidth()
+    {
+        try
+        {
+            State.Config.ModsDetailWidth = DetailColumn.ActualWidth;
+            State.SaveConfig();
+        }
+        catch
+        {
+            // best effort
+        }
+    }
 
     // ---------------------------------------------------------------- reload
 
@@ -157,6 +252,7 @@ public sealed partial class ModsPage : Page
         var total = State.Library.Count;
         var running = GameDir is not null && GameLocator.IsGameRunning();
         StatusLineText.Text = $"已启用 {enabled}/{total}" + (running ? " · 游戏运行中" : " · 游戏未运行");
+        Ui.InfoBarAnimation.FadeIn(StatusLineText, 4, 160);
         CountText.Text = GameDir is null ? "" : (Directory.Exists(Deployer.PaksModsDir(GameDir)) ? "~mods 目录已就绪" : "~mods 目录尚未创建");
     }
 
@@ -171,7 +267,7 @@ public sealed partial class ModsPage : Page
         MsgBar.Severity = severity;
         MsgBar.Title = title;
         MsgBar.Message = message;
-        MsgBar.IsOpen = true;
+        Ui.InfoBarAnimation.Show(MsgBar);
     }
 
     private bool EnsureGame(out string gameDir)

@@ -101,6 +101,9 @@ public sealed class AppConfig
 
     /// <summary>One-time migration: put pre-1.4.3 untagged mods into the local collection.</summary>
     public bool LocalCollectionMigrated { get; set; }
+
+    /// <summary>Width of the mod details pane in the Mods page.</summary>
+    public double ModsDetailWidth { get; set; } = 300;
 }
 
 public sealed class DeployState
