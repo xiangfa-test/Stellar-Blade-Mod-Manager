@@ -81,6 +81,23 @@ public static class SelfTest
                 Check("资源模组停用后文件被移除", !File.Exists(target));
             }
 
+            // Optional live collection fixture (needs network; enabled with SBMM_TEST_COLLECTION).
+            if (Environment.GetEnvironmentVariable("SBMM_TEST_COLLECTION") is { Length: > 0 } collectionSlug)
+            {
+                try
+                {
+                    var collection = NexusService.GetCollectionAsync(collectionSlug)
+                        .GetAwaiter().GetResult();
+                    Check("合集解析 (" + collectionSlug + ")",
+                        collection.ModCount > 0 && collection.Mods.Count > 0,
+                        $"{collection.Name} rev={collection.RevisionNumber} mods={collection.Mods.Count}");
+                }
+                catch (Exception ex)
+                {
+                    Check("合集解析 (" + collectionSlug + ")", false, ex.Message);
+                }
+            }
+
             // Optional extra archive fixture (used for testing real 7-Zip output).
             if (Environment.GetEnvironmentVariable("SBMM_TEST_ARCHIVE") is { Length: > 0 } extraArchive &&
                 File.Exists(extraArchive))
@@ -171,6 +188,9 @@ public static class SelfTest
                         && nxmLink.Domain == "stellarblade" && nxmLink.ModId == 1234 && nxmLink.FileId == 5678;
             Check("nxm 链接解析", nxmOk);
             var linkUrl = NexusService.BuildDownloadLinkUrl("stellarblade", 1234, 5678, "abc", "99");
+            var collectionNxm = NxmHandler.TryParse("nxm://stellarblade/collections/n7zgom/revisions/3", out var colLink)
+                                 && colLink.IsCollection && colLink.CollectionSlug == "n7zgom";
+            Check("nxm 合集链接解析", collectionNxm);
             Check("nxm 免会员直链参数", linkUrl.Contains("key=abc") && linkUrl.Contains("expires=99"), linkUrl);
 
             // 3c) conflict chain + high-conflict detection (two mods writing the same pak)

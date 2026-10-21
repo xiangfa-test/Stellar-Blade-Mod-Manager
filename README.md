@@ -2,7 +2,7 @@
 
 一个用 **WinUI 3 + .NET 8 + Windows App SDK 1.8** 写的《Stellar Blade（剑星）》模组管理器。
 原生 Fluent / Mica 界面，支持亮暗主题，所有操作都有中文说明。
-当前版本 **v1.2.0**：内置 7z/RAR 解压引擎（无需安装 7-Zip）；修复已打开时 nxm 下载不触发的问题；包含 UE4SS 一键安装、更新检查、多版本管理、标签/备注、CNS 适配、冲突链分析与加载顺序。
+当前版本 **v1.3.0**：支持 Nexus 合集（粘贴链接解析、批量下载、自动打标签）；内置 7z/RAR 解压引擎；包含 UE4SS 一键安装、更新检查、多版本管理、标签/备注、CNS 适配、冲突链分析与加载顺序。
 
 ![模组管理](docs/screenshots/mods.png)
 
@@ -10,6 +10,7 @@
 
 - **自动检测游戏**：读取 Steam 注册表与 `libraryfolders.vdf`，按 AppID `3489700` 找到游戏目录；也可手动选择。
 - **导入模组**：压缩包（`.zip` / `.7z` / `.rar`）、文件夹、或直接选 `.pak/.ucas/.utoc`；**7z/RAR 由内置 SharpCompress 引擎解压，无需安装 7-Zip**；支持把文件/文件夹直接拖进窗口。
+- **Nexus 合集**：粘贴合集链接（或 `nxm://…/collections/…`）即可解析模组列表，支持只下必需/包含可选、批量下载并导入、自动加「合集:名称」标签；免费账号可一键复制所有模组页面链接。
 - **UE4SS 一键安装**：在「运行环境」里直接下载 [Chrisr0/RE-UE4SS](https://github.com/Chrisr0/RE-UE4SS) 的最新 Release，
   自动解压、识别为运行库并部署到 `SB\Binaries\Win64`，也可以检查本地安装版本。
 - **模组更新检查**：配置 Nexus API Key 后，可对带 Nexus 模组 ID 的模组一键检查更新。
@@ -161,6 +162,13 @@ stellar-mod-manager/
 
 `--page` 支持 `mods` / `runtime` / `settings` / `about`。
 
+## Nexus 合集支持
+
+- 解析：输入 `https://www.nexusmods.com/games/stellarblade/collections/<slug>` 或 slug，读取合集名、作者、版本、模组列表与可选标记（公开 GraphQL，不需要 API Key）。
+- 下载：需要 Nexus API Key；Nexus 的直链接口通常要求 **Premium** 账号，免费账号可以「复制模组链接」后逐个手动下载再导入。
+- 导入：按合集列表顺序逐个下载、解压、导入，模组会自动带上 `合集:<名称>` 标签和来源备注，可按标签筛选。
+- 暂不处理：FOMOD 选项、合集补丁、集合作者定义的加载顺序；需要精细选项时请用 Vortex 安装这些部分。
+
 ## 第三方组件
 
 - [Windows App SDK / WinUI 3](https://github.com/microsoft/WindowsAppSDK)（MIT）
@@ -180,4 +188,5 @@ stellar-mod-manager/
 - 以管理员身份运行时，文件选择使用 Win32 通用对话框；从资源管理器**拖拽**文件到提权窗口会被 Windows（UIPI）阻止，需要拖拽时请关闭管理员模式（设置里可关）。
 - Nexus 更新检查只对通过 nxm:// 导入且带模组 ID 的模组有效；从普通 zip 导入的模组没有 ID，只能手动检查。
 - 不带 `key` 的 nxm 链接只有 Premium 能取直链；从网页「Mod Manager Download」得到的链接都带 key，免费账号可用。
+- Nexus 合集批量下载需要 Premium；暂不支持合集里的 FOMOD 选项与补丁。
 - 仅支持 Windows x64。

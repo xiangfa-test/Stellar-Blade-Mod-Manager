@@ -63,6 +63,7 @@
                         <MenuFlyoutItem Click="ImportArchive_Click" Text="导入压缩包 (.zip / .7z / .rar)" />
                         <MenuFlyoutItem Click="ImportFolder_Click" Text="导入文件夹" />
                         <MenuFlyoutItem Click="ImportPak_Click" Text="导入 .pak / .ucas / .utoc" />
+                        <MenuFlyoutItem Click="ImportCollection_Click" Text="从 Nexus 合集导入…" />
                     </MenuFlyout>
                 </Button.Flyout>
             </Button>

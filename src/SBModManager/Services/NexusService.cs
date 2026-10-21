@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using SBModManager.Models;
 
@@ -13,10 +14,196 @@ public sealed class NexusFileInfo
     public long UploadedTimestamp { get; init; }
 }
 
-/// <summary>Nexus Mods API helpers: update checks and nxm:// download links.</summary>
+public sealed class NexusCollectionMod
+{
+    public int ModId { get; init; }
+    public int FileId { get; init; }
+    public string ModName { get; init; } = "";
+    public string FileName { get; init; } = "";
+    public string Version { get; init; } = "";
+    /// <summary>Size in kilobytes, as returned by the collections GraphQL API.</summary>
+    public long SizeKb { get; init; }
+    public bool Optional { get; init; }
+    public string PageUrl { get; init; } = "";
+
+    public string DisplayName => string.IsNullOrWhiteSpace(ModName) ? FileName : ModName;
+    public string SizeText => SizeKb <= 0 ? "" : SizeKb >= 1024 ? $"{SizeKb / 1024.0:0.#} MB" : $"{SizeKb} KB";
+}
+
+public sealed class NexusCollection
+{
+    public string Slug { get; init; } = "";
+    public string Name { get; init; } = "";
+    public string Author { get; init; } = "";
+    public string GameDomain { get; init; } = "";
+    public string Summary { get; init; } = "";
+    public int RevisionNumber { get; init; }
+    public int ModCount { get; init; }
+    public long TotalSize { get; init; }
+    public string PageUrl { get; init; } = "";
+    public List<NexusCollectionMod> Mods { get; init; } = new();
+    public int OptionalCount => Mods.Count(m => m.Optional);
+    public string SizeText => TotalSize <= 0 ? "未知" : $"{TotalSize / (1024.0 * 1024 * 1024):0.##} GB";
+}
+
+/// <summary>Nexus Mods API helpers: update checks, nxm:// download links and collections.</summary>
 public static class NexusService
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(2) };
+
+    private const string CollectionQuery = """
+        query($slug: String!) {
+          collection(slug: $slug, viewAdultContent: true) {
+            id name slug summary
+            game { domainName }
+            user { name }
+            latestPublishedRevision { revisionNumber }
+          }
+          collectionRevision(slug: $slug, viewAdultContent: true) {
+            id revisionNumber modCount totalSize
+            modFiles { optional file { modId fileId name version size mod { name } } }
+          }
+        }
+        """;
+
+    /// <summary>
+    /// Fetch a Nexus collection (metadata + the exact mod files it installs) from the public
+    /// GraphQL endpoint. Anonymous access works; an API key is only needed to download files.
+    /// Accepts a full collection URL or just the slug.
+    /// </summary>
+    public static async Task<NexusCollection> GetCollectionAsync(string input, string? apiKey = null,
+        CancellationToken ct = default)
+    {
+        var (slug, gameFromUrl) = ParseCollectionRef(input);
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            query = CollectionQuery,
+            variables = new { slug },
+        });
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.nexusmods.com/v2/graphql");
+        request.Headers.UserAgent.ParseAdd("SBModManager/1.3");
+        request.Headers.TryAddWithoutValidation("Application-Name", "SBModManager");
+        request.Headers.TryAddWithoutValidation("Application-Version", "1.3.0");
+        request.Headers.Accept.ParseAdd("application/json");
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            request.Headers.TryAddWithoutValidation("apikey", apiKey);
+        }
+        request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
+
+        using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
+        var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Nexus GraphQL {(int)response.StatusCode}: {Truncate(body, 300)}");
+        }
+
+        using var doc = JsonDocument.Parse(body);
+        if (doc.RootElement.TryGetProperty("errors", out var errors) &&
+            errors.ValueKind == JsonValueKind.Array && errors.GetArrayLength() > 0)
+        {
+            throw new InvalidOperationException("Nexus GraphQL 错误: " + Truncate(errors.ToString(), 300));
+        }
+
+        var data = doc.RootElement.GetProperty("data");
+        if (!data.TryGetProperty("collection", out var coll) || coll.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException($"找不到合集「{slug}」，请检查链接。");
+        }
+        if (!data.TryGetProperty("collectionRevision", out var rev) || rev.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException($"合集「{slug}」没有已发布的版本。");
+        }
+
+        var game = coll.TryGetProperty("game", out var g) && g.TryGetProperty("domainName", out var dn)
+            ? dn.GetString() ?? gameFromUrl
+            : gameFromUrl;
+        var author = coll.TryGetProperty("user", out var u) && u.TryGetProperty("name", out var un)
+            ? un.GetString() ?? ""
+            : "";
+        var summary = coll.TryGetProperty("summary", out var sm) ? sm.GetString() ?? "" : "";
+        var name = coll.TryGetProperty("name", out var nm) ? nm.GetString() ?? slug : slug;
+
+        var mods = new List<NexusCollectionMod>();
+        if (rev.TryGetProperty("modFiles", out var files) && files.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in files.EnumerateArray())
+            {
+                if (!item.TryGetProperty("file", out var file)) continue;
+                var modId = JsonInt(file, "modId");
+                var fileId = JsonInt(file, "fileId");
+                if (modId <= 0 || fileId <= 0) continue;
+
+                var modName = "";
+                if (file.TryGetProperty("mod", out var mod) && mod.TryGetProperty("name", out var mn))
+                {
+                    modName = mn.GetString() ?? "";
+                }
+                var fileName = file.TryGetProperty("name", out var fn) ? fn.GetString() ?? "" : "";
+                mods.Add(new NexusCollectionMod
+                {
+                    ModId = modId,
+                    FileId = fileId,
+                    ModName = string.IsNullOrWhiteSpace(modName) ? fileName : modName,
+                    FileName = fileName,
+                    Version = file.TryGetProperty("version", out var v) ? v.GetString() ?? "" : "",
+                    SizeKb = JsonLong(file, "size"),
+                    Optional = item.TryGetProperty("optional", out var op) && op.GetBoolean(),
+                    PageUrl = $"https://www.nexusmods.com/{game}/mods/{modId}",
+                });
+            }
+        }
+
+        return new NexusCollection
+        {
+            Slug = slug,
+            Name = name,
+            Author = author,
+            GameDomain = string.IsNullOrWhiteSpace(game) ? "stellarblade" : game,
+            Summary = summary,
+            RevisionNumber = JsonInt(rev, "revisionNumber"),
+            ModCount = JsonInt(rev, "modCount") is var count && count > 0 ? count : mods.Count,
+            TotalSize = JsonLong(rev, "totalSize"),
+            PageUrl = $"https://www.nexusmods.com/{game}/collections/{slug}",
+            Mods = mods,
+        };
+    }
+
+    /// <summary>GraphQL returns some numeric fields as strings; accept both.</summary>
+    private static long JsonLong(JsonElement parent, string name)
+    {
+        if (!parent.TryGetProperty(name, out var value)) return 0;
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number)) return number;
+        if (value.ValueKind == JsonValueKind.String && long.TryParse(value.GetString(), out var parsed)) return parsed;
+        return 0;
+    }
+
+    private static int JsonInt(JsonElement parent, string name)
+    {
+        var value = JsonLong(parent, name);
+        return value > int.MaxValue ? int.MaxValue : value < int.MinValue ? int.MinValue : (int)value;
+    }
+
+    private static (string Slug, string Game) ParseCollectionRef(string input)
+    {
+        var text = (input ?? "").Trim();
+        var match = System.Text.RegularExpressions.Regex.Match(text,
+            @"nexusmods\.com/games/(?<game>[A-Za-z0-9_-]+)/collections/(?<slug>[A-Za-z0-9]+)",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (match.Success)
+        {
+            return (match.Groups["slug"].Value.ToLowerInvariant(), match.Groups["game"].Value.ToLowerInvariant());
+        }
+
+        var slugMatch = System.Text.RegularExpressions.Regex.Match(text, @"^([A-Za-z0-9]+)$");
+        if (!slugMatch.Success)
+        {
+            throw new InvalidOperationException("不是有效的 Nexus 合集链接或 slug。");
+        }
+        return (slugMatch.Groups[1].Value.ToLowerInvariant(), "stellarblade");
+    }
 
     public static async Task<List<NexusFileInfo>> GetFilesAsync(string domain, int modId, string apiKey,
         CancellationToken ct = default)

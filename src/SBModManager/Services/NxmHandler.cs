@@ -12,6 +12,11 @@ public sealed class NxmLink
     public string? Key { get; init; }
     public string? Expires { get; init; }
 
+    /// <summary>Set for nxm://.../collections/&lt;slug&gt; links.</summary>
+    public string? CollectionSlug { get; init; }
+    public int? CollectionRevision { get; init; }
+    public bool IsCollection => !string.IsNullOrWhiteSpace(CollectionSlug);
+
     public string PageUrl => $"https://www.nexusmods.com/{Domain}/mods/{ModId}";
 }
 
@@ -31,6 +36,23 @@ public static class NxmHandler
         if (string.IsNullOrWhiteSpace(url) || !url.StartsWith("nxm://", StringComparison.OrdinalIgnoreCase))
         {
             return false;
+        }
+
+        var collectionMatch = Regex.Match(url,
+            @"^nxm://(?<domain>[^/]+)/collections/(?<slug>[A-Za-z0-9]+)(?:/revisions/(?<rev>\d+))?(?:\?.*)?$",
+            RegexOptions.IgnoreCase);
+        if (collectionMatch.Success)
+        {
+            link = new NxmLink
+            {
+                Raw = url,
+                Domain = collectionMatch.Groups["domain"].Value,
+                CollectionSlug = collectionMatch.Groups["slug"].Value,
+                CollectionRevision = collectionMatch.Groups["rev"].Success
+                    ? int.Parse(collectionMatch.Groups["rev"].Value)
+                    : null,
+            };
+            return true;
         }
 
         var match = Regex.Match(url,
