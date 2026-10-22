@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Text.RegularExpressions;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -105,6 +104,31 @@ public sealed partial class NexusPage : Page
         RefreshButton.IsEnabled = !busy;
     }
 
+    protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        if (e.NavigationMode == Microsoft.UI.Xaml.Navigation.NavigationMode.Back)
+        {
+            Loaded += (_, _) =>
+            {
+                try
+                {
+                    var animation = Microsoft.UI.Xaml.Media.Animation.ConnectedAnimationService
+                        .GetForCurrentView().GetAnimation("nexusDetailBack");
+                    if (animation is not null && ModList.SelectedItem is NexusItem item &&
+                        ModList.ContainerFromItem(item) is FrameworkElement container)
+                    {
+                        animation.TryStart(container);
+                    }
+                }
+                catch
+                {
+                    // best-effort
+                }
+            };
+        }
+    }
+
     private async void Refresh_Click(object sender, RoutedEventArgs e) => await LoadAsync();
 
     private async void Kind_Changed(object sender, SelectionChangedEventArgs e)
@@ -122,256 +146,73 @@ public sealed partial class NexusPage : Page
 
     private void LoadMore_Click(object sender, RoutedEventArgs e) => AppendPage();
 
-    private async void Detail_Click(object sender, RoutedEventArgs e)
+    private void Detail_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: int modId }) return;
-        await ShowDetailAsync(modId);
+        OpenDetail(modId, null);
+    }
+
+    private void ModList_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is not NexusItem item) return;
+        OpenDetail(item.ModId, item);
+    }
+
+    private void OpenDetail(int modId, NexusItem? item)
+    {
+        try
+        {
+            if (item is not null && ModList.ContainerFromItem(item) is FrameworkElement container)
+            {
+                Microsoft.UI.Xaml.Media.Animation.ConnectedAnimationService
+                    .GetForCurrentView()
+                    .PrepareToAnimate("nexusDetail", container);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("准备 N 网详情动画失败: " + ex.Message);
+        }
+
+        Frame.Navigate(typeof(NexusDetailPage), modId);
     }
 
     private async void Download_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: int modId }) return;
-        await DownloadModAsync(modId, null);
-    }
-
-    private async Task ShowDetailAsync(int modId)
-    {
         var key = State.Config.NexusApiKey;
         if (string.IsNullOrWhiteSpace(key)) return;
 
-        SetBusy(true);
-        StatusText.Text = "加载详情…";
-        try
-        {
-            var domain = State.Config.NexusGameDomain;
-            var detail = await NexusDetailService.GetAsync(domain, modId, key);
-            if (detail is null)
-            {
-                StatusText.Text = "详情加载失败。";
-                return;
-            }
-
-            var panel = new StackPanel { Spacing = 10, MaxWidth = 640 };
-            if (!string.IsNullOrWhiteSpace(detail.PictureUrl))
-            {
-                panel.Children.Add(new Image
-                {
-                    MaxHeight = 260,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform,
-                    Source = TryImage(detail.PictureUrl),
-                });
-            }
-
-            panel.Children.Add(new TextBlock
-            {
-                Text = detail.Name,
-                Style = ResourceStyle("SubtitleTextBlockStyle"),
-                TextWrapping = TextWrapping.Wrap,
-            });
-            panel.Children.Add(new TextBlock
-            {
-                Text = detail.MetaText(),
-                Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
-                Style = ResourceStyle("CaptionTextBlockStyle"),
-                TextWrapping = TextWrapping.Wrap,
-            });
-            if (!string.IsNullOrWhiteSpace(detail.Summary))
-            {
-                panel.Children.Add(new TextBlock { Text = detail.Summary, TextWrapping = TextWrapping.Wrap });
-            }
-            if (!string.IsNullOrWhiteSpace(detail.Description))
-            {
-                panel.Children.Add(new TextBlock
-                {
-                    Text = StripHtml(detail.Description),
-                    TextWrapping = TextWrapping.Wrap,
-                    Style = ResourceStyle("CaptionTextBlockStyle"),
-                    Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
-                });
-            }
-            if (detail.Files.Count > 0)
-            {
-                panel.Children.Add(new TextBlock
-                {
-                    Text = "文件",
-                    Style = ResourceStyle("BodyStrongTextBlockStyle"),
-                });
-                foreach (var file in detail.Files.Take(6))
-                {
-                    panel.Children.Add(new TextBlock
-                    {
-                        Text = $"• {file.Name}" +
-                               (string.IsNullOrWhiteSpace(file.Version) ? "" : $"  v{file.Version}") +
-                               (string.IsNullOrWhiteSpace(file.Category) ? "" : $"  [{file.Category}]"),
-                        Style = ResourceStyle("CaptionTextBlockStyle"),
-                        TextWrapping = TextWrapping.Wrap,
-                    });
-                }
-            }
-
-            var dialog = new ContentDialog
-            {
-                XamlRoot = XamlRoot,
-                Title = "模组详情",
-                Content = new ScrollViewer { MaxHeight = 560, Content = panel },
-                PrimaryButtonText = "下载导入",
-                SecondaryButtonText = "打开网页",
-                CloseButtonText = "关闭",
-                DefaultButton = ContentDialogButton.Primary,
-            };
-
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
-            {
-                await DownloadModAsync(modId, detail);
-            }
-            else if (result == ContentDialogResult.Secondary)
-            {
-                await Windows.System.Launcher.LaunchUriAsync(
-                    new Uri($"https://www.nexusmods.com/{domain}/mods/{modId}"));
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error("加载 N 网详情失败", ex);
-            StatusText.Text = "详情加载失败: " + ex.Message;
-        }
-        finally
-        {
-            SetBusy(false);
-            StatusText.Text = $"{_all.Count} 个模组";
-        }
-    }
-
-    private async Task DownloadModAsync(int modId, NexusModDetail? detail)
-    {
-        var key = State.Config.NexusApiKey;
-        if (string.IsNullOrWhiteSpace(key)) return;
-
-        var domain = State.Config.NexusGameDomain;
         var item = Items.FirstOrDefault(i => i.ModId == modId);
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "下载并导入",
+            Content = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Text = $"将下载「{item?.Name ?? "mod " + modId}」的最新主文件并导入。\n\n" +
+                       "免费账号需要带授权 key 的下载链接；如果失败会提示改用网页下载。",
+            },
+            PrimaryButtonText = "下载",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+
         SetBusy(true);
-        StatusText.Text = "获取文件列表…";
         try
         {
-            var files = detail?.Files is { Count: > 0 } known
-                ? known
-                : await NexusService.GetFilesAsync(domain, modId, key);
-            var main = files
-                .Where(f => f.FileId > 0)
-                .OrderByDescending(f => f.UploadedTimestamp)
-                .FirstOrDefault();
-            if (main is null)
-            {
-                StatusText.Text = "该模组没有可下载的主文件。";
-                return;
-            }
-
-            var dialog = new ContentDialog
-            {
-                XamlRoot = XamlRoot,
-                Title = "下载并导入",
-                Content = new TextBlock
-                {
-                    TextWrapping = TextWrapping.Wrap,
-                    Text = $"将下载「{detail?.Name ?? item?.Name ?? "mod " + modId}」的最新主文件：\n{main.Name}" +
-                           (string.IsNullOrWhiteSpace(main.Version) ? "" : $"（v{main.Version}）") +
-                           "\n\n免费账号需要带授权 key 的下载链接；如果失败会提示改用网页下载。",
-                },
-                PrimaryButtonText = "下载",
-                CloseButtonText = "取消",
-                DefaultButton = ContentDialogButton.Primary,
-            };
-            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-
-            StatusText.Text = "获取下载地址…";
-            var uri = await NexusService.GetDownloadLinkAsync(domain, modId, main.FileId, key);
-            if (string.IsNullOrWhiteSpace(uri))
-            {
-                StatusText.Text = "Nexus 没有返回下载地址（免费账号可能受限），已打开网页。";
-                await Windows.System.Launcher.LaunchUriAsync(
-                    new Uri($"https://www.nexusmods.com/{domain}/mods/{modId}?tab=files"));
-                return;
-            }
-
-            StatusText.Text = "下载中…";
-            Directory.CreateDirectory(AppPaths.TempRoot);
-            var temp = Path.Combine(AppPaths.TempRoot, $"nexus-{modId}-{main.FileId}.zip");
-            await GitHubService.DownloadAsync(uri, temp);
-
-            StatusText.Text = "导入中…";
-            var imported = await ModImporter.ImportArchiveAsync(temp, null);
-            if (imported.Mod is null)
-            {
-                StatusText.Text = "导入失败: " + imported.Error;
-                return;
-            }
-
-            var record = imported.Mod;
-            record.NexusModId = modId;
-            record.NexusFileId = main.FileId;
-            record.NexusDomain = domain;
-            if (!string.IsNullOrWhiteSpace(main.Version)) record.Version = main.Version;
-            if (detail is not null)
-            {
-                record.Name = detail.Name;
-                record.NexusThumbnailUrl = detail.PictureUrl;
-                if (!string.IsNullOrWhiteSpace(detail.Version)) record.Version = detail.Version;
-            }
-            else if (item is not null)
-            {
-                record.Name = item.Name;
-                record.NexusThumbnailUrl = item.Thumbnail?.UriSource?.ToString() ?? "";
-            }
-            record.GroupKey = ModImporter.GroupKeyFor(record.Name, record.NexusModId);
-            CollectionInstaller.TagAsLocal(record);
-            ModStore.Save(record);
-            State.ReloadLibrary();
-
-            StatusText.Text = $"已导入「{record.Name}」";
-            try
-            {
-                File.Delete(temp);
-            }
-            catch
-            {
-                // ignore
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error("N 网下载导入失败", ex);
-            StatusText.Text = "下载失败: " + ex.Message;
+            var progress = new Progress<string>(text => StatusText.Text = text);
+            var (record, error) = await NexusInstaller.InstallAsync(
+                State.Config.NexusGameDomain, modId, null, key, progress);
+            StatusText.Text = record is not null
+                ? $"已导入「{record.Name}」"
+                : "下载失败: " + (error ?? "未知错误");
         }
         finally
         {
             SetBusy(false);
         }
     }
-
-    private void ModList_ItemClick(object sender, ItemClickEventArgs e)
-    {
-        if (e.ClickedItem is NexusItem item)
-        {
-            _ = ShowDetailAsync(item.ModId);
-        }
-    }
-
-    private static string StripHtml(string html)
-    {
-        var text = Regex.Replace(html, "<br\\s*/?>", "\n", RegexOptions.IgnoreCase);
-        text = Regex.Replace(text, "</p>", "\n", RegexOptions.IgnoreCase);
-        text = Regex.Replace(text, "<[^>]+>", "");
-        text = System.Net.WebUtility.HtmlDecode(text);
-        return Regex.Replace(text, "\n{3,}", "\n\n").Trim();
-    }
-
-    private static Style? ResourceStyle(string key)
-        => Application.Current.Resources.TryGetValue(key, out var value) ? value as Style : null;
-
-    private static Microsoft.UI.Xaml.Media.Brush? ResourceBrush(string key)
-        => Application.Current.Resources.TryGetValue(key, out var value)
-            ? value as Microsoft.UI.Xaml.Media.Brush
-            : null;
 }

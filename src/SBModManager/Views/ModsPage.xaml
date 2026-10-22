@@ -161,8 +161,6 @@
                     x:Name="ModList"
                     Grid.Column="0"
                     HorizontalAlignment="Stretch"
-                    IsItemClickEnabled="True"
-                    ItemClick="ModList_ItemClick"
                     ItemsSource="{x:Bind Mods}"
                     RightTapped="ModList_RightTapped"
                     SelectionChanged="ModList_SelectionChanged"

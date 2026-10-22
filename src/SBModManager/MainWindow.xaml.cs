@@ -71,17 +71,6 @@ public sealed partial class MainWindow : Window
         };
         SelectPage(Program.PageTag ?? "mods");
 
-        if (Program.ModDetailId is { Length: > 0 } detailId)
-        {
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                if (ContentFrame.Content is ModsPage)
-                {
-                    ContentFrame.Navigate(typeof(ModDetailPage), detailId);
-                }
-            });
-        }
-
         if (Program.NavTag is { Length: > 0 } navTag)
         {
             DispatcherQueue.TryEnqueue(() =>
@@ -92,6 +81,12 @@ public sealed partial class MainWindow : Window
                 if (navItem is not null)
                 {
                     NavView.SelectedItem = navItem;
+                }
+
+                if (Program.NexusDetailId is { Length: > 0 } nexusDetail &&
+                    int.TryParse(nexusDetail, out var nexusId))
+                {
+                    DispatcherQueue.TryEnqueue(() => ContentFrame.Navigate(typeof(NexusDetailPage), nexusId));
                 }
             });
         }

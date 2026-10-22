@@ -339,6 +339,13 @@ public static class SelfTest
                 TranslationService.LooksChinese("这是一段中文说明") &&
                 !TranslationService.LooksChinese("This is an English description"));
 
+            // 1k) HTML -> Markdown conversion for Nexus descriptions
+            var html = "<p>Hello <strong>world</strong><br/>line2</p><ul><li>one</li><li>two</li></ul><a href=\"https://example.com\">link</a>";
+            var md = SBModManager.Ui.HtmlToMarkdown.Convert(html);
+            Check("HTML 转 Markdown",
+                md.Contains("**world**") && md.Contains("- one") &&
+                md.Contains("[link](https://example.com)"), md);
+
             // 1i) Markdown renderer produces blocks for headings/lists/bold
             var markdownPanel = SBModManager.Ui.MarkdownRenderer.Render(
                 "# 标题\n\n**粗体** 和 *斜体* 和 `code`\n\n- 项目一\n- 项目二\n\n[链接](https://example.com)");
