@@ -166,7 +166,7 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>Title slides right by this much while the back button is visible.</summary>
-    private const double TitleBackInset = 36;
+    private const double TitleBackInset = 34;
 
     /// <summary>Pages reachable from the navigation pane; they never show a back button.</summary>
     private static readonly Type[] RootPages =
