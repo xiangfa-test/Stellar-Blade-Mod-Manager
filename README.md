@@ -2,7 +2,7 @@
 
 基于 **WinUI 3 + .NET 8** 的《Stellar Blade（剑星）》模组管理器，原生 Fluent + Mica 界面。
 
-当前版本 **v1.10.0** ｜ 协议 **GPL-3.0** ｜ [下载最新版](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/releases/latest)
+当前版本 **v1.10.1** ｜ 协议 **GPL-3.0** ｜ [下载最新版](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/releases/latest)
 
 ![模组管理](docs/screenshots/mods.png)
 
@@ -19,6 +19,7 @@
 - UE4SS 一键安装：下载最新 Release 或选本地 zip，自动放置 `ue4ss` + `dwmapi.dll`
 - 标签 / 备注（回车添加、快速添加已有标签）、多版本切换、更新检查、冲突链分析、资源级冲突分析（实验）
 - 方案（Profiles）：保存「启用哪些模组 + 加载顺序」，一键切换
+- 调试页：环境信息、运行自检、复制诊断、清理临时文件
 - 预览图：自动读取模组包内图片并在详情显示
 - 窗口大小记忆：首次调整后询问是否记住
 - 主页视频：含 `.bk2` 的压缩包自动识别为视频模组，部署到 `SB/Content/Movies`
