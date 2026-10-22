@@ -339,6 +339,13 @@ public static class SelfTest
                 TranslationService.LooksChinese("这是一段中文说明") &&
                 !TranslationService.LooksChinese("This is an English description"));
 
+            // 1l) BBCode -> Markdown (older Nexus pages)
+            var bbcode = "[b]安装说明[/b]\n[url=https://example.com]链接[/url]\n[list][*]a[*]b[/list]";
+            var bbMarkdown = SBModManager.Ui.HtmlToMarkdown.Convert(bbcode);
+            Check("BBCode 转 Markdown",
+                bbMarkdown.Contains("**安装说明**") && bbMarkdown.Contains("[链接](https://example.com)") &&
+                bbMarkdown.Contains("- a"), bbMarkdown);
+
             // 1k) HTML -> Markdown conversion for Nexus descriptions
             var html = "<p>Hello <strong>world</strong><br/>line2</p><ul><li>one</li><li>two</li></ul><a href=\"https://example.com\">link</a>";
             var md = SBModManager.Ui.HtmlToMarkdown.Convert(html);

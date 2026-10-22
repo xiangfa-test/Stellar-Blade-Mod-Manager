@@ -15,6 +15,7 @@ public sealed partial class NexusDetailPage : Page
     private string _domain = "stellarblade";
     private NexusModDetail? _detail;
     private string? _translated;
+    private string _originalSummary = "";
 
     private static AppState State => AppState.Instance;
 
@@ -83,6 +84,7 @@ public sealed partial class NexusDetailPage : Page
 
             TitleText.Text = _detail.Name;
             MetaText.Text = _detail.MetaText();
+            _originalSummary = _detail.Summary;
             SummaryText.Text = _detail.Summary;
             WebButton.IsEnabled = true;
 
@@ -152,6 +154,7 @@ public sealed partial class NexusDetailPage : Page
         if (_translated is not null)
         {
             DescriptionHost.Content = MarkdownRenderer.Render(HtmlToMarkdown.Convert(_detail.Description));
+            SummaryText.Text = _originalSummary;
             _translated = null;
             TranslateButton.Content = "翻译";
             return;
@@ -162,11 +165,21 @@ public sealed partial class NexusDetailPage : Page
         StatusText.Text = "正在翻译…";
         try
         {
-            var plain = TranslationService.StripMarkdown(HtmlToMarkdown.Convert(_detail.Description));
-            var toEnglish = TranslationService.LooksChinese(plain);
-            var result = await TranslationService.TranslateAsync(plain, toEnglish ? "zh-CN" : "en",
-                toEnglish ? "en" : "zh-CN");
-            if (string.IsNullOrWhiteSpace(result))
+            var markdown = HtmlToMarkdown.Convert(_detail.Description);
+            var plain = TranslationService.StripMarkdown(markdown);
+            var summary = _originalSummary;
+
+            var toEnglish = TranslationService.LooksChinese(plain + " " + summary);
+            var from = toEnglish ? "zh-CN" : "en";
+            var to = toEnglish ? "en" : "zh-CN";
+
+            var result = string.IsNullOrWhiteSpace(plain)
+                ? null
+                : await TranslationService.TranslateAsync(plain, from, to);
+            var translatedSummary = string.IsNullOrWhiteSpace(summary)
+                ? ""
+                : await TranslationService.TranslateAsync(summary, from, to) ?? summary;
+            if (string.IsNullOrWhiteSpace(result) && string.IsNullOrWhiteSpace(translatedSummary))
             {
                 StatusText.Text = "翻译服务不可用（可能超限），已复制原文。";
                 var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
@@ -175,13 +188,22 @@ public sealed partial class NexusDetailPage : Page
                 return;
             }
 
-            _translated = result;
-            DescriptionHost.Content = new TextBlock
+            if (!string.IsNullOrWhiteSpace(translatedSummary))
             {
-                Text = result,
-                TextWrapping = TextWrapping.Wrap,
-                IsTextSelectionEnabled = true,
-            };
+                SummaryText.Text = translatedSummary;
+            }
+
+            if (!string.IsNullOrWhiteSpace(result))
+            {
+                _translated = result;
+                DescriptionHost.Content = new TextBlock
+                {
+                    Text = result,
+                    TextWrapping = TextWrapping.Wrap,
+                    IsTextSelectionEnabled = true,
+                };
+            }
+
             TranslateButton.Content = "原文";
             StatusText.Text = "已翻译（机器翻译，仅供参考）。";
         }
