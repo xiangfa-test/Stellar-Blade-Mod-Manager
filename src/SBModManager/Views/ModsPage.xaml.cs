@@ -46,14 +46,12 @@ public sealed partial class ModsPage : Page
         // The detail pane starts collapsed; hook its scrollbar anyway so the first
         // selection already gets the auto-hiding behaviour.
         SizeChanged += OnPageSizeChanged;
-        DetailsScroll.SizeChanged += (_, _) => ApplyDetailButtonLayout();
         Ui.ScrollBarAutoHide.Attach(DetailsScroll);
         Ui.ScrollBarAutoHide.AttachToElement(ModList);
         Ui.ScrollBarAutoHide.AttachToElement(ExternalList);
         Loaded += (_, _) =>
         {
-            ApplyDetailButtonLayout();
-            if (!_initialized)
+                if (!_initialized)
             {
                 _initialized = true;
                 Reload();
@@ -700,7 +698,6 @@ public sealed partial class ModsPage : Page
             }
         }
         DetailTargetsText.Text = string.Join(Environment.NewLine, item.TargetPaths);
-        ApplyDetailButtonLayout();
         DetailTags.Text = item.Record.Tags.Count == 0 ? "标签: （未设置）" : "标签: " + string.Join(" · ", item.Record.Tags);
         var cnsParts = new List<string>();
         if (item.Record.CnsFits.Count > 0) cnsParts.Add("服装: " + string.Join(" / ", item.Record.CnsFits.Take(6)));
@@ -883,19 +880,6 @@ public sealed partial class ModsPage : Page
 
     private double _lastAvailableWidth;
 
-    /// <summary>Stack the detail buttons vertically when the pane is too narrow for a row.</summary>
-    private void ApplyDetailButtonLayout()
-    {
-        var width = DetailColumn.ActualWidth > 0 ? DetailColumn.ActualWidth : DetailColumn.Width.Value;
-        if (width <= 0) return;
-        var compact = width < 420;
-        foreach (var row in new[] { ActionsRow, FolderRow })
-        {
-            row.Orientation = compact ? Orientation.Vertical : Orientation.Horizontal;
-            row.Spacing = compact ? 6 : 8;
-        }
-    }
-
     /// <summary>Keep the detail pane proportional when the window grows/shrinks.</summary>
     private void OnPageSizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -913,7 +897,6 @@ public sealed partial class ModsPage : Page
         var target = Math.Clamp(ratio * available, MinDetailWidth, max);
         DetailColumn.Width = new GridLength(target);
         State.Config.ModsDetailWidth = target;
-        ApplyDetailButtonLayout();
         _lastAvailableWidth = available;
     }
 
@@ -1553,6 +1536,33 @@ public sealed partial class ModsPage : Page
         var url = item.Record.NexusPageUrl;
         if (string.IsNullOrWhiteSpace(url)) return;
         await Windows.System.Launcher.LaunchUriAsync(new Uri(url));
+    }
+
+    private async void FillNexusVersions_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(State.Config.NexusApiKey))
+        {
+            ShowMessage(InfoBarSeverity.Warning, "缺少 Nexus API Key", "请先在「设置」中填写 Nexus API Key。");
+            return;
+        }
+
+        SetBusy(true);
+        try
+        {
+            var filled = await ModUpdater.FillVersionsAsync();
+            Reload();
+            ShowMessage(filled > 0 ? InfoBarSeverity.Success : InfoBarSeverity.Informational,
+                "补全版本号", filled > 0 ? $"已补全 {filled} 个模组的版本号。" : "没有需要补全的版本号。");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("补全版本号失败", ex);
+            ShowMessage(InfoBarSeverity.Error, "补全失败", ex.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
     }
 
     private async void RenameNexusNames_Click(object sender, RoutedEventArgs e)

@@ -2,6 +2,7 @@
     x:Class="SBModManager.Views.ModsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="using:SBModManager.Ui"
     xmlns:vm="using:SBModManager.ViewModels"
     NavigationCacheMode="Required">
 
@@ -119,6 +120,7 @@
                         <MenuFlyoutItem Click="CheckAllUpdates_Click" Text="检查模组更新" />
                         <MenuFlyoutItem Click="OpenLoadOrder_Click" Text="打开加载顺序页…" />
                         <MenuFlyoutItem Click="RenameNexusNames_Click" Text="从 N 网补全模组名称" />
+                        <MenuFlyoutItem Click="FillNexusVersions_Click" Text="从 N 网补全版本号" />
                         <MenuFlyoutItem Click="ShowConflicts_Click" Text="冲突链分析" />
                         <MenuFlyoutItem Click="ShowAssetConflicts_Click" Text="资源级冲突分析（实验）" />
                         <MenuFlyoutItem Click="EditMeta_Click" Text="编辑标签 / 备注…" />
@@ -339,10 +341,7 @@
                                     Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     Visibility="Collapsed" />
-                                <StackPanel
-                                    x:Name="ActionsRow"
-                                    Orientation="Horizontal"
-                                    Spacing="8">
+                                <ui:WrapPanel x:Name="ActionsRow">
                                     <Button Click="EditMeta_Click" Content="标签 / 备注" />
                                     <Button Click="CheckOneUpdate_Click" Content="检查更新" />
                                     <Button
@@ -350,7 +349,15 @@
                                         Click="UpdateMod_Click"
                                         Content="更新"
                                         Style="{StaticResource AccentButtonStyle}"
-                                        Visibility="Collapsed" />
+                                        Visibility="Collapsed">
+                                        <Button.Flyout>
+                                            <MenuFlyout Placement="Bottom">
+                                                <MenuFlyoutItem Click="UpdateMod_Click" Text="下载并更新" />
+                                                <MenuFlyoutSeparator />
+                                                <MenuFlyoutItem Click="IgnoreUpdate_Click" Text="忽略此模组的更新" />
+                                            </MenuFlyout>
+                                        </Button.Flyout>
+                                    </Button>
                                     <Button
                                         x:Name="NexusPageButton"
                                         Click="OpenNexusPage_Click"
@@ -359,9 +366,9 @@
                                     <Button
                                         x:Name="IgnoreUpdateButton"
                                         Click="IgnoreUpdate_Click"
-                                        Content="忽略更新"
+                                        Content="恢复更新提示"
                                         Visibility="Collapsed" />
-                                </StackPanel>
+                                </ui:WrapPanel>
 
                                 <TextBlock
                                     Margin="0,6,0,0"

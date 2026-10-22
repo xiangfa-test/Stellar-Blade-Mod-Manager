@@ -51,6 +51,7 @@ public partial class App : Application
         try
         {
             Program.Trace("onlaunched");
+            Services.AppUpdater.CleanupTemp();
             Services.AppState.Instance.Load();
             Program.Trace("state loaded");
 

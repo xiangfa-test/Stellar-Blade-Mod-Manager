@@ -34,6 +34,64 @@ public static class AppUpdater
         return Environment.GetEnvironmentVariable("SBMM_SKIP_UPDATE_CHECK") is null or "";
     }
 
+    /// <summary>Remove leftover download/staging folders from earlier update attempts.</summary>
+    public static void CleanupTemp()
+    {
+        try
+        {
+            var root = AppPaths.TempRoot;
+            if (!Directory.Exists(root)) return;
+
+            var removed = 0;
+            foreach (var dir in Directory.EnumerateDirectories(root))
+            {
+                var name = Path.GetFileName(dir);
+                if (!(name.StartsWith("update-", StringComparison.OrdinalIgnoreCase) ||
+                      name.StartsWith("import-", StringComparison.OrdinalIgnoreCase) ||
+                      name.StartsWith("fomod-", StringComparison.OrdinalIgnoreCase) ||
+                      name.StartsWith("collection-", StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    Directory.Delete(dir, recursive: true);
+                    removed++;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("清理更新缓存失败 " + dir + ": " + ex.Message);
+                }
+            }
+
+            foreach (var file in Directory.EnumerateFiles(root))
+            {
+                var name = Path.GetFileName(file);
+                if (name.StartsWith("update-", StringComparison.OrdinalIgnoreCase) ||
+                    name.StartsWith("collection-", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        File.Delete(file);
+                        removed++;
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warn("清理更新缓存失败 " + file + ": " + ex.Message);
+                    }
+                }
+            }
+
+            if (removed > 0) Log.Info($"已清理 {removed} 个更新缓存项");
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("清理更新缓存失败: " + ex.Message);
+        }
+    }
+
     public static string CurrentVersion
     {
         get
@@ -159,7 +217,7 @@ for ($i = 0; $i -lt 20 -and -not $ok; $i++) {
 
 if ($ok) {
     Start-Process -FilePath $exe
-    Remove-Item -Path (Split-Path $source -Parent) -Recurse -Force
+    Remove-Item -Path (Split-Path (Split-Path $source -Parent) -Parent) -Recurse -Force
 } else {
     Add-Content -Path (Join-Path $target 'update-error.log') -Value ("update failed at " + (Get-Date))
 }

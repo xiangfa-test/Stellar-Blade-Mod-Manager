@@ -59,6 +59,37 @@ public static class ModUpdater
         return renamed;
     }
 
+    /// <summary>Replace fallback versions ("file 17084") with the Nexus page version.</summary>
+    public static async Task<int> FillVersionsAsync(IProgress<string>? progress = null,
+        CancellationToken ct = default)
+    {
+        var state = AppState.Instance;
+        var key = state.Config.NexusApiKey;
+        if (string.IsNullOrWhiteSpace(key)) return -1;
+
+        var filled = 0;
+        foreach (var record in state.Library.Where(r => r.NexusModId is > 0).ToList())
+        {
+            var needsFill = string.IsNullOrWhiteSpace(record.Version) ||
+                            record.Version.StartsWith("file ", StringComparison.OrdinalIgnoreCase);
+            if (!needsFill) continue;
+
+            var domain = string.IsNullOrWhiteSpace(record.NexusDomain)
+                ? state.Config.NexusGameDomain
+                : record.NexusDomain!;
+            var info = await NexusService.GetModInfoAsync(domain, record.NexusModId!.Value, key, ct);
+            if (info is not { Version.Length: > 0 }) continue;
+
+            record.Version = info.Value.Version;
+            ModStore.Save(record);
+            filled++;
+            progress?.Report($"{record.Name} → {record.Version}");
+        }
+
+        if (filled > 0) state.ReloadLibrary();
+        return filled;
+    }
+
     /// <summary>Returns the newest main-category file, or null when unchanged/unavailable.</summary>
     public static async Task<NexusFileInfo?> GetLatestFileAsync(ModRecord record, string apiKey,
         string domain, CancellationToken ct = default)
