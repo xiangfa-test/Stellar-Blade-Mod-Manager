@@ -97,6 +97,9 @@ public sealed class ModRecord
 
     public string? LatestVersion { get; set; }
     public bool UpdateAvailable { get; set; }
+
+    /// <summary>User asked to skip update notifications for this mod.</summary>
+    public bool IgnoreUpdate { get; set; }
     public DateTimeOffset? LastCheckedAt { get; set; }
 
     [JsonIgnore]
@@ -164,6 +167,9 @@ public sealed class AppConfig
 
     /// <summary>One-time pass that parses CNS outfit json for already imported mods.</summary>
     public bool CnsMetadataMigrated { get; set; }
+
+    /// <summary>One-time pass that switches Nexus mods to id-based version grouping.</summary>
+    public bool GroupKeyMigrated { get; set; }
 
     /// <summary>Check GitHub for a new app release when the app starts.</summary>
     public bool AutoCheckUpdates { get; set; } = true;

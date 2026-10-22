@@ -321,10 +321,12 @@ public static class NexusService
             }
 
             var latest = files.OrderByDescending(f => f.UploadedTimestamp).First();
+            var page = await GetModInfoAsync(domain, mod.NexusModId.Value, apiKey, ct).ConfigureAwait(false);
+            var latestVersion = page is { Version.Length: > 0 } ? page.Value.Version : latest.Version;
             var hasUpdate = latest.FileId != mod.NexusFileId &&
-                            (string.IsNullOrWhiteSpace(mod.Version) || !VersionsEqual(mod.Version, latest.Version));
+                            (string.IsNullOrWhiteSpace(mod.Version) || !VersionsEqual(mod.Version, latestVersion));
 
-            mod.LatestVersion = latest.Version;
+            mod.LatestVersion = latestVersion;
             mod.UpdateAvailable = hasUpdate;
             mod.LastCheckedAt = DateTimeOffset.Now;
             ModStore.Save(mod);
@@ -334,7 +336,7 @@ public static class NexusService
                 ModId = mod.Id,
                 ModName = mod.Name,
                 CurrentVersion = mod.Version,
-                LatestVersion = latest.Version,
+                LatestVersion = latestVersion,
                 LatestFileId = latest.FileId,
                 HasUpdate = hasUpdate,
                 PageUrl = $"https://www.nexusmods.com/{domain}/mods/{mod.NexusModId}",

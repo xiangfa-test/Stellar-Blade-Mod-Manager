@@ -218,7 +218,7 @@ public static class CollectionInstaller
                 if (!string.IsNullOrWhiteSpace(mod.DisplayName))
                 {
                     record.Name = mod.DisplayName.Trim();
-                    record.GroupKey = ModImporter.NormalizeGroup(record.Name);
+                    record.GroupKey = ModImporter.GroupKeyFor(record.Name, record.NexusModId);
                 }
                 record.NexusModId = mod.ModId;
                 record.NexusFileId = mod.FileId;

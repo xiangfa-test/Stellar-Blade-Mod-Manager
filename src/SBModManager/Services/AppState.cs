@@ -92,6 +92,27 @@ public sealed class AppState
             }
         }
 
+        if (!Config.GroupKeyMigrated)
+        {
+            Config.GroupKeyMigrated = true;
+            var changed = 0;
+            foreach (var record in Library)
+            {
+                if (record.NexusModId is not > 0) continue;
+                var key = ModImporter.GroupKeyFor(record.Name, record.NexusModId);
+                if (record.GroupKey == key) continue;
+                record.GroupKey = key;
+                ModStore.Save(record);
+                changed++;
+            }
+            SaveConfig();
+            if (changed > 0)
+            {
+                ReloadLibrary();
+                Log.Info($"已修正 {changed} 个 N 网模组的版本分组");
+            }
+        }
+
         if (!Config.CnsMetadataMigrated)
         {
             Config.CnsMetadataMigrated = true;

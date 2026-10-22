@@ -46,11 +46,13 @@ public sealed partial class ModsPage : Page
         // The detail pane starts collapsed; hook its scrollbar anyway so the first
         // selection already gets the auto-hiding behaviour.
         SizeChanged += OnPageSizeChanged;
+        DetailsScroll.SizeChanged += (_, _) => ApplyDetailButtonLayout();
         Ui.ScrollBarAutoHide.Attach(DetailsScroll);
         Ui.ScrollBarAutoHide.AttachToElement(ModList);
         Ui.ScrollBarAutoHide.AttachToElement(ExternalList);
         Loaded += (_, _) =>
         {
+            ApplyDetailButtonLayout();
             if (!_initialized)
             {
                 _initialized = true;
@@ -708,7 +710,12 @@ public sealed partial class ModsPage : Page
         DetailCns.Text = cnsParts.Count == 0 ? "" : "CNS  " + string.Join("   ·   ", cnsParts);
         DetailCns.Visibility = DetailCns.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         DetailNotes.Text = string.IsNullOrWhiteSpace(item.Record.Notes) ? "" : "备注: " + item.Record.Notes;
-        UpdateModButton.Visibility = item.Record.UpdateAvailable ? Visibility.Visible : Visibility.Collapsed;
+        var showUpdate = item.Record.UpdateAvailable && !item.Record.IgnoreUpdate;
+        UpdateModButton.Visibility = showUpdate ? Visibility.Visible : Visibility.Collapsed;
+        IgnoreUpdateButton.Content = item.Record.IgnoreUpdate ? "恢复更新提示" : "忽略此更新";
+        IgnoreUpdateButton.Visibility = item.Record.UpdateAvailable || item.Record.IgnoreUpdate
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         NexusPageButton.Visibility = item.Record.NexusModId is > 0 ? Visibility.Visible : Visibility.Collapsed;
         DetailNexusThumb.Source = null;
         DetailNexusThumb.Visibility = Visibility.Collapsed;
@@ -725,7 +732,9 @@ public sealed partial class ModsPage : Page
                 Log.Warn("加载 Nexus 缩略图失败: " + ex.Message);
             }
         }
-        DetailUpdate.Text = item.Record.UpdateAvailable
+        DetailUpdate.Text = item.Record.IgnoreUpdate
+            ? "已忽略此模组的更新提示"
+            : item.Record.UpdateAvailable
             ? $"可更新: {item.Record.VersionLabel} → {item.Record.LatestVersion}"
             : (item.Record.LastCheckedAt is { } checkedAt
                 ? $"已是最新（检查于 {checkedAt.LocalDateTime:MM-dd HH:mm}）"
@@ -877,10 +886,10 @@ public sealed partial class ModsPage : Page
     /// <summary>Stack the detail buttons vertically when the pane is too narrow for a row.</summary>
     private void ApplyDetailButtonLayout()
     {
-        var width = DetailColumn.ActualWidth;
+        var width = DetailColumn.ActualWidth > 0 ? DetailColumn.ActualWidth : DetailColumn.Width.Value;
         if (width <= 0) return;
-        var compact = width < 290;
-        foreach (var row in new[] { MetaRow, ActionsRow, FolderRow })
+        var compact = width < 420;
+        foreach (var row in new[] { ActionsRow, FolderRow })
         {
             row.Orientation = compact ? Orientation.Vertical : Orientation.Horizontal;
             row.Spacing = compact ? 6 : 8;
@@ -1317,6 +1326,7 @@ public sealed partial class ModsPage : Page
         {
             foreach (var record in candidates)
             {
+                if (record.IgnoreUpdate) continue;
                 var info = await NexusService.CheckAsync(record, key, State.Config.NexusGameDomain);
                 if (info.HasUpdate) updates++;
                 if (!string.IsNullOrEmpty(info.Error)) errors++;
@@ -1332,9 +1342,20 @@ public sealed partial class ModsPage : Page
             candidate.Refresh();
         }
         UpdateDetails(ModList.SelectedItem as ModItem);
+
+        var updated = candidates
+            .Where(r => r.UpdateAvailable && !r.IgnoreUpdate)
+            .Select(r => $"「{r.Name}」{r.VersionLabel} → {r.LatestVersion}")
+            .Take(8)
+            .ToList();
+        var detailText = updates > 0
+            ? "可更新的模组：\n" + string.Join("\n", updated) +
+              (updates > updated.Count ? $"\n…共 {updates} 个" : "")
+            : $"已检查 {candidates.Count} 个模组，没有发现更新。";
+        if (errors > 0) detailText += $"\n{errors} 个检查失败（见日志）。";
+
         ShowMessage(updates > 0 ? InfoBarSeverity.Success : InfoBarSeverity.Informational,
-            "更新检查完成",
-            $"已检查 {candidates.Count} 个模组，发现 {updates} 个更新" + (errors > 0 ? $"，{errors} 个失败" : "") + "。");
+            "更新检查完成", detailText);
     }
 
     private async Task CheckUpdateAsync(ModItem item)
@@ -1561,6 +1582,16 @@ public sealed partial class ModsPage : Page
         }
     }
 
+    private void IgnoreUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (ModList.SelectedItem is not ModItem item) return;
+        item.Record.IgnoreUpdate = !item.Record.IgnoreUpdate;
+        ModStore.Save(item.Record);
+        UpdateDetails(item);
+        ShowMessage(InfoBarSeverity.Informational, "更新提示",
+            item.Record.IgnoreUpdate ? $"已忽略「{item.Name}」的更新提示。" : "已恢复更新提示。");
+    }
+
     private void OpenLoadOrder_Click(object sender, RoutedEventArgs e)
         => (App.MainWindow as MainWindow)?.SelectPage("loadorder");
 
@@ -1649,6 +1680,7 @@ public sealed partial class ModsPage : Page
             record.NexusModId = link.ModId;
             record.NexusFileId = link.FileId;
             record.NexusDomain = domain;
+            record.GroupKey = ModImporter.GroupKeyFor(record.Name, record.NexusModId);
 
             // Keep the Nexus page title instead of the archive filename.
             if (!string.IsNullOrWhiteSpace(apiKey))
@@ -1657,7 +1689,7 @@ public sealed partial class ModsPage : Page
                 if (info is { Name.Length: > 0 })
                 {
                     record.Name = info.Value.Name.Trim();
-                    record.GroupKey = ModImporter.NormalizeGroup(record.Name);
+                    record.GroupKey = ModImporter.GroupKeyFor(record.Name, record.NexusModId);
                     if (!string.IsNullOrWhiteSpace(info.Value.Version))
                     {
                         record.Version = info.Value.Version;
@@ -1669,6 +1701,7 @@ public sealed partial class ModsPage : Page
                 }
             }
             if (string.IsNullOrWhiteSpace(record.Version)) record.Version = "file " + link.FileId;
+            record.GroupKey = ModImporter.GroupKeyFor(record.Name, record.NexusModId);
             CollectionInstaller.TagAsLocal(record);
             ModStore.Save(record);
             Reload();

@@ -221,7 +221,7 @@ public static class ModImporter
                 Type = type,
                 SourceName = sourceName,
                 FolderName = Sanitize(name),
-                GroupKey = NormalizeGroup(string.IsNullOrWhiteSpace(name) ? "未命名模组" : name),
+                GroupKey = GroupKeyFor(string.IsNullOrWhiteSpace(name) ? "未命名模组" : name, null),
                 Files = recordFiles,
             };
 
@@ -508,6 +508,10 @@ public static class ModImporter
             File.WriteAllText(Path.Combine(destDir, "enabled.txt"), "");
         }
     }
+
+    /// <summary>Nexus mods group by mod id so separate branches never merge into one version list.</summary>
+    public static string GroupKeyFor(string name, int? nexusModId)
+        => nexusModId is > 0 ? $"nxm:{nexusModId}" : NormalizeGroup(name);
 
     /// <summary>Group key used to treat different installed versions as one mod.</summary>
     public static string NormalizeGroup(string name)

@@ -37,13 +37,15 @@ public static class ModUpdater
             if (!string.IsNullOrWhiteSpace(modInfo.Name))
             {
                 record.Name = modInfo.Name.Trim();
-                record.GroupKey = ModImporter.NormalizeGroup(record.Name);
+                record.GroupKey = ModImporter.GroupKeyFor(record.Name, record.NexusModId);
             }
             if (!string.IsNullOrWhiteSpace(modInfo.PictureUrl))
             {
                 record.NexusThumbnailUrl = modInfo.PictureUrl;
             }
-            if (string.IsNullOrWhiteSpace(record.Version) && !string.IsNullOrWhiteSpace(modInfo.Version))
+            if (!string.IsNullOrWhiteSpace(modInfo.Version) &&
+                (string.IsNullOrWhiteSpace(record.Version) ||
+                 record.Version.StartsWith("file ", StringComparison.OrdinalIgnoreCase)))
             {
                 record.Version = modInfo.Version;
             }
@@ -122,7 +124,7 @@ public static class ModUpdater
                 if (!string.IsNullOrWhiteSpace(info.PictureUrl)) replacement.NexusThumbnailUrl = info.PictureUrl;
                 if (!string.IsNullOrWhiteSpace(info.Version)) replacement.Version = info.Version;
             }
-            replacement.GroupKey = ModImporter.NormalizeGroup(replacement.Name);
+            replacement.GroupKey = ModImporter.GroupKeyFor(replacement.Name, replacement.NexusModId);
 
             if (wasEnabled) Deployer.Undeploy(record.Id);
 

@@ -340,26 +340,26 @@
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     Visibility="Collapsed" />
                                 <StackPanel
-                                    x:Name="MetaRow"
+                                    x:Name="ActionsRow"
                                     Orientation="Horizontal"
                                     Spacing="8">
                                     <Button Click="EditMeta_Click" Content="标签 / 备注" />
                                     <Button Click="CheckOneUpdate_Click" Content="检查更新" />
-                                </StackPanel>
-                                <StackPanel
-                                    x:Name="ActionsRow"
-                                    Orientation="Horizontal"
-                                    Spacing="8">
                                     <Button
                                         x:Name="UpdateModButton"
                                         Click="UpdateMod_Click"
-                                        Content="下载并更新"
+                                        Content="更新"
                                         Style="{StaticResource AccentButtonStyle}"
                                         Visibility="Collapsed" />
                                     <Button
                                         x:Name="NexusPageButton"
                                         Click="OpenNexusPage_Click"
-                                        Content="Nexus 页面"
+                                        Content="Nexus"
+                                        Visibility="Collapsed" />
+                                    <Button
+                                        x:Name="IgnoreUpdateButton"
+                                        Click="IgnoreUpdate_Click"
+                                        Content="忽略更新"
                                         Visibility="Collapsed" />
                                 </StackPanel>
 
