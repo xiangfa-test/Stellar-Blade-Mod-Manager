@@ -12,7 +12,7 @@ public static class CnsAnalyzer
 {
 
     /// <summary>State used by this service; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = State;
+    public static IAppState State { get; set; } = AppState.Instance;
 
     // CNS json files often contain trailing commas and comments.
     private static readonly JsonDocumentOptions JsonOptions = new()

@@ -24,7 +24,7 @@ public static class CollectionInstaller
 {
 
     /// <summary>State used by this service; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = State;
+    public static IAppState State { get; set; } = AppState.Instance;
 
     /// <summary>Tag given to mods the user imported manually, so they can be switched back to.</summary>
     public const string LocalTag = "合集:本地安装";

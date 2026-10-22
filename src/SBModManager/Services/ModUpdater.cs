@@ -11,7 +11,7 @@ public static class ModUpdater
 {
 
     /// <summary>State used by this service; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = State;
+    public static IAppState State { get; set; } = AppState.Instance;
 
     private static readonly Regex GenericName = new(@"^(nxm-\d+-\d+|file \d+|未命名模组|\d+)$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
