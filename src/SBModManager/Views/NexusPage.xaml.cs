@@ -29,10 +29,32 @@ public sealed partial class NexusPage : Page
     {
         InitializeComponent();
         ModList.ItemsSource = Items;
+        KindBox.SelectedIndex = 0;
         Loaded += async (_, _) =>
         {
+            await LoadTagsAsync();
             if (Items.Count == 0) await LoadAsync();
         };
+    }
+
+    /// <summary>Populate the tag filter with tags used by this game's popular mods.</summary>
+    private async Task LoadTagsAsync()
+    {
+        if (TagBox.Items.Count > 0) return;
+        try
+        {
+            var tags = await NexusGraphQl.GetUsedTagsAsync(State.Config.NexusGameDomain);
+            if (tags.Count == 0) return;
+
+            TagBox.Items.Clear();
+            TagBox.Items.Add("全部标签");
+            foreach (var tag in tags) TagBox.Items.Add(tag);
+            TagBox.SelectedIndex = 0;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("加载标签失败: " + ex.Message);
+        }
     }
 
     private async Task LoadAsync()
@@ -41,19 +63,53 @@ public sealed partial class NexusPage : Page
         var missingKey = string.IsNullOrWhiteSpace(key);
         ApiKeyBar.IsOpen = missingKey;
         GetKeyButton.Visibility = missingKey ? Visibility.Visible : Visibility.Collapsed;
+
         var kind = (KindBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "latest_updated";
+        var tag = TagBox.SelectedItem as string;
+        if (tag is null || tag.StartsWith("全部", StringComparison.Ordinal))
+        {
+            var typed = TagBox.Text?.Trim();
+            tag = string.IsNullOrWhiteSpace(typed) || typed.StartsWith("全部", StringComparison.Ordinal)
+                ? null
+                : typed;
+        }
+        var text = SearchBox.Text?.Trim();
+
         SetBusy(true);
         StatusText.Text = "加载中…";
         try
         {
-            _all = await NexusBrowser.GetListAsync(State.Config.NexusGameDomain, key, kind,
-                SearchBox.Text?.Trim(), 120);
+            // Tag filtering and all-time rankings need GraphQL; the REST search cannot do them.
+            if (tag is not null || kind is "top_downloads" or "top_endorsed")
+            {
+                var sortField = kind switch
+                {
+                    "top_downloads" => "downloads",
+                    "top_endorsed" => "endorsements",
+                    "latest_added" => "createdAt",
+                    _ => "updatedAt",
+                };
+                _all = await NexusGraphQl.SearchAsync(State.Config.NexusGameDomain, tag, text, sortField, 100);
+            }
+            else
+            {
+                _all = await NexusBrowser.GetListAsync(State.Config.NexusGameDomain, key, kind, text, 120);
+            }
+
             Items.Clear();
             _shown = 0;
             AppendPage();
-            StatusText.Text = string.IsNullOrWhiteSpace(key)
-                ? $"{_all.Count} 个模组（未配置 API Key：可浏览，详情与下载需要 Key）"
-                : $"{_all.Count} 个模组";
+            if (_all.Count == 0 && (tag is not null || kind is "top_downloads" or "top_endorsed"))
+            {
+                StatusText.Text = "没有匹配的模组" +
+                    (tag is null ? "" : $"（标签：{tag}；标签区分大小写，需与 Nexus 完全一致）");
+            }
+            else
+            {
+                StatusText.Text = string.IsNullOrWhiteSpace(key)
+                    ? $"{_all.Count} 个模组（未配置 API Key：可浏览，详情与下载需要 Key）"
+                    : $"{_all.Count} 个模组";
+            }
         }
         catch (Exception ex)
         {
@@ -64,6 +120,20 @@ public sealed partial class NexusPage : Page
         {
             SetBusy(false);
         }
+    }
+
+    private async void Tag_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        await LoadAsync();
+    }
+
+    private async void Tag_Submitted(ComboBox sender, ComboBoxTextSubmittedEventArgs args)
+    {
+        if (!IsLoaded) return;
+        // Typed text wins over a previously selected tag.
+        TagBox.SelectedItem = null;
+        await LoadAsync();
     }
 
     private void AppendPage()

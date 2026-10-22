@@ -16,6 +16,7 @@ public sealed class NexusModSummary
     public long Downloads { get; init; }
     public long Endorsements { get; init; }
     public bool Adult { get; init; }
+    public List<string> Tags { get; init; } = new();
 
     public string PageUrl(string domain) => $"https://www.nexusmods.com/{domain}/mods/{ModId}";
     public string MetaText => string.Join("  ·  ", new[]
