@@ -295,6 +295,45 @@ public static class SelfTest
                 // ignore
             }
 
+            // 1h) deploy journal recovery + ModActions
+            var journalMod = new ModRecord { Name = "JournalTest", Type = ModType.Pak, Priority = 3 };
+            var journalDir = AppPaths.ModDir(journalMod.Id);
+            Directory.CreateDirectory(journalDir);
+            File.WriteAllText(Path.Combine(journalDir, "Journal_P.pak"), "J");
+            journalMod.Files = new List<string> { "Journal_P.pak" };
+            ModStore.Save(journalMod);
+            AppState.Instance.ReloadLibrary();
+            var journalTarget = Path.Combine(Deployer.PaksModsDir(gameDir),
+                Deployer.PakFileName(journalMod, "Journal_P.pak"));
+            Directory.CreateDirectory(Path.GetDirectoryName(journalTarget)!);
+            File.WriteAllText(journalTarget, "J");
+            DeployJournal.Begin(journalMod, gameDir, new[] { journalTarget },
+                new Dictionary<string, string>());
+            DeployJournal.Recover();
+            Check("部署日志恢复接管文件",
+                AppState.Instance.Deployed.Mods.TryGetValue(journalMod.Id, out var journalDeployed) &&
+                journalDeployed.Files.Contains(journalTarget),
+                journalTarget);
+            if (AppState.Instance.Deployed.Mods.ContainsKey(journalMod.Id))
+            {
+                Deployer.Undeploy(journalMod.Id);
+            }
+            try { Directory.Delete(journalDir, recursive: true); } catch { }
+
+            var actionRecord = new ModRecord { Name = "ActionTest", Type = ModType.Pak };
+            var actionDir = AppPaths.ModDir(actionRecord.Id);
+            Directory.CreateDirectory(actionDir);
+            File.WriteAllText(Path.Combine(actionDir, "Action_P.pak"), "A");
+            actionRecord.Files = new List<string> { "Action_P.pak" };
+            ModStore.Save(actionRecord);
+            AppState.Instance.ReloadLibrary();
+            var actionEnabled = ModActions.Enable(actionRecord);
+            Check("ModActions 启用", actionEnabled.Success, actionEnabled.Error);
+            ModActions.Disable(actionRecord);
+            Check("ModActions 停用", !AppState.Instance.IsEnabled(actionRecord.Id));
+            ModActions.Delete(actionRecord);
+            Check("ModActions 删除", AppState.Instance.Library.All(m => m.Id != actionRecord.Id));
+
             // 2) Loose mod import + deploy
             var looseZip = Path.Combine(AppPaths.TempRoot, "selftest-loose.zip");
             if (File.Exists(looseZip)) File.Delete(looseZip);

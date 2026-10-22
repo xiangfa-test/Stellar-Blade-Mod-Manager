@@ -188,6 +188,7 @@ public static class Deployer
         try
         {
             var useHardLink = State.Config.UseHardLinks && SameVolume(mod.ModDir, gameDir);
+            DeployJournal.Begin(mod, gameDir, targets.Select(t => t.Target), backups);
             foreach (var (src, target) in targets)
             {
                 if (!File.Exists(src))
@@ -265,6 +266,7 @@ public static class Deployer
                 Sources = sources,
             };
             State.SaveDeployed();
+            DeployJournal.Complete();
             Ue4ssConfig.Apply(mod, gameDir, enabled: true);
             Views.ModsPage.InvalidateConflictCache();
             Log.Info($"已启用模组 {mod.Name}，部署 {deployed.Count} 个文件 (hardlink={useHardLink})");
@@ -294,6 +296,7 @@ public static class Deployer
                 }
             }
             CleanupBackupDir(mod.Id);
+            DeployJournal.Complete();
             return new DeployResult { Success = false, Error = ex.Message };
         }
     }

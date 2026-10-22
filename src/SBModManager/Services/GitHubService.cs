@@ -177,95 +177,10 @@ public static class GitHubService
             .FirstOrDefault();
     }
 
-    /// <summary>
-    /// Download with retries. Partial files are removed before a retry so a truncated transfer
-    /// never looks like a complete download.
-    /// </summary>
-    public static async Task DownloadAsync(string url, string targetPath, IProgress<double>? progress = null,
+    /// <summary>Download with resume + retries (delegates to <see cref="ResumableDownloader"/>).</summary>
+    public static Task DownloadAsync(string url, string targetPath, IProgress<double>? progress = null,
         CancellationToken ct = default)
-    {
-        const int maxAttempts = 3;
-        Exception? last = null;
-
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            ct.ThrowIfCancellationRequested();
-            try
-            {
-                await DownloadOnceAsync(url, targetPath, progress, ct).ConfigureAwait(false);
-                return;
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                TryDelete(targetPath);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                last = ex;
-                TryDelete(targetPath);
-                if (attempt >= maxAttempts) break;
-                Log.Warn($"下载失败（第 {attempt} 次），将重试: {ex.Message}");
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(attempt * 2), ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-            }
-        }
-
-        throw new InvalidOperationException(
-            $"下载失败（已重试 {maxAttempts} 次）：{last?.Message}", last);
-    }
-
-    private static async Task DownloadOnceAsync(string url, string targetPath, IProgress<double>? progress,
-        CancellationToken ct)
-    {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(TimeSpan.FromMinutes(30));
-
-        using var response = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, timeout.Token)
-            .ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
-        var total = response.Content.Headers.ContentLength ?? -1L;
-        await using var input = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
-        await using var output = File.Create(targetPath);
-
-        var buffer = new byte[81920];
-        long done = 0;
-        int read;
-        while ((read = await input.ReadAsync(buffer, timeout.Token).ConfigureAwait(false)) > 0)
-        {
-            await output.WriteAsync(buffer.AsMemory(0, read), timeout.Token).ConfigureAwait(false);
-            done += read;
-            if (total > 0)
-            {
-                progress?.Report(Math.Clamp(done * 100.0 / total, 0, 100));
-            }
-        }
-
-        if (total > 0 && done != total)
-        {
-            throw new IOException($"下载不完整：{done}/{total} 字节");
-        }
-        progress?.Report(100);
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path)) File.Delete(path);
-        }
-        catch
-        {
-            // ignore cleanup failure
-        }
-    }
+        => ResumableDownloader.DownloadAsync(url, targetPath, progress, ct);
 
     private static string GetString(JsonElement element, string property)
         => element.TryGetProperty(property, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";

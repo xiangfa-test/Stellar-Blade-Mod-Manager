@@ -53,6 +53,7 @@ public partial class App : Application
             Program.Trace("onlaunched");
             Services.AppUpdater.CleanupTemp();
             Services.AppState.Instance.Load();
+            Services.DeployJournal.Recover();
             Program.Trace("state loaded");
 
             if (Program.SelfTestPath is { } testPath)
