@@ -204,6 +204,97 @@ public static class SelfTest
             Check("生成 Nexus 页面地址",
                 nexusRecord.NexusPageUrl.Contains("/stellarblade/mods/976"), nexusRecord.NexusPageUrl);
 
+            // 1f) FOMOD: required files + conditional install by flag
+            var fomod2 = Path.Combine(AppPaths.TempRoot, "selftest-fomod2.zip");
+            if (File.Exists(fomod2)) File.Delete(fomod2);
+            using (var zip = ZipFile.Open(fomod2, ZipArchiveMode.Create))
+            {
+                void AddF(string entryName, string content)
+                {
+                    var entry = zip.CreateEntry(entryName);
+                    using var writer = new StreamWriter(entry.Open());
+                    writer.Write(content);
+                }
+
+                AddF("fomod/ModuleConfig.xml", """
+                    <config>
+                      <moduleName>Conditional Test</moduleName>
+                      <requiredInstallFiles>
+                        <folder source="Core" />
+                      </requiredInstallFiles>
+                      <installSteps>
+                        <installStep name="Main">
+                          <optionalFileGroups>
+                            <group name="Extra" type="SelectAny">
+                              <plugins>
+                                <plugin name="AddFlag"><files><folder source="Extra" /></files>
+                                  <conditionFlags><flag name="extra" value="On" /></conditionFlags>
+                                </plugin>
+                              </plugins>
+                            </group>
+                          </optionalFileGroups>
+                        </installStep>
+                      </installSteps>
+                      <conditionalFileInstalls>
+                        <patterns>
+                          <pattern>
+                            <dependencies><flagDependency flag="extra" value="On" /></dependencies>
+                            <files><folder source="Conditional" /></files>
+                          </pattern>
+                        </patterns>
+                      </conditionalFileInstalls>
+                    </config>
+                    """);
+                AddF("Core/SB/Content/Paks/~mods/Core_P.pak", "CORE");
+                AddF("Extra/SB/Content/Paks/~mods/Extra_P.pak", "EXTRA");
+                AddF("Conditional/SB/Content/Paks/~mods/Cond_P.pak", "COND");
+            }
+
+            var fomod2Result = ModImporter.ImportArchiveAsync(fomod2, config =>
+            {
+                var plugin = config.Steps.SelectMany(s => s.Groups).SelectMany(g => g.Plugins)
+                    .First(p => p.Name == "AddFlag");
+                return Task.FromResult<IReadOnlyList<FomodPlugin>>(new[] { plugin });
+            }).GetAwaiter().GetResult();
+
+            Check("FOMOD 条件安装包导入", fomod2Result.Mod is not null, fomod2Result.Error);
+            if (fomod2Result.Mod is { } fomod2Mod)
+            {
+                madeMods.Add(fomod2Mod);
+                var names = fomod2Mod.Files.Select(Path.GetFileName).ToList();
+                Check("FOMOD 必装 + 选项 + 条件文件",
+                    names.Contains("Core_P.pak") && names.Contains("Extra_P.pak") && names.Contains("Cond_P.pak"),
+                    string.Join(",", names));
+            }
+
+            // 1g) resource conflicts are ordered by load order (last wins)
+            var lowMod = new ModRecord { Name = "LowPri", Priority = 1, Type = ModType.Pak };
+            var highMod = new ModRecord { Name = "HighPri", Priority = 9, Type = ModType.Pak };
+            var lowDir = AppPaths.ModDir(lowMod.Id);
+            var highDir = AppPaths.ModDir(highMod.Id);
+            Directory.CreateDirectory(lowDir);
+            Directory.CreateDirectory(highDir);
+            File.WriteAllText(Path.Combine(lowDir, "a.utoc"), "x SharedAsset.uasset y");
+            File.WriteAllText(Path.Combine(highDir, "b.utoc"), "x SharedAsset.uasset z");
+            lowMod.Files = new List<string> { "a.utoc" };
+            highMod.Files = new List<string> { "b.utoc" };
+
+            var assetConflicts = PakInspector.FindAssetConflicts(new[] { highMod, lowMod });
+            Check("资源冲突按加载顺序判定赢家",
+                assetConflicts.Count == 1 &&
+                assetConflicts[0].Asset.Equals("SharedAsset.uasset", StringComparison.OrdinalIgnoreCase) &&
+                assetConflicts[0].Winner == "HighPri",
+                assetConflicts.Count == 0 ? "none" : assetConflicts[0].Winner);
+            try
+            {
+                Directory.Delete(lowDir, recursive: true);
+                Directory.Delete(highDir, recursive: true);
+            }
+            catch
+            {
+                // ignore
+            }
+
             // 2) Loose mod import + deploy
             var looseZip = Path.Combine(AppPaths.TempRoot, "selftest-loose.zip");
             if (File.Exists(looseZip)) File.Delete(looseZip);

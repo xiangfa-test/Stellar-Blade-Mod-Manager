@@ -4,6 +4,14 @@ using SBModManager.Models;
 
 namespace SBModManager.Services;
 
+public sealed class AssetConflict
+{
+    public string Asset { get; init; } = "";
+    /// <summary>Owners ordered by load order; the last one wins.</summary>
+    public List<string> Owners { get; init; } = new();
+    public string Winner => Owners.Count == 0 ? "" : Owners[^1];
+}
+
 /// <summary>
 /// Best-effort resource-level inspection: UE5 IoStore keeps asset names as plain strings in
 /// the .utoc, so we can list asset file names without fully parsing the TOC. It is an
@@ -53,11 +61,16 @@ public static class PakInspector
         return result.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    /// <summary>Map asset name -> mods that ship it, for enabled mods.</summary>
+    /// <summary>Map asset name -> mods that ship it, ordered by load order (last wins).</summary>
     public static Dictionary<string, List<string>> FindConflicts(IEnumerable<ModRecord> mods)
+        => FindAssetConflicts(mods).ToDictionary(c => c.Asset, c => c.Owners, StringComparer.OrdinalIgnoreCase);
+
+    public static List<AssetConflict> FindAssetConflicts(IEnumerable<ModRecord> mods)
     {
+        var ordered = mods.OrderBy(m => m.Priority).ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase).ToList();
         var map = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var mod in mods)
+
+        foreach (var mod in ordered)
         {
             foreach (var asset in GetAssetNames(mod))
             {
@@ -66,12 +79,22 @@ public static class PakInspector
                     owners = new List<string>();
                     map[asset] = owners;
                 }
-                owners.Add(mod.Name);
+                if (!owners.Contains(mod.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    owners.Add(mod.Name);
+                }
             }
         }
 
         return map
             .Where(kv => kv.Value.Count > 1)
-            .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+            .Select(kv => new AssetConflict { Asset = kv.Key, Owners = kv.Value })
+            .OrderByDescending(c => c.Owners.Count)
+            .ThenBy(c => c.Asset, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
+
+    /// <summary>Assets where a lower-priority mod is fully shadowed by a higher-priority one.</summary>
+    public static List<AssetConflict> FindShadowed(IEnumerable<ModRecord> mods)
+        => FindAssetConflicts(mods).Where(c => c.Owners.Count > 1).ToList();
 }

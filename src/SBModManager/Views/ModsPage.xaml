@@ -296,13 +296,22 @@
                                     HorizontalAlignment="Left"
                                     Stretch="Uniform"
                                     Visibility="Collapsed" />
-                                <Image
-                                    x:Name="DetailPreview"
-                                    MaxWidth="240"
-                                    MaxHeight="180"
-                                    HorizontalAlignment="Left"
-                                    Stretch="Uniform"
-                                    Visibility="Collapsed" />
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Image
+                                        x:Name="DetailPreview"
+                                        MaxWidth="200"
+                                        MaxHeight="150"
+                                        HorizontalAlignment="Left"
+                                        Stretch="Uniform"
+                                        Visibility="Collapsed"
+                                        Tapped="DetailPreview_Tapped" />
+                                    <Button
+                                        x:Name="PreviewMoreButton"
+                                        Click="OpenGallery_Click"
+                                        Content="查看全部图片"
+                                        VerticalAlignment="Bottom"
+                                        Visibility="Collapsed" />
+                                </StackPanel>
 
                                 <StackPanel
                                     x:Name="VersionPanel"

@@ -50,7 +50,7 @@ public static class ModImporter
 
                     fomodStage = Path.Combine(AppPaths.TempRoot, "fomod-" + Guid.NewGuid().ToString("N")[..8]);
                     Directory.CreateDirectory(fomodStage);
-                    var copied = FomodInstaller.Apply(tempRoot, fomodStage, selected);
+                    var copied = FomodInstaller.Apply(tempRoot, fomodStage, selected, config);
                     Log.Info($"FOMOD: 选择 {selected.Count} 项，复制 {copied} 个文件");
                     if (copied > 0)
                     {
@@ -259,7 +259,8 @@ public static class ModImporter
             }
 
             CnsAnalyzer.Analyze(record);
-            record.PreviewImage = PickPreviewImage(record);
+            record.PreviewImages = PickPreviewImages(record);
+            record.PreviewImage = record.PreviewImages.FirstOrDefault() ?? "";
 
             ModStore.Save(record);
             Log.Info($"已导入模组 [{record.Name}] 类型={record.Type} 文件数={record.Files.Count}");
@@ -365,16 +366,14 @@ public static class ModImporter
         return @"SB\Content\Paks\LogicMods\" + normalized;
     }
 
-    /// <summary>First shipped image that is not part of the game tree (screenshots/cover).</summary>
-    private static string PickPreviewImage(ModRecord record)
-    {
-        var images = record.Files
+    /// <summary>Shipped images that are not part of the game tree (screenshots/covers).</summary>
+    private static List<string> PickPreviewImages(ModRecord record)
+        => record.Files
             .Where(f => !IsGameTreeFile(f))
             .Where(f => Path.GetExtension(f).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".webp" or ".gif")
             .OrderBy(f => f.Length)
+            .Take(12)
             .ToList();
-        return images.FirstOrDefault() ?? "";
-    }
 
     private static bool HasPrefix(string value, string prefix)
         => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);

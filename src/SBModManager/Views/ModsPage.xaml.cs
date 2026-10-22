@@ -713,9 +713,13 @@ public sealed partial class ModsPage : Page
         DetailSource.Text = string.IsNullOrWhiteSpace(item.SourceText) ? "" : "来源: " + item.SourceText;
         DetailPreview.Source = null;
         DetailPreview.Visibility = Visibility.Collapsed;
-        if (!string.IsNullOrWhiteSpace(item.Record.PreviewImage))
+        var previews = item.Record.PreviewImages.Count > 0
+            ? item.Record.PreviewImages
+            : (string.IsNullOrWhiteSpace(item.Record.PreviewImage) ? new List<string>() : new List<string> { item.Record.PreviewImage });
+        PreviewMoreButton.Visibility = previews.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        if (previews.Count > 0)
         {
-            var previewPath = Path.Combine(item.Record.ModDir, item.Record.PreviewImage);
+            var previewPath = Path.Combine(item.Record.ModDir, previews[0]);
             if (File.Exists(previewPath))
             {
                 try
@@ -1487,7 +1491,7 @@ public sealed partial class ModsPage : Page
         };
         _ = progressDialog.ShowAsync();
 
-        var conflicts = await Task.Run(() => PakInspector.FindConflicts(enabled));
+        var conflicts = await Task.Run(() => PakInspector.FindAssetConflicts(enabled));
         progressDialog.Hide();
 
         if (conflicts.Count == 0)
@@ -1499,14 +1503,12 @@ public sealed partial class ModsPage : Page
         }
 
         var lines = conflicts
-            .OrderByDescending(kv => kv.Value.Count)
-            .ThenBy(kv => kv.Key)
             .Take(50)
-            .Select(kv => $"• {kv.Key}\n    {string.Join(" / ", kv.Value.Distinct())}");
+            .Select(c => $"• {c.Asset}\n    顺序: {string.Join(" → ", c.Owners)}\n    生效: {c.Winner}");
         await ShowInfoDialogAsync("资源级冲突分析",
             $"发现 {conflicts.Count} 个资源被多个模组包含（显示前 50 个）：\n\n" +
             string.Join("\n", lines) +
-            "\n\n后加载的模组会覆盖前面的资源（可用 PAK 顺序前缀控制）。");
+            "\n\n后加载的模组会覆盖前面的资源（可用 PAK 顺序前缀 / 加载顺序页控制）。");
     }
 
     private async Task ShowInfoDialogAsync(string title, string message)
@@ -1629,6 +1631,74 @@ public sealed partial class ModsPage : Page
             SetBusy(false);
         }
     }
+
+    private async void OpenGallery_Click(object sender, RoutedEventArgs e)
+    {
+        if (ModList.SelectedItem is not ModItem item) return;
+        var previews = item.Record.PreviewImages.Count > 0
+            ? item.Record.PreviewImages
+            : (string.IsNullOrWhiteSpace(item.Record.PreviewImage) ? new List<string>() : new List<string> { item.Record.PreviewImage });
+        var paths = previews
+            .Select(rel => Path.Combine(item.Record.ModDir, rel))
+            .Where(File.Exists)
+            .ToList();
+        if (paths.Count == 0) return;
+
+        var image = new Image
+        {
+            MaxHeight = 520,
+            Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform,
+        };
+        var caption = new TextBlock
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Style = ResourceStyle("CaptionTextBlockStyle"),
+        };
+        var panel = new StackPanel { Spacing = 8 };
+        panel.Children.Add(image);
+        panel.Children.Add(caption);
+
+        var index = 0;
+        void Show(int i)
+        {
+            index = (i + paths.Count) % paths.Count;
+            try
+            {
+                image.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(paths[index]));
+            }
+            catch
+            {
+                // ignore broken image
+            }
+            caption.Text = $"{index + 1} / {paths.Count}   {Path.GetFileName(paths[index])}";
+        }
+        Show(0);
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = item.Name,
+            Content = panel,
+            PrimaryButtonText = "下一张",
+            SecondaryButtonText = "上一张",
+            CloseButtonText = "关闭",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        dialog.PrimaryButtonClick += (_, args) =>
+        {
+            Show(index + 1);
+            args.Cancel = true;
+        };
+        dialog.SecondaryButtonClick += (_, args) =>
+        {
+            Show(index - 1);
+            args.Cancel = true;
+        };
+        await dialog.ShowAsync();
+    }
+
+    private void DetailPreview_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        => OpenGallery_Click(sender, new RoutedEventArgs());
 
     private void IgnoreUpdate_Click(object sender, RoutedEventArgs e)
     {

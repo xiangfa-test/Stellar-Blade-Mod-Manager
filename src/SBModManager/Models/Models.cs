@@ -61,6 +61,9 @@ public sealed class ModRecord
     /// <summary>Relative path (under the mod folder) of a preview image shipped with the mod.</summary>
     public string PreviewImage { get; set; } = "";
 
+    /// <summary>All shipped preview images (relative paths), first one is PreviewImage.</summary>
+    public List<string> PreviewImages { get; set; } = new();
+
     /// <summary>Nexus mod page thumbnail (https URL), filled when the mod has a Nexus id.</summary>
     public string NexusThumbnailUrl { get; set; } = "";
 
