@@ -148,7 +148,7 @@ public static class SelfTest
                     .SelectMany(s => s.Groups)
                     .SelectMany(g => g.Plugins)
                     .First(p => p.Name == "Red");
-                return Task.FromResult<IReadOnlyList<FomodPlugin>>(new[] { red });
+                return Task.FromResult<IReadOnlyList<FomodPlugin>?>(new[] { red });
             }).GetAwaiter().GetResult();
 
             Check("FOMOD 包导入", fomodResult.Mod is not null, fomodResult.Error);
@@ -254,7 +254,7 @@ public static class SelfTest
             {
                 var plugin = config.Steps.SelectMany(s => s.Groups).SelectMany(g => g.Plugins)
                     .First(p => p.Name == "AddFlag");
-                return Task.FromResult<IReadOnlyList<FomodPlugin>>(new[] { plugin });
+                return Task.FromResult<IReadOnlyList<FomodPlugin>?>(new[] { plugin });
             }).GetAwaiter().GetResult();
 
             Check("FOMOD 条件安装包导入", fomod2Result.Mod is not null, fomod2Result.Error);

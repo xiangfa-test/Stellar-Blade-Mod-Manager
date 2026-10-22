@@ -18,7 +18,7 @@ public static class ModImporter
     /// Returning null from the chooser cancels the install.
     /// </summary>
     public static async Task<ImportResult> ImportArchiveAsync(string path,
-        Func<FomodConfig, Task<IReadOnlyList<FomodPlugin>>>? chooser)
+        Func<FomodConfig, Task<IReadOnlyList<FomodPlugin>?>>? chooser)
     {
         var tempRoot = Path.Combine(AppPaths.TempRoot, "import-" + Guid.NewGuid().ToString("N")[..8]);
         string? fomodStage = null;

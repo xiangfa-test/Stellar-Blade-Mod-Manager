@@ -127,7 +127,18 @@ public static class Deployer
         => AppState.Instance.Deployed.Mods.FirstOrDefault(
             kv => kv.Value.Files.Contains(targetPath, StringComparer.OrdinalIgnoreCase)).Key;
 
+    /// <summary>Serializes all file operations on the game folder (deploy/undeploy/redeploy).</summary>
+    private static readonly object FileLock = new();
+
     public static DeployResult Deploy(ModRecord mod, string gameDir, bool force, IProgress<string>? progress = null)
+    {
+        lock (FileLock)
+        {
+            return DeployCore(mod, gameDir, force, progress);
+        }
+    }
+
+    private static DeployResult DeployCore(ModRecord mod, string gameDir, bool force, IProgress<string>? progress)
     {
         var targets = ComputeTargets(mod, gameDir);
         if (targets.Count == 0)
@@ -285,6 +296,14 @@ public static class Deployer
 
     public static void Undeploy(string modId)
     {
+        lock (FileLock)
+        {
+            UndeployCore(modId);
+        }
+    }
+
+    private static void UndeployCore(string modId)
+    {
         var state = AppState.Instance.Deployed;
         if (!state.Mods.Remove(modId, out var deployed)) return;
 
@@ -406,7 +425,7 @@ public static class Deployer
                 {
                     ownerDeployment.Files.Add(target);
                 }
-                Log.Info($"已恢复被覆盖的模组文件: {owner.Name} -> {target}");
+                Log.Info($"已恢复被覆盖的模组文件: {owner?.Name ?? ownerId} -> {target}");
             }
             catch (Exception ex)
             {
@@ -593,6 +612,14 @@ public static class Deployer
 
     /// <summary>Undeploy and re-deploy every enabled mod in load-order priority.</summary>
     public static (int Deployed, int Failed) RedeployAll(string gameDir)
+    {
+        lock (FileLock)
+        {
+            return RedeployAllCore(gameDir);
+        }
+    }
+
+    private static (int Deployed, int Failed) RedeployAllCore(string gameDir)
     {
         var state = AppState.Instance;
         var enabled = state.Library.Where(m => state.IsEnabled(m.Id))
