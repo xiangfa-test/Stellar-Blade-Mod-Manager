@@ -3,7 +3,7 @@ using SBModManager.Models;
 
 namespace SBModManager.Services;
 
-public sealed class AppState
+public sealed class AppState : IAppState
 {
     public static AppState Instance { get; } = new();
 

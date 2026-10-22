@@ -65,7 +65,7 @@ public sealed partial class ModsPage : Page
         };
     }
 
-    public ObservableCollection<ModItem> Mods { get; } = new();
+    public BulkObservableCollection<ModItem> Mods { get; } = new();
 
     public ObservableCollection<ExternalItem> Externals { get; } = new();
 
@@ -177,6 +177,38 @@ public sealed partial class ModsPage : Page
         RebuildMods();
     }
 
+    private static readonly object ConflictCacheLock = new();
+    private static ConflictReport? _conflictCache;
+    private static DateTimeOffset _conflictCacheAt;
+    private static string _conflictCacheGameDir = "";
+
+    /// <summary>Conflict stats are expensive; reuse them until the deployment state changes.</summary>
+    private static ConflictReport GetConflictReport(string gameDir)
+    {
+        lock (ConflictCacheLock)
+        {
+            var deployedVersion = AppState.Instance.Deployed.Mods.Count;
+            var fresh = _conflictCache is not null &&
+                        _conflictCacheGameDir == gameDir &&
+                        _conflictCache.DeployedCount == deployedVersion;
+            if (fresh) return _conflictCache!;
+
+            var report = Deployer.BuildConflictReport(gameDir);
+            _conflictCache = report;
+            _conflictCacheAt = DateTimeOffset.Now;
+            _conflictCacheGameDir = gameDir;
+            return report;
+        }
+    }
+
+    public static void InvalidateConflictCache()
+    {
+        lock (ConflictCacheLock)
+        {
+            _conflictCache = null;
+        }
+    }
+
     private void RebuildMods()
     {
         // Rebuilding the ItemsSource recycles ListView containers; a reused ToggleSwitch can
@@ -190,7 +222,7 @@ public sealed partial class ModsPage : Page
         {
             try
             {
-                foreach (var stat in Deployer.BuildConflictReport(gameDir).HighConflictMods)
+                foreach (var stat in GetConflictReport(gameDir).HighConflictMods)
                 {
                     conflictCounts[stat.ModId] = stat;
                 }
@@ -201,7 +233,7 @@ public sealed partial class ModsPage : Page
             }
         }
 
-        Mods.Clear();
+        var rebuilt = new List<ModItem>(State.Library.Count);
         foreach (var record in State.Library.OrderByDescending(r => r.ImportedAt))
         {
             if (filter.Length > 0 &&
@@ -231,8 +263,10 @@ public sealed partial class ModsPage : Page
                 item.ConflictCount = stat.ConflictCount;
                 item.IsHighConflict = stat.ConflictCount >= Math.Max(2, State.Config.HighConflictThreshold);
             }
-            Mods.Add(item);
+            rebuilt.Add(item);
         }
+
+        Mods.ReplaceAll(rebuilt);
 
         if (selectedId is not null)
         {

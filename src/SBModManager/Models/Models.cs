@@ -238,6 +238,8 @@ public sealed class ConflictReport
 {
     public List<ConflictChain> Chains { get; init; } = new();
     public List<ModConflictStat> HighConflictMods { get; init; } = new();
+    /// <summary>Number of deployed mods when this report was built (cache key).</summary>
+    public int DeployedCount { get; init; }
     public int ConflictFileCount => Chains.Count;
 }
 

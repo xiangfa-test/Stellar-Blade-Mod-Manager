@@ -91,7 +91,7 @@ public static class Deployer
     /// </summary>
     public static string PakFileName(ModRecord mod, string fileName)
     {
-        if (!AppState.Instance.Config.PakOrderPrefixEnabled) return fileName;
+        if (!State.Config.PakOrderPrefixEnabled) return fileName;
         var priority = Math.Max(0, mod.Priority);
         return priority.ToString("D4") + "_" + fileName;
     }
@@ -121,14 +121,17 @@ public static class Deployer
     }
 
     public static bool IsFileDeployedBy(string targetPath)
-        => AppState.Instance.Deployed.Mods.Values.Any(d => d.Files.Contains(targetPath, StringComparer.OrdinalIgnoreCase));
+        => State.Deployed.Mods.Values.Any(d => d.Files.Contains(targetPath, StringComparer.OrdinalIgnoreCase));
 
     public static string? DeployingModOf(string targetPath)
-        => AppState.Instance.Deployed.Mods.FirstOrDefault(
+        => State.Deployed.Mods.FirstOrDefault(
             kv => kv.Value.Files.Contains(targetPath, StringComparer.OrdinalIgnoreCase)).Key;
 
     /// <summary>Serializes all file operations on the game folder (deploy/undeploy/redeploy).</summary>
     private static readonly object FileLock = new();
+
+    /// <summary>State used by the deployer; replaceable for tests.</summary>
+    public static IAppState State { get; set; } = AppState.Instance;
 
     public static DeployResult Deploy(ModRecord mod, string gameDir, bool force, IProgress<string>? progress = null)
     {
@@ -146,14 +149,14 @@ public static class Deployer
             return new DeployResult { Success = false, Error = "这个模组没有可部署的文件。" };
         }
 
-        var state = AppState.Instance.Deployed;
+        var state = State.Deployed;
         var conflicts = new List<ModConflict>();
         foreach (var (_, target) in targets)
         {
             if (!File.Exists(target)) continue;
             var owner = DeployingModOf(target);
             if (owner == mod.Id) continue; // already ours
-            var other = owner is null ? "外部文件" : (AppState.Instance.Library.FirstOrDefault(m => m.Id == owner)?.Name ?? owner);
+            var other = owner is null ? "外部文件" : (State.Library.FirstOrDefault(m => m.Id == owner)?.Name ?? owner);
             if (!force)
             {
                 conflicts.Add(new ModConflict
@@ -184,7 +187,7 @@ public static class Deployer
             : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         try
         {
-            var useHardLink = AppState.Instance.Config.UseHardLinks && SameVolume(mod.ModDir, gameDir);
+            var useHardLink = State.Config.UseHardLinks && SameVolume(mod.ModDir, gameDir);
             foreach (var (src, target) in targets)
             {
                 if (!File.Exists(src))
@@ -209,7 +212,7 @@ public static class Deployer
                         }
                         if (string.IsNullOrEmpty(previousSource))
                         {
-                            var previousRecord = AppState.Instance.Library.FirstOrDefault(m => m.Id == previousOwner);
+                            var previousRecord = State.Library.FirstOrDefault(m => m.Id == previousOwner);
                             if (previousRecord is not null)
                             {
                                 previousSource = ComputeTargets(previousRecord, gameDir)
@@ -261,8 +264,9 @@ public static class Deployer
                 DisplacedSources = displacedSources,
                 Sources = sources,
             };
-            AppState.Instance.SaveDeployed();
+            State.SaveDeployed();
             Ue4ssConfig.Apply(mod, gameDir, enabled: true);
+            Views.ModsPage.InvalidateConflictCache();
             Log.Info($"已启用模组 {mod.Name}，部署 {deployed.Count} 个文件 (hardlink={useHardLink})");
             return new DeployResult { Success = true, DeployedFiles = deployed };
         }
@@ -304,12 +308,12 @@ public static class Deployer
 
     private static void UndeployCore(string modId)
     {
-        var state = AppState.Instance.Deployed;
+        var state = State.Deployed;
         if (!state.Mods.Remove(modId, out var deployed)) return;
 
-        if (AppState.Instance.GameDir is { } gameDir)
+        if (State.GameDir is { } gameDir)
         {
-            var record = AppState.Instance.Library.FirstOrDefault(m => m.Id == modId);
+            var record = State.Library.FirstOrDefault(m => m.Id == modId);
             if (record is not null)
             {
                 Ue4ssConfig.Apply(record, gameDir, enabled: false);
@@ -325,9 +329,10 @@ public static class Deployer
         {
             TryDelete(file);
         }
-        RestoreBackups(modId, deployed, AppState.Instance.GameDir);
+        RestoreBackups(modId, deployed, State.GameDir);
         RestoreDisplaced(deployed);
-        AppState.Instance.SaveDeployed();
+        State.SaveDeployed();
+        Views.ModsPage.InvalidateConflictCache();
         Log.Info($"已停用模组 {modId}，移除 {deployed.Files.Count} 个文件");
     }
 
@@ -493,7 +498,7 @@ public static class Deployer
         var modsDir = PaksModsDir(gameDir);
         if (!Directory.Exists(modsDir)) return result;
 
-        var managed = AppState.Instance.Deployed.Mods.Values
+        var managed = State.Deployed.Mods.Values
             .SelectMany(d => d.Files)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -591,7 +596,7 @@ public static class Deployer
             }
         }
 
-        var threshold = Math.Max(2, AppState.Instance.Config.HighConflictThreshold);
+        var threshold = Math.Max(2, State.Config.HighConflictThreshold);
         var stats = counts
             .Select(kv => new ModConflictStat
             {
@@ -605,6 +610,7 @@ public static class Deployer
 
         return new ConflictReport
         {
+            DeployedCount = state.Deployed.Mods.Count,
             Chains = chains.OrderByDescending(c => c.Mods.Count).ThenBy(c => c.TargetPath).ToList(),
             HighConflictMods = stats,
         };
@@ -638,6 +644,7 @@ public static class Deployer
             if (result.Success) ok++;
             else failed++;
         }
+        Views.ModsPage.InvalidateConflictCache();
         Log.Info($"按加载顺序重建部署: 成功 {ok}，失败 {failed}");
         return (ok, failed);
     }
