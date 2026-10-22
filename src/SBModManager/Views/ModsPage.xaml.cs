@@ -1502,13 +1502,67 @@ public sealed partial class ModsPage : Page
             return;
         }
 
-        var lines = conflicts
-            .Take(50)
-            .Select(c => $"• {c.Asset}\n    顺序: {string.Join(" → ", c.Owners)}\n    生效: {c.Winner}");
-        await ShowInfoDialogAsync("资源级冲突分析",
-            $"发现 {conflicts.Count} 个资源被多个模组包含（显示前 50 个）：\n\n" +
-            string.Join("\n", lines) +
-            "\n\n后加载的模组会覆盖前面的资源（可用 PAK 顺序前缀 / 加载顺序页控制）。");
+        var list = new ListView
+        {
+            MaxHeight = 420,
+            ItemsSource = conflicts.Take(200).Select(c => new AssetConflictItem
+            {
+                Asset = c.Asset,
+                OrderText = string.Join(" → ", c.Owners),
+                WinnerText = "生效: " + c.Winner,
+            }).ToList(),
+        };
+        list.ItemTemplate = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load("""
+            <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+                <StackPanel Padding="0,6" Spacing="2">
+                    <TextBlock Text="{Binding Asset}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding OrderText}" Opacity="0.7" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding WinnerText}" Opacity="0.7" />
+                </StackPanel>
+            </DataTemplate>
+            """);
+
+        var panel = new StackPanel { Spacing = 8 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"发现 {conflicts.Count} 个资源被多个模组包含（显示前 200 个）：",
+            TextWrapping = TextWrapping.Wrap,
+        });
+        panel.Children.Add(list);
+        panel.Children.Add(new TextBlock
+        {
+            Text = "「生效」是当前加载顺序下最终胜出的模组；调整「加载顺序」页或 PAK 前缀即可改变。\n" +
+                   "注意：这是基于 .utoc 明文资源名的近似分析，加密/压缩的 TOC 无法读取。",
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.7,
+        });
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "资源级冲突分析",
+            Content = panel,
+            PrimaryButtonText = "复制结果",
+            CloseButtonText = "关闭",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        dialog.PrimaryButtonClick += (_, args) =>
+        {
+            var text = string.Join(Environment.NewLine, conflicts
+                .Select(c => $"{c.Asset} | {string.Join(" -> ", c.Owners)} | 生效: {c.Winner}"));
+            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            package.SetText(text);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+            args.Cancel = true;
+        };
+        await dialog.ShowAsync();
+    }
+
+    private sealed class AssetConflictItem
+    {
+        public string Asset { get; init; } = "";
+        public string OrderText { get; init; } = "";
+        public string WinnerText { get; init; } = "";
     }
 
     private async Task ShowInfoDialogAsync(string title, string message)
