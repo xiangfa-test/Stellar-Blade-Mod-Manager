@@ -1,11 +1,13 @@
 using System.Net;
 using System.Net.Http;
+using System.Text;
 
 namespace SBModManager.Services;
 
 /// <summary>
 /// Resumable download: keeps a .part file next to the target and continues with a Range request.
-/// Falls back to a full download when the server ignores ranges.
+/// A sidecar .meta records the source URL, so a changed URL (new release) never resumes a stale
+/// partial file; 416 responses discard the partial and restart from scratch.
 /// </summary>
 public static class ResumableDownloader
 {
@@ -29,25 +31,46 @@ public static class ResumableDownloader
     {
         Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
         var partPath = targetPath + ".part";
+        var metaPath = targetPath + ".meta";
 
-        long existing = 0;
-        if (File.Exists(partPath))
+        // A completed target is reusable only if it came from the same URL.
+        if (File.Exists(targetPath) && File.Exists(metaPath) &&
+            File.ReadAllText(metaPath, Encoding.UTF8) == url)
         {
-            existing = new FileInfo(partPath).Length;
-        }
-        else if (File.Exists(targetPath))
-        {
-            // A previous run completed; nothing to do.
             progress?.Report(100);
             return;
         }
 
-        long total = -1;
-        var resumed = false;
+        if (File.Exists(targetPath))
+        {
+            TryDelete(targetPath);
+        }
+
+        long existing = 0;
+        if (File.Exists(partPath))
+        {
+            var recordedUrl = File.Exists(metaPath) ? File.ReadAllText(metaPath, Encoding.UTF8) : "";
+            if (!string.Equals(recordedUrl, url, StringComparison.Ordinal))
+            {
+                // Different download target: stale partial bytes are useless.
+                TryDelete(partPath);
+                TryDelete(metaPath);
+            }
+            else
+            {
+                existing = new FileInfo(partPath).Length;
+            }
+        }
+
+        if (!File.Exists(metaPath))
+        {
+            File.WriteAllText(metaPath, url, Encoding.UTF8);
+        }
 
         for (var attempt = 1; attempt <= 3; attempt++)
         {
             ct.ThrowIfCancellationRequested();
+            var resumed = false;
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -59,23 +82,37 @@ public static class ResumableDownloader
                 using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct)
                     .ConfigureAwait(false);
 
+                if (response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable && existing > 0)
+                {
+                    // Our partial is longer than the file (or the file changed): start over.
+                    Log.Warn("断点续传范围无效（416），重新完整下载: " + Path.GetFileName(targetPath));
+                    TryDelete(partPath);
+                    existing = 0;
+                    continue;
+                }
+
                 if (existing > 0 && response.StatusCode == HttpStatusCode.PartialContent)
                 {
                     resumed = true;
                 }
                 else if (existing > 0 && response.StatusCode == HttpStatusCode.OK)
                 {
-                    // Server ignored the range: restart from scratch.
                     Log.Warn("服务器不支持断点续传，重新下载: " + Path.GetFileName(targetPath));
                     existing = 0;
-                    resumed = false;
                     TryDelete(partPath);
                 }
 
                 response.EnsureSuccessStatusCode();
-                total = response.Content.Headers.ContentLength is { } length
-                    ? length + (resumed ? existing : 0)
-                    : -1;
+
+                long total = -1;
+                if (response.Content.Headers.ContentRange?.Length is { } rangeTotal)
+                {
+                    total = rangeTotal;
+                }
+                else if (response.Content.Headers.ContentLength is { } length)
+                {
+                    total = length + (resumed ? existing : 0);
+                }
 
                 await using var input = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
                 await using var output = new FileStream(partPath, resumed ? FileMode.Append : FileMode.Create,
@@ -102,6 +139,7 @@ public static class ResumableDownloader
                 }
 
                 File.Move(partPath, targetPath, overwrite: true);
+                File.WriteAllText(metaPath, url, Encoding.UTF8);
                 progress?.Report(100);
                 return;
             }
@@ -111,10 +149,15 @@ public static class ResumableDownloader
             }
             catch (Exception ex)
             {
-                // Keep the .part file so the next attempt can resume.
                 if (File.Exists(partPath)) existing = new FileInfo(partPath).Length;
                 if (attempt >= 3)
                 {
+                    // Never leave a corrupt partial behind for the next run to trip on.
+                    if (existing > 0 && ex is HttpRequestException or IOException)
+                    {
+                        TryDelete(partPath);
+                        TryDelete(metaPath);
+                    }
                     throw new InvalidOperationException($"下载失败（已重试 3 次）：{ex.Message}", ex);
                 }
 
