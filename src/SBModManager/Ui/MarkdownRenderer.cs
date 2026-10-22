@@ -75,6 +75,21 @@ public static class MarkdownRenderer
                 continue;
             }
 
+            var image = Regex.Match(line, @"^!\[[^\]]*\]\(([^)]+)\)$");
+            if (image.Success && Uri.TryCreate(image.Groups[1].Value, UriKind.Absolute, out var imageUri))
+            {
+                FlushParagraph();
+                panel.Children.Add(new Image
+                {
+                    Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(imageUri),
+                    Stretch = Stretch.Uniform,
+                    MaxHeight = 420,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Margin = new Thickness(0, 4, 0, 4),
+                });
+                continue;
+            }
+
             var heading = Regex.Match(line, "^(#{1,4})\\s+(.*)$");
             if (heading.Success)
             {

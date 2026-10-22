@@ -177,7 +177,12 @@ public sealed partial class NexusPage : Page
             Log.Warn("准备 N 网详情动画失败: " + ex.Message);
         }
 
-        Frame.Navigate(typeof(NexusDetailPage), modId);
+        Frame.Navigate(typeof(NexusDetailPage), new NexusDetailArgs
+        {
+            ModId = modId,
+            Name = item?.Name ?? "",
+            ThumbnailUrl = item?.Thumbnail?.UriSource?.ToString() ?? "",
+        });
     }
 
     private async void Download_Click(object sender, RoutedEventArgs e)

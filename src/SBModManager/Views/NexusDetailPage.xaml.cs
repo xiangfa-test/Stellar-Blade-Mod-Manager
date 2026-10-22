@@ -8,10 +8,19 @@ using SBModManager.Ui;
 
 namespace SBModManager.Views;
 
+/// <summary>Parameters handed to <see cref="NexusDetailPage"/> from the browse list.</summary>
+public sealed class NexusDetailArgs
+{
+    public int ModId { get; init; }
+    public string Name { get; init; } = "";
+    public string ThumbnailUrl { get; init; } = "";
+}
+
 /// <summary>Full-screen Nexus mod detail, expanded from the browse list.</summary>
 public sealed partial class NexusDetailPage : Page
 {
     private int _modId;
+    private string _thumbnailFallback = "";
     private string _domain = "stellarblade";
     private NexusModDetail? _detail;
     private string? _translated;
@@ -27,7 +36,18 @@ public sealed partial class NexusDetailPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (e.Parameter is int modId) _modId = modId;
+        switch (e.Parameter)
+        {
+            case NexusDetailArgs args:
+                _modId = args.ModId;
+                _thumbnailFallback = args.ThumbnailUrl;
+                if (!string.IsNullOrWhiteSpace(args.Name)) TitleText.Text = args.Name;
+                break;
+            case int modId:
+                _modId = modId;
+                break;
+        }
+
         _domain = State.Config.NexusGameDomain;
         TitleText.Text = "加载中…";
 
@@ -88,7 +108,20 @@ public sealed partial class NexusDetailPage : Page
             SummaryText.Text = _detail.Summary;
             WebButton.IsEnabled = true;
 
-            if (Uri.TryCreate(_detail.PictureUrl, UriKind.Absolute, out var picture))
+            var heroUrl = !string.IsNullOrWhiteSpace(_detail.PictureUrl)
+                ? _detail.PictureUrl
+                : _thumbnailFallback;
+
+            if (string.IsNullOrWhiteSpace(heroUrl))
+            {
+                // v3 mod details carry no picture; the legacy endpoint still does.
+                var info = await NexusService.GetModInfoAsync(_domain, _modId, key);
+                if (!string.IsNullOrWhiteSpace(info?.PictureUrl))
+                {
+                    heroUrl = info.Value.PictureUrl;
+                }
+            }
+            if (Uri.TryCreate(heroUrl, UriKind.Absolute, out var picture))
             {
                 HeroImage.Source = new BitmapImage(picture);
             }

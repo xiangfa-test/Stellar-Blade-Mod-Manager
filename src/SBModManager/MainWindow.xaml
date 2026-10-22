@@ -25,8 +25,8 @@
                     Spacing="9"
                     VerticalAlignment="Center">
                     <Image
-                        Width="18"
-                        Height="18"
+                        Width="16"
+                        Height="16"
                         Source="ms-appx:///Assets/app.png" />
                     <TextBlock
                         VerticalAlignment="Center"
@@ -53,7 +53,7 @@
                 <ToolTipService.ToolTip>
                     <ToolTip Content="返回上一页" />
                 </ToolTipService.ToolTip>
-                <FontIcon FontSize="14" Glyph="&#xE72B;" />
+                <FontIcon FontSize="12" Glyph="&#xE72B;" />
             </Button>
         </Grid>
 

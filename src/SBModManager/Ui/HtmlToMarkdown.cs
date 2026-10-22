@@ -40,7 +40,9 @@ public static class HtmlToMarkdown
         text = Regex.Replace(text, @"<a[^>]*href\s*=\s*[""']([^""']+)[""'][^>]*>(.*?)</a>",
             m => $"[{StripTags(m.Groups[2].Value)}]({m.Groups[1].Value})",
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        text = Regex.Replace(text, @"<img[^>]*>", "", RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, @"<img[^>]*src\s*=\s*[""']([^""']+)[""'][^>]*>",
+            m => "\n![](" + m.Groups[1].Value + ")\n",
+            RegexOptions.IgnoreCase);
         text = Regex.Replace(text, @"<[^>]+>", "");
         return text;
     }
@@ -84,8 +86,10 @@ public static class HtmlToMarkdown
         value = Regex.Replace(value, @"\[code\](.*?)\[/code\]", "`$1`",
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
-        // images and formatting-only tags are dropped
-        value = Regex.Replace(value, @"\[img\].*?\[/img\]", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        // images become markdown images
+        value = Regex.Replace(value, @"\[img\](.*?)\[/img\]",
+            m => "\n![](" + m.Groups[1].Value.Trim() + ")\n",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
         value = Regex.Replace(value, @"\[/?(size|color|font|center|left|right|spoiler|hr|background)[^\]]*\]", "",
             RegexOptions.IgnoreCase);
 

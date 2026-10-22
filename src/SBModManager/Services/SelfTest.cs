@@ -339,6 +339,17 @@ public static class SelfTest
                 TranslationService.LooksChinese("这是一段中文说明") &&
                 !TranslationService.LooksChinese("This is an English description"));
 
+            // 1m2) image conversion and rendering
+            var imgMd = SBModManager.Ui.HtmlToMarkdown.Convert(
+                "<p>text</p><img src=\"https://example.com/a.png\" />");
+            Check("HTML 图片转 Markdown", imgMd.Contains("![](https://example.com/a.png)"), imgMd);
+            var imgBb = SBModManager.Ui.HtmlToMarkdown.Convert("[img]https://example.com/b.png[/img]");
+            Check("BBCode 图片转 Markdown", imgBb.Contains("![](https://example.com/b.png)"), imgBb);
+            var imgPanel = SBModManager.Ui.MarkdownRenderer.Render("![](https://example.com/c.png)");
+            Check("Markdown 图片渲染为 Image",
+                imgPanel is Microsoft.UI.Xaml.Controls.StackPanel imgStack &&
+                imgStack.Children.OfType<Microsoft.UI.Xaml.Controls.Image>().Any());
+
             // 1l) BBCode -> Markdown (older Nexus pages)
             var bbcode = "[b]安装说明[/b]\n[url=https://example.com]链接[/url]\n[list][*]a[*]b[/list]";
             var bbMarkdown = SBModManager.Ui.HtmlToMarkdown.Convert(bbcode);
