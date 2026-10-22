@@ -10,6 +10,10 @@ namespace SBModManager.Services;
 /// </summary>
 public static class CnsAnalyzer
 {
+
+    /// <summary>State used by this service; replaceable for tests.</summary>
+    public static IAppState State { get; set; } = State;
+
     // CNS json files often contain trailing commas and comments.
     private static readonly JsonDocumentOptions JsonOptions = new()
     {
@@ -160,7 +164,7 @@ public static class CnsAnalyzer
     /// <summary>One-time pass for mods imported before CNS metadata existed.</summary>
     public static int MigrateMetadata()
     {
-        var state = AppState.Instance;
+        var state = State;
         var updated = 0;
         foreach (var record in state.Library)
         {

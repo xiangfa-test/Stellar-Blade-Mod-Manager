@@ -18,9 +18,13 @@ public sealed class DependencyIssue
 /// </summary>
 public static class DependencyChecker
 {
+
+    /// <summary>State used by this service; replaceable for tests.</summary>
+    public static IAppState State { get; set; } = State;
+
     public static List<DependencyIssue> Check(ModRecord record)
     {
-        var state = AppState.Instance;
+        var state = State;
         var issues = new List<DependencyIssue>();
 
         var needsCns = record.CnsFits.Count > 0 ||
@@ -86,7 +90,7 @@ public static class DependencyChecker
         return issues;
     }
 
-    private static bool HasCnsBase(AppState state)
+    private static bool HasCnsBase(IAppState state)
     {
         return state.Library.Any(m =>
             m.Files.Any(f => f.Contains(@"CustomNanosuitSystem", StringComparison.OrdinalIgnoreCase) ||

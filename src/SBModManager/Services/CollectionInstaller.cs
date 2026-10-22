@@ -22,6 +22,10 @@ public sealed class CollectionInstallReport
 /// </summary>
 public static class CollectionInstaller
 {
+
+    /// <summary>State used by this service; replaceable for tests.</summary>
+    public static IAppState State { get; set; } = State;
+
     /// <summary>Tag given to mods the user imported manually, so they can be switched back to.</summary>
     public const string LocalTag = "合集:本地安装";
 
@@ -36,7 +40,7 @@ public static class CollectionInstaller
     /// </summary>
     public static (int Enabled, int Failed, List<string> Errors) Activate(string tag, bool exclusive)
     {
-        var state = AppState.Instance;
+        var state = State;
         var errors = new List<string>();
         if (state.GameDir is not { } gameDir)
         {
@@ -86,7 +90,7 @@ public static class CollectionInstaller
 
     public static (int Disabled, List<string> Errors) Deactivate(string tag)
     {
-        var state = AppState.Instance;
+        var state = State;
         var errors = new List<string>();
         var disabled = 0;
         foreach (var record in state.Library
@@ -115,7 +119,7 @@ public static class CollectionInstaller
     public static int MigrateUntaggedToLocal()
     {
         var migrated = 0;
-        foreach (var record in AppState.Instance.Library)
+        foreach (var record in State.Library)
         {
             if (record.Tags.Any(IsCollectionTag)) continue;
             record.Tags.Add(LocalTag);
@@ -124,7 +128,7 @@ public static class CollectionInstaller
         }
         if (migrated > 0)
         {
-            AppState.Instance.ReloadLibrary();
+            State.ReloadLibrary();
             Log.Info($"已把 {migrated} 个旧模组归入「{LocalTag}」合集");
         }
         return migrated;
@@ -147,7 +151,7 @@ public static class CollectionInstaller
         IProgress<CollectionInstallProgress>? progress,
         CancellationToken ct)
     {
-        var state = AppState.Instance;
+        var state = State;
         var report = new CollectionInstallReport();
         var selected = collection.Mods
             .Where(m => options.IncludeOptional || !m.Optional)
@@ -293,7 +297,7 @@ public static class CollectionInstaller
     /// <summary>Collection tags currently present in the library, with mod counts.</summary>
     public static List<(string Tag, string Name, int Count)> InstalledCollections()
     {
-        return AppState.Instance.Library
+        return State.Library
             .SelectMany(r => r.Tags
                 .Where(t => t.StartsWith("合集:", StringComparison.OrdinalIgnoreCase))
                 .Select(t => (Tag: t, Mod: r)))

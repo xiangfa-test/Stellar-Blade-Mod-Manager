@@ -21,6 +21,10 @@ public sealed class ModProfile
 /// <summary>Named snapshots of "which mods are enabled + their load order".</summary>
 public static class ProfileStore
 {
+
+    /// <summary>State used by this service; replaceable for tests.</summary>
+    public static IAppState State { get; set; } = State;
+
     private static string DirectoryPath => Path.Combine(AppPaths.Root, "profiles");
 
     public static List<ModProfile> LoadAll()
@@ -71,7 +75,7 @@ public static class ProfileStore
 
     public static ModProfile Capture(string name)
     {
-        var state = AppState.Instance;
+        var state = State;
         return new ModProfile
         {
             Name = name,
@@ -87,7 +91,7 @@ public static class ProfileStore
     /// <summary>Switch the library to the profile: disable others first, then deploy in priority order.</summary>
     public static (int Enabled, int Failed) Apply(ModProfile profile, IProgress<string>? progress = null)
     {
-        var state = AppState.Instance;
+        var state = State;
         if (state.GameDir is not { } gameDir)
         {
             return (-1, 0);

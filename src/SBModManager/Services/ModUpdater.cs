@@ -9,6 +9,10 @@ namespace SBModManager.Services;
 /// </summary>
 public static class ModUpdater
 {
+
+    /// <summary>State used by this service; replaceable for tests.</summary>
+    public static IAppState State { get; set; } = State;
+
     private static readonly Regex GenericName = new(@"^(nxm-\d+-\d+|file \d+|未命名模组|\d+)$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -19,7 +23,7 @@ public static class ModUpdater
     public static async Task<int> RenameGenericAsync(IProgress<string>? progress = null,
         CancellationToken ct = default)
     {
-        var state = AppState.Instance;
+        var state = State;
         var key = state.Config.NexusApiKey;
         if (string.IsNullOrWhiteSpace(key)) return -1;
 
@@ -63,7 +67,7 @@ public static class ModUpdater
     public static async Task<int> FillVersionsAsync(IProgress<string>? progress = null,
         CancellationToken ct = default)
     {
-        var state = AppState.Instance;
+        var state = State;
         var key = state.Config.NexusApiKey;
         if (string.IsNullOrWhiteSpace(key)) return -1;
 
@@ -106,7 +110,7 @@ public static class ModUpdater
     public static async Task<ModRecord> UpdateAsync(ModRecord record, string apiKey, string? apiKeyForLinks,
         IProgress<string>? progress = null, CancellationToken ct = default)
     {
-        var state = AppState.Instance;
+        var state = State;
         if (state.GameDir is not { } gameDir) throw new InvalidOperationException("请先在设置里选择游戏目录。");
         if (record.NexusModId is not > 0) throw new InvalidOperationException("这个模组没有 Nexus 模组 ID。");
 
