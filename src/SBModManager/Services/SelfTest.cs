@@ -359,6 +359,77 @@ public static class SelfTest
             Check("Markdown 渲染分段", markdownPanel is Microsoft.UI.Xaml.Controls.StackPanel panel &&
                 panel.Children.Count >= 3, $"blocks={(markdownPanel as Microsoft.UI.Xaml.Controls.StackPanel)?.Children.Count}");
 
+            // 1m) robustness: bad data must not crash the app
+            var configBackup = File.Exists(AppPaths.ConfigFile) ? File.ReadAllText(AppPaths.ConfigFile) : null;
+            var configThrew = false;
+            try
+            {
+                File.WriteAllText(AppPaths.ConfigFile, "{ this is not json");
+                AppState.Instance.Load();
+            }
+            catch
+            {
+                configThrew = true;
+            }
+            finally
+            {
+                if (configBackup is not null) File.WriteAllText(AppPaths.ConfigFile, configBackup);
+                AppState.Instance.Load();
+            }
+            Check("损坏的 config.json 不崩溃", !configThrew);
+
+            var badMetaDir = Path.Combine(AppPaths.ModsRoot, "corrupt-meta-test");
+            Directory.CreateDirectory(badMetaDir);
+            File.WriteAllText(Path.Combine(badMetaDir, ModStore.MetaFileName), "{ broken");
+            var metaThrew = false;
+            var metaSkipped = false;
+            try
+            {
+                var loaded = ModStore.LoadAll();
+                metaSkipped = loaded.All(m => m.Id != "corrupt-meta-test");
+            }
+            catch
+            {
+                metaThrew = true;
+            }
+            Check("损坏的模组元数据不崩溃且被跳过", !metaThrew && metaSkipped);
+            try { Directory.Delete(badMetaDir, recursive: true); } catch { }
+
+            Directory.CreateDirectory(AppPaths.TempRoot);
+            var badZip = Path.Combine(AppPaths.TempRoot, "selftest-bad.zip");
+            File.WriteAllText(badZip, "this is not a zip file");
+            var badZipResult = ModImporter.ImportArchive(badZip);
+            Check("无效压缩包返回错误", badZipResult.Mod is null &&
+                !string.IsNullOrEmpty(badZipResult.Error), badZipResult.Error);
+            try { File.Delete(badZip); } catch { }
+
+            var missingRecord = new ModRecord { Name = "MissingGameDir", Type = ModType.Pak };
+            var missingDir = AppPaths.ModDir(missingRecord.Id);
+            Directory.CreateDirectory(missingDir);
+            File.WriteAllText(Path.Combine(missingDir, "Missing_P.pak"), "M");
+            missingRecord.Files = new List<string> { "Missing_P.pak" };
+            var missingGame = Path.Combine(AppPaths.TempRoot, "no-such-game");
+            try { if (Directory.Exists(missingGame)) Directory.Delete(missingGame, recursive: true); } catch { }
+            var missingDeploy = Deployer.Deploy(missingRecord, missingGame, force: false);
+            Check("不存在的游戏目录返回失败",
+                !missingDeploy.Success && (missingDeploy.Error?.Contains("游戏目录") ?? false),
+                missingDeploy.Error);
+            try { Directory.Delete(missingDir, recursive: true); } catch { }
+
+            var journalPath = Path.Combine(AppPaths.Root, "deploy-journal.json");
+            File.WriteAllText(journalPath, "{ broken journal");
+            var journalThrew = false;
+            try
+            {
+                DeployJournal.Recover();
+            }
+            catch
+            {
+                journalThrew = true;
+            }
+            Check("损坏的部署日志不崩溃并清理",
+                !journalThrew && !File.Exists(journalPath));
+
             // 2) Loose mod import + deploy
             var looseZip = Path.Combine(AppPaths.TempRoot, "selftest-loose.zip");
             if (File.Exists(looseZip)) File.Delete(looseZip);

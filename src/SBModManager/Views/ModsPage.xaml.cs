@@ -33,6 +33,7 @@ public sealed partial class ModsPage : Page
     public ModsPage()
     {
         InitializeComponent();
+        Deployer.DeploymentChanged += InvalidateConflictCache;
         try
         {
             var saved = State.Config.ModsDetailWidth;

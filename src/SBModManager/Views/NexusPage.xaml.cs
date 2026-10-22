@@ -213,6 +213,11 @@ public sealed partial class NexusPage : Page
                 ? $"已导入「{record.Name}」"
                 : "下载失败: " + (error ?? "未知错误");
         }
+        catch (Exception ex)
+        {
+            Log.Error("下载导入失败", ex);
+            StatusText.Text = "下载失败: " + ex.Message;
+        }
         finally
         {
             SetBusy(false);

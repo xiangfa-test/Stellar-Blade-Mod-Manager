@@ -133,6 +133,9 @@ public static class Deployer
     /// <summary>State used by the deployer; replaceable for tests.</summary>
     public static IAppState State { get; set; } = AppState.Instance;
 
+    /// <summary>Raised after deploy/undeploy/redeploy so caches (conflict stats) can be dropped.</summary>
+    public static event Action? DeploymentChanged;
+
     public static DeployResult Deploy(ModRecord mod, string gameDir, bool force, IProgress<string>? progress = null)
     {
         lock (FileLock)
@@ -143,6 +146,11 @@ public static class Deployer
 
     private static DeployResult DeployCore(ModRecord mod, string gameDir, bool force, IProgress<string>? progress)
     {
+        if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir))
+        {
+            return new DeployResult { Success = false, Error = "游戏目录不存在，请先在「设置」里重新选择游戏目录。" };
+        }
+
         var targets = ComputeTargets(mod, gameDir);
         if (targets.Count == 0)
         {
@@ -268,7 +276,7 @@ public static class Deployer
             State.SaveDeployed();
             DeployJournal.Complete();
             Ue4ssConfig.Apply(mod, gameDir, enabled: true);
-            Views.ModsPage.InvalidateConflictCache();
+            DeploymentChanged?.Invoke();
             Log.Info($"已启用模组 {mod.Name}，部署 {deployed.Count} 个文件 (hardlink={useHardLink})");
             return new DeployResult { Success = true, DeployedFiles = deployed };
         }
@@ -335,7 +343,7 @@ public static class Deployer
         RestoreBackups(modId, deployed, State.GameDir);
         RestoreDisplaced(deployed);
         State.SaveDeployed();
-        Views.ModsPage.InvalidateConflictCache();
+        DeploymentChanged?.Invoke();
         Log.Info($"已停用模组 {modId}，移除 {deployed.Files.Count} 个文件");
     }
 
@@ -647,7 +655,7 @@ public static class Deployer
             if (result.Success) ok++;
             else failed++;
         }
-        Views.ModsPage.InvalidateConflictCache();
+        DeploymentChanged?.Invoke();
         Log.Info($"按加载顺序重建部署: 成功 {ok}，失败 {failed}");
         return (ok, failed);
     }

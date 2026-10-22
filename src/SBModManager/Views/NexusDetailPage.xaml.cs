@@ -140,6 +140,11 @@ public sealed partial class NexusDetailPage : Page
                 ? $"已导入「{record.Name}」。"
                 : "下载失败: " + (error ?? "未知错误");
         }
+        catch (Exception ex)
+        {
+            Log.Error("下载导入失败", ex);
+            StatusText.Text = "下载失败: " + ex.Message;
+        }
         finally
         {
             BusyRing.IsActive = false;
@@ -206,6 +211,11 @@ public sealed partial class NexusDetailPage : Page
 
             TranslateButton.Content = "原文";
             StatusText.Text = "已翻译（机器翻译，仅供参考）。";
+        }
+        catch (Exception ex)
+        {
+            Log.Error("翻译失败", ex);
+            StatusText.Text = "翻译失败: " + ex.Message;
         }
         finally
         {
