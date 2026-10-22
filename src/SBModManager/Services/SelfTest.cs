@@ -454,6 +454,18 @@ public static class SelfTest
                 try { if (File.Exists(abnormal.ReportPath)) File.Delete(abnormal.ReportPath); } catch { }
             }
 
+            // 1o) GraphQL parsing must survive malformed payloads
+            var gqlSample = "{\"data\":{\"mods\":{\"nodes\":[{\"modId\":3225,\"name\":\"Sample\"," +
+                "\"downloads\":100,\"endorsements\":5,\"tags\":[{\"name\":\"Hair\"}]}]}}}";
+            var gqlMods = NexusGraphQl.ParseSearchJson(gqlSample);
+            Check("GraphQL 响应解析",
+                gqlMods.Count == 1 && gqlMods[0].ModId == 3225 &&
+                gqlMods[0].Downloads == 100 && gqlMods[0].Tags.Contains("Hair"),
+                gqlMods.Count == 0 ? "empty" : gqlMods[0].Name);
+            Check("GraphQL 非法 JSON 不崩溃", NexusGraphQl.ParseSearchJson("{not json").Count == 0);
+            Check("GraphQL 结构不符不崩溃",
+                NexusGraphQl.ParseSearchJson("{\"data\":{\"mods\":null}}").Count == 0);
+
             // 2) Loose mod import + deploy
             var looseZip = Path.Combine(AppPaths.TempRoot, "selftest-loose.zip");
             if (File.Exists(looseZip)) File.Delete(looseZip);

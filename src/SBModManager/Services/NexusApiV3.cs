@@ -56,6 +56,7 @@ public static class NexusApiV3
         using var doc = JsonDocument.Parse(text);
         var result = new SearchPage();
         if (!doc.RootElement.TryGetProperty("data", out var data) ||
+            data.ValueKind != JsonValueKind.Object ||
             !data.TryGetProperty("mods", out var mods) || mods.ValueKind != JsonValueKind.Array)
         {
             return result;
@@ -63,6 +64,7 @@ public static class NexusApiV3
 
         var total = 0;
         if (doc.RootElement.TryGetProperty("meta", out var meta) &&
+            meta.ValueKind == JsonValueKind.Object &&
             meta.TryGetProperty("total_count", out var count) && count.ValueKind == JsonValueKind.Number &&
             count.TryGetInt32(out var totalValue))
         {
@@ -72,6 +74,7 @@ public static class NexusApiV3
         var list = new List<NexusModSummary>();
         foreach (var item in mods.EnumerateArray())
         {
+            if (item.ValueKind != JsonValueKind.Object) continue;
             var summary = GetString(item, "summary");
             if (!string.IsNullOrWhiteSpace(query) &&
                 !(GetString(item, "name").Contains(query, StringComparison.OrdinalIgnoreCase) ||
@@ -146,6 +149,7 @@ public static class NexusApiV3
 
         using var doc = JsonDocument.Parse(text);
         if (!doc.RootElement.TryGetProperty("data", out var data) ||
+            data.ValueKind != JsonValueKind.Object ||
             !data.TryGetProperty("mod_files", out var files) || files.ValueKind != JsonValueKind.Array)
         {
             return result;
@@ -162,6 +166,7 @@ public static class NexusApiV3
 
             using var versionsDoc = JsonDocument.Parse(versionsText);
             if (!versionsDoc.RootElement.TryGetProperty("data", out var versionsData) ||
+                versionsData.ValueKind != JsonValueKind.Object ||
                 !versionsData.TryGetProperty("versions", out var versions) ||
                 versions.ValueKind != JsonValueKind.Array)
             {
@@ -170,6 +175,7 @@ public static class NexusApiV3
 
             foreach (var version in versions.EnumerateArray())
             {
+                if (version.ValueKind != JsonValueKind.Object) continue;
                 var versionId = GetInt(version, "game_scoped_id");
                 if (versionId <= 0) continue;
                 result.Add(new NexusFileInfo
@@ -201,6 +207,7 @@ public static class NexusApiV3
 
         using var doc = JsonDocument.Parse(text);
         if (!doc.RootElement.TryGetProperty("data", out var data) ||
+            data.ValueKind != JsonValueKind.Object ||
             !data.TryGetProperty("links", out var links) || links.ValueKind != JsonValueKind.Array)
         {
             return null;

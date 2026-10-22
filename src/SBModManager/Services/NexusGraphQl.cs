@@ -68,9 +68,18 @@ public static class NexusGraphQl
         };
 
         var root = await PostAsync(new { query = SearchQuery, variables }, ct).ConfigureAwait(false);
+        return ParseSearchResponse(root);
+    }
+
+    /// <summary>Parses a GraphQL response; malformed payloads yield an empty list instead of throwing.</summary>
+    internal static List<NexusModSummary> ParseSearchResponse(JsonElement root)
+    {
         var result = new List<NexusModSummary>();
-        if (!root.TryGetProperty("data", out var data) ||
+        if (root.ValueKind != JsonValueKind.Object ||
+            !root.TryGetProperty("data", out var data) ||
+            data.ValueKind != JsonValueKind.Object ||
             !data.TryGetProperty("mods", out var mods) ||
+            mods.ValueKind != JsonValueKind.Object ||
             !mods.TryGetProperty("nodes", out var nodes) ||
             nodes.ValueKind != JsonValueKind.Array)
         {
@@ -79,6 +88,7 @@ public static class NexusGraphQl
 
         foreach (var node in nodes.EnumerateArray())
         {
+            if (node.ValueKind != JsonValueKind.Object) continue;
             result.Add(new NexusModSummary
             {
                 ModId = GetInt(node, "modId"),
@@ -99,6 +109,19 @@ public static class NexusGraphQl
         }
 
         return result;
+    }
+
+    internal static List<NexusModSummary> ParseSearchJson(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return ParseSearchResponse(doc.RootElement);
+        }
+        catch (JsonException)
+        {
+            return new List<NexusModSummary>();
+        }
     }
 
     /// <summary>Tags actually used by the most downloaded mods of this game.</summary>
