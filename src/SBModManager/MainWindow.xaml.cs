@@ -35,6 +35,7 @@ public sealed partial class MainWindow : Window
         ApplyConfiguredTheme();
         ApplyTitleBarTheme();
         AttachSizeMemory();
+        ApplyDebugVisibility();
         RootGrid.ActualThemeChanged += (_, _) => ApplyTitleBarTheme();
         Activated += (_, _) => ApplyCaptionInsets();
 
@@ -315,6 +316,17 @@ public sealed partial class MainWindow : Window
             state.Config.WindowHeight = size.Height;
         }
         state.SaveConfig();
+    }
+
+    /// <summary>Show the debug page only when enabled in settings.</summary>
+    public void ApplyDebugVisibility()
+    {
+        var visible = Services.AppState.Instance.Config.ShowDebugPage;
+        DebugNavItem.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (!visible && ContentFrame.CurrentSourcePageType == typeof(DebugPage))
+        {
+            SelectPage("mods");
+        }
     }
 
     private void ApplyConfiguredTheme()

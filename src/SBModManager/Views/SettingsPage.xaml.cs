@@ -34,6 +34,7 @@ public sealed partial class SettingsPage : Page
             UpdateStatusText.Text = "当前版本 " + AppUpdater.CurrentVersion;
             AutoUpdateToggle.IsOn = State.Config.AutoCheckUpdates;
             PakPrefixToggle.IsOn = State.Config.PakOrderPrefixEnabled;
+            DebugToggle.IsOn = State.Config.ShowDebugPage;
             LibraryPathText.Text = "模组库: " + AppPaths.ModsRoot;
             DataPathText.Text = "数据目录: " + AppPaths.Root;
             ThemeBox.SelectedIndex = State.Config.Theme switch
@@ -343,6 +344,14 @@ public sealed partial class SettingsPage : Page
         State.SaveConfig();
 
         (App.MainWindow as MainWindow)?.ResetWindowSize();
+    }
+
+    private void Debug_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        State.Config.ShowDebugPage = DebugToggle.IsOn;
+        State.SaveConfig();
+        (App.MainWindow as MainWindow)?.ApplyDebugVisibility();
     }
 
     private void PakPrefix_Toggled(object sender, RoutedEventArgs e)

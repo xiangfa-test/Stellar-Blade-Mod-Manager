@@ -97,7 +97,11 @@
                         <FontIcon Glyph="&#xE9D9;" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="调试" Tag="debug">
+                <NavigationViewItem
+                    x:Name="DebugNavItem"
+                    Content="调试"
+                    Tag="debug"
+                    Visibility="Collapsed">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE7B8;" />
                     </NavigationViewItem.Icon>

@@ -35,11 +35,11 @@ public static class NexusBrowser
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(2) };
 
     public static async Task<List<NexusModSummary>> GetListAsync(string domain, string apiKey,
-        string kind = "latest_updated", string? search = null, CancellationToken ct = default)
+        string kind = "latest_updated", string? search = null, int count = 120, CancellationToken ct = default)
     {
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var searched = await TrySearchAsync(domain, apiKey, search, ct).ConfigureAwait(false);
+            var searched = await TrySearchAsync(domain, apiKey, search, count, ct).ConfigureAwait(false);
             if (searched.Count > 0) return searched;
         }
 
@@ -62,12 +62,12 @@ public static class NexusBrowser
     }
 
     private static async Task<List<NexusModSummary>> TrySearchAsync(string domain, string apiKey,
-        string search, CancellationToken ct)
+        string search, int count, CancellationToken ct)
     {
         try
         {
             var url = $"https://api.nexusmods.com/v1/games/{Uri.EscapeDataString(domain)}/mods/search.json" +
-                      $"?terms={Uri.EscapeDataString(search)}&count=40";
+                      $"?terms={Uri.EscapeDataString(search)}&count={Math.Max(20, count)}";
             return await RequestListAsync(url, apiKey, ct).ConfigureAwait(false);
         }
         catch (Exception ex)

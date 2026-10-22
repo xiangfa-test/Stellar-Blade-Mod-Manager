@@ -241,6 +241,32 @@
                 </Grid>
             </Border>
 
+            <!--  ===== 高级 =====  -->
+            <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="高级" />
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid Style="{StaticResource SettingsRowStyle}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Grid.Column="0" Glyph="&#xE7B8;" Style="{StaticResource SettingsRowIconStyle}" />
+                    <StackPanel Grid.Column="1" Spacing="0">
+                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="显示调试页" />
+                        <TextBlock
+                            Style="{StaticResource SettingsRowDescriptionStyle}"
+                            Text="在侧边栏显示「调试」页，用于运行自检、查看环境信息和清理临时文件。" />
+                    </StackPanel>
+                    <ToggleSwitch
+                        x:Name="DebugToggle"
+                        Grid.Column="2"
+                        MinWidth="0"
+                        VerticalAlignment="Center"
+                        Toggled="Debug_Toggled" />
+                </Grid>
+            </Border>
+
             <!--  ===== 网络与集成 =====  -->
             <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="网络与集成" />
 

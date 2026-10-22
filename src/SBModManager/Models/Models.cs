@@ -177,6 +177,9 @@ public sealed class AppConfig
     /// <summary>Check GitHub for a new app release when the app starts.</summary>
     public bool AutoCheckUpdates { get; set; } = true;
 
+    /// <summary>Show the debug page in the navigation (off by default).</summary>
+    public bool ShowDebugPage { get; set; }
+
     /// <summary>Remember the window size between runs (asked after the first manual resize).</summary>
     public bool RememberWindowSize { get; set; } = true;
     public bool WindowSizePromptDone { get; set; }

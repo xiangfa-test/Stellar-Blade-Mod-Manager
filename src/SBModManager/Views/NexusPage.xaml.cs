@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -18,6 +19,10 @@ public sealed class NexusItem
 public sealed partial class NexusPage : Page
 {
     public ObservableCollection<NexusItem> Items { get; } = new();
+
+    private const int PageSize = 40;
+    private List<NexusModSummary> _all = new();
+    private int _shown;
 
     private static AppState State => AppState.Instance;
 
@@ -45,21 +50,12 @@ public sealed partial class NexusPage : Page
         StatusText.Text = "加载中…";
         try
         {
-            var mods = await NexusBrowser.GetListAsync(State.Config.NexusGameDomain, key, kind,
-                SearchBox.Text?.Trim());
+            _all = await NexusBrowser.GetListAsync(State.Config.NexusGameDomain, key, kind,
+                SearchBox.Text?.Trim(), 120);
             Items.Clear();
-            foreach (var mod in mods.Take(60))
-            {
-                Items.Add(new NexusItem
-                {
-                    ModId = mod.ModId,
-                    Name = mod.Name,
-                    Summary = string.IsNullOrWhiteSpace(mod.Summary) ? mod.Category : mod.Summary,
-                    Meta = mod.MetaText,
-                    Thumbnail = TryImage(mod.PictureUrl),
-                });
-            }
-            StatusText.Text = $"{Items.Count} 个模组";
+            _shown = 0;
+            AppendPage();
+            StatusText.Text = $"{_all.Count} 个模组";
         }
         catch (Exception ex)
         {
@@ -70,6 +66,24 @@ public sealed partial class NexusPage : Page
         {
             SetBusy(false);
         }
+    }
+
+    private void AppendPage()
+    {
+        foreach (var mod in _all.Skip(_shown).Take(PageSize))
+        {
+            Items.Add(new NexusItem
+            {
+                ModId = mod.ModId,
+                Name = mod.Name,
+                Summary = string.IsNullOrWhiteSpace(mod.Summary) ? mod.Category : mod.Summary,
+                Meta = mod.MetaText,
+                Thumbnail = TryImage(mod.PictureUrl),
+            });
+        }
+
+        _shown = Items.Count;
+        LoadMoreButton.Visibility = _shown < _all.Count ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private static BitmapImage? TryImage(string url)
@@ -106,27 +120,144 @@ public sealed partial class NexusPage : Page
         => await Windows.System.Launcher.LaunchUriAsync(
             new Uri($"https://www.nexusmods.com/{State.Config.NexusGameDomain}"));
 
+    private void LoadMore_Click(object sender, RoutedEventArgs e) => AppendPage();
+
     private async void Detail_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: int modId }) return;
-        var domain = State.Config.NexusGameDomain;
-        var url = $"https://www.nexusmods.com/{domain}/mods/{modId}";
-        await Windows.System.Launcher.LaunchUriAsync(new Uri(url));
+        await ShowDetailAsync(modId);
     }
 
     private async void Download_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: int modId }) return;
+        await DownloadModAsync(modId, null);
+    }
+
+    private async Task ShowDetailAsync(int modId)
+    {
         var key = State.Config.NexusApiKey;
         if (string.IsNullOrWhiteSpace(key)) return;
 
-        var item = Items.FirstOrDefault(i => i.ModId == modId);
+        SetBusy(true);
+        StatusText.Text = "加载详情…";
+        try
+        {
+            var domain = State.Config.NexusGameDomain;
+            var detail = await NexusDetailService.GetAsync(domain, modId, key);
+            if (detail is null)
+            {
+                StatusText.Text = "详情加载失败。";
+                return;
+            }
+
+            var panel = new StackPanel { Spacing = 10, MaxWidth = 640 };
+            if (!string.IsNullOrWhiteSpace(detail.PictureUrl))
+            {
+                panel.Children.Add(new Image
+                {
+                    MaxHeight = 260,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform,
+                    Source = TryImage(detail.PictureUrl),
+                });
+            }
+
+            panel.Children.Add(new TextBlock
+            {
+                Text = detail.Name,
+                Style = ResourceStyle("SubtitleTextBlockStyle"),
+                TextWrapping = TextWrapping.Wrap,
+            });
+            panel.Children.Add(new TextBlock
+            {
+                Text = detail.MetaText(),
+                Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
+                Style = ResourceStyle("CaptionTextBlockStyle"),
+                TextWrapping = TextWrapping.Wrap,
+            });
+            if (!string.IsNullOrWhiteSpace(detail.Summary))
+            {
+                panel.Children.Add(new TextBlock { Text = detail.Summary, TextWrapping = TextWrapping.Wrap });
+            }
+            if (!string.IsNullOrWhiteSpace(detail.Description))
+            {
+                panel.Children.Add(new TextBlock
+                {
+                    Text = StripHtml(detail.Description),
+                    TextWrapping = TextWrapping.Wrap,
+                    Style = ResourceStyle("CaptionTextBlockStyle"),
+                    Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
+                });
+            }
+            if (detail.Files.Count > 0)
+            {
+                panel.Children.Add(new TextBlock
+                {
+                    Text = "文件",
+                    Style = ResourceStyle("BodyStrongTextBlockStyle"),
+                });
+                foreach (var file in detail.Files.Take(6))
+                {
+                    panel.Children.Add(new TextBlock
+                    {
+                        Text = $"• {file.Name}" +
+                               (string.IsNullOrWhiteSpace(file.Version) ? "" : $"  v{file.Version}") +
+                               (string.IsNullOrWhiteSpace(file.Category) ? "" : $"  [{file.Category}]"),
+                        Style = ResourceStyle("CaptionTextBlockStyle"),
+                        TextWrapping = TextWrapping.Wrap,
+                    });
+                }
+            }
+
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "模组详情",
+                Content = new ScrollViewer { MaxHeight = 560, Content = panel },
+                PrimaryButtonText = "下载导入",
+                SecondaryButtonText = "打开网页",
+                CloseButtonText = "关闭",
+                DefaultButton = ContentDialogButton.Primary,
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await DownloadModAsync(modId, detail);
+            }
+            else if (result == ContentDialogResult.Secondary)
+            {
+                await Windows.System.Launcher.LaunchUriAsync(
+                    new Uri($"https://www.nexusmods.com/{domain}/mods/{modId}"));
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("加载 N 网详情失败", ex);
+            StatusText.Text = "详情加载失败: " + ex.Message;
+        }
+        finally
+        {
+            SetBusy(false);
+            StatusText.Text = $"{_all.Count} 个模组";
+        }
+    }
+
+    private async Task DownloadModAsync(int modId, NexusModDetail? detail)
+    {
+        var key = State.Config.NexusApiKey;
+        if (string.IsNullOrWhiteSpace(key)) return;
+
         var domain = State.Config.NexusGameDomain;
+        var item = Items.FirstOrDefault(i => i.ModId == modId);
         SetBusy(true);
         StatusText.Text = "获取文件列表…";
         try
         {
-            var files = await NexusService.GetFilesAsync(domain, modId, key);
+            var files = detail?.Files is { Count: > 0 } known
+                ? known
+                : await NexusService.GetFilesAsync(domain, modId, key);
             var main = files
                 .Where(f => f.FileId > 0)
                 .OrderByDescending(f => f.UploadedTimestamp)
@@ -144,7 +275,7 @@ public sealed partial class NexusPage : Page
                 Content = new TextBlock
                 {
                     TextWrapping = TextWrapping.Wrap,
-                    Text = $"将下载「{item?.Name ?? "mod " + modId}」的最新主文件：\n{main.Name}" +
+                    Text = $"将下载「{detail?.Name ?? item?.Name ?? "mod " + modId}」的最新主文件：\n{main.Name}" +
                            (string.IsNullOrWhiteSpace(main.Version) ? "" : $"（v{main.Version}）") +
                            "\n\n免费账号需要带授权 key 的下载链接；如果失败会提示改用网页下载。",
                 },
@@ -159,9 +290,8 @@ public sealed partial class NexusPage : Page
             if (string.IsNullOrWhiteSpace(uri))
             {
                 StatusText.Text = "Nexus 没有返回下载地址（免费账号可能受限），已打开网页。";
-                await Windows.System.Launcher.LaunchUriAsync(new Uri(item?.ModId > 0
-                    ? $"https://www.nexusmods.com/{domain}/mods/{modId}?tab=files"
-                    : $"https://www.nexusmods.com/{domain}/mods/{modId}"));
+                await Windows.System.Launcher.LaunchUriAsync(
+                    new Uri($"https://www.nexusmods.com/{domain}/mods/{modId}?tab=files"));
                 return;
             }
 
@@ -183,10 +313,16 @@ public sealed partial class NexusPage : Page
             record.NexusFileId = main.FileId;
             record.NexusDomain = domain;
             if (!string.IsNullOrWhiteSpace(main.Version)) record.Version = main.Version;
-            if (item is not null)
+            if (detail is not null)
+            {
+                record.Name = detail.Name;
+                record.NexusThumbnailUrl = detail.PictureUrl;
+                if (!string.IsNullOrWhiteSpace(detail.Version)) record.Version = detail.Version;
+            }
+            else if (item is not null)
             {
                 record.Name = item.Name;
-                record.NexusThumbnailUrl = item.Thumbnail is null ? "" : item.Thumbnail.UriSource?.ToString() ?? "";
+                record.NexusThumbnailUrl = item.Thumbnail?.UriSource?.ToString() ?? "";
             }
             record.GroupKey = ModImporter.GroupKeyFor(record.Name, record.NexusModId);
             CollectionInstaller.TagAsLocal(record);
@@ -218,8 +354,24 @@ public sealed partial class NexusPage : Page
     {
         if (e.ClickedItem is NexusItem item)
         {
-            _ = Windows.System.Launcher.LaunchUriAsync(
-                new Uri($"https://www.nexusmods.com/{State.Config.NexusGameDomain}/mods/{item.ModId}"));
+            _ = ShowDetailAsync(item.ModId);
         }
     }
+
+    private static string StripHtml(string html)
+    {
+        var text = Regex.Replace(html, "<br\\s*/?>", "\n", RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, "</p>", "\n", RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, "<[^>]+>", "");
+        text = System.Net.WebUtility.HtmlDecode(text);
+        return Regex.Replace(text, "\n{3,}", "\n\n").Trim();
+    }
+
+    private static Style? ResourceStyle(string key)
+        => Application.Current.Resources.TryGetValue(key, out var value) ? value as Style : null;
+
+    private static Microsoft.UI.Xaml.Media.Brush? ResourceBrush(string key)
+        => Application.Current.Resources.TryGetValue(key, out var value)
+            ? value as Microsoft.UI.Xaml.Media.Brush
+            : null;
 }

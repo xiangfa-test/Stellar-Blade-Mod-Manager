@@ -59,6 +59,7 @@
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="1"
             CornerRadius="8">
+            <Grid>
             <ListView x:Name="ModList" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="ModList_ItemClick">
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem">
@@ -106,6 +107,15 @@
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
+            <Button
+                x:Name="LoadMoreButton"
+                Margin="0,0,0,10"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Click="LoadMore_Click"
+                Content="加载更多"
+                Visibility="Collapsed" />
+            </Grid>
         </Border>
     </Grid>
 </Page>
