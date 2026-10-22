@@ -17,6 +17,7 @@ public sealed class NexusModDetail
     public long Downloads { get; init; }
     public long Endorsements { get; init; }
     public bool Adult { get; init; }
+    public List<string> Tags { get; init; } = new();
     public List<NexusFileInfo> Files { get; init; } = new();
 
     public string MetaText()
@@ -39,6 +40,20 @@ public static class NexusDetailService
     public static async Task<NexusModDetail?> GetAsync(string domain, int modId, string apiKey,
         CancellationToken ct = default)
     {
+        // Official v3 API first (returns BBCode description, stats and tags).
+        try
+        {
+            var v3 = await NexusApiV3.GetModAsync(domain, modId, apiKey, ct).ConfigureAwait(false);
+            if (v3 is not null)
+            {
+                return v3;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("v3 模组详情失败，回退 v1: " + ex.Message);
+        }
+
         try
         {
             var url = $"https://api.nexusmods.com/v1/games/{Uri.EscapeDataString(domain)}/mods/{modId}.json";

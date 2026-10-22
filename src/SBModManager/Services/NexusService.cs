@@ -225,6 +225,20 @@ public static class NexusService
         string apiKey, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(apiKey) || modId <= 0) return null;
+
+        try
+        {
+            var v3 = await NexusApiV3.GetModAsync(domain, modId, apiKey, ct).ConfigureAwait(false);
+            if (v3 is not null && !string.IsNullOrWhiteSpace(v3.Name))
+            {
+                return (v3.Name, v3.Version, v3.PictureUrl);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("v3 模组信息失败，回退 v1: " + ex.Message);
+        }
+
         try
         {
             var url = $"https://api.nexusmods.com/v1/games/{Uri.EscapeDataString(domain)}/mods/{modId}.json";
@@ -251,6 +265,16 @@ public static class NexusService
     public static async Task<List<NexusFileInfo>> GetFilesAsync(string domain, int modId, string apiKey,
         CancellationToken ct = default)
     {
+        try
+        {
+            var v3 = await NexusApiV3.GetFileVersionsAsync(domain, modId, apiKey, ct).ConfigureAwait(false);
+            if (v3.Count > 0) return v3;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("v3 文件列表失败，回退 v1: " + ex.Message);
+        }
+
         var url = $"https://api.nexusmods.com/v1/games/{Uri.EscapeDataString(domain)}/mods/{modId}/files.json?category=main";
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.TryAddWithoutValidation("apikey", apiKey);
@@ -364,6 +388,20 @@ public static class NexusService
     public static async Task<string?> GetDownloadLinkAsync(string domain, int modId, int fileId, string? apiKey,
         string? key = null, string? expires = null, CancellationToken ct = default)
     {
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            try
+            {
+                var v3 = await NexusApiV3.GetDownloadLinkAsync(domain, fileId, apiKey, key, expires, ct)
+                    .ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(v3)) return v3;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("v3 下载链接失败，回退 v1: " + ex.Message);
+            }
+        }
+
         var url = BuildDownloadLinkUrl(domain, modId, fileId, key, expires);
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         if (!string.IsNullOrWhiteSpace(apiKey))

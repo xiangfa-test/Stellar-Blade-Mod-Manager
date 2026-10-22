@@ -34,31 +34,31 @@ public static class NexusBrowser
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(2) };
 
-    public static async Task<List<NexusModSummary>> GetListAsync(string domain, string apiKey,
+    public static async Task<List<NexusModSummary>> GetListAsync(string domain, string? apiKey,
         string kind = "latest_updated", string? search = null, int count = 120, CancellationToken ct = default)
     {
-        if (!string.IsNullOrWhiteSpace(search))
+        var sort = kind switch
         {
-            var searched = await TrySearchAsync(domain, apiKey, search, count, ct).ConfigureAwait(false);
-            if (searched.Count > 0) return searched;
-        }
-
-        var endpoint = kind switch
-        {
-            "latest_added" => "latest_added",
+            "latest_added" => "new",
             "trending" => "trending",
-            _ => "latest_updated",
+            "popular" => "popular",
+            _ => "updated",
         };
 
-        var url = $"https://api.nexusmods.com/v1/games/{Uri.EscapeDataString(domain)}/mods/{endpoint}.json";
-        var list = await RequestListAsync(url, apiKey, ct).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(search)) return list;
+        // v3 search is public and paginated; pull pages until we have enough (or the term is found).
+        var result = new List<NexusModSummary>();
+        var pageSize = Math.Clamp(count, 20, 100);
+        var pages = string.IsNullOrWhiteSpace(search) ? 1 : 3;
 
-        return list
-            .Where(m => m.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                        m.Summary.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                        m.Author.Contains(search, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        for (var page = 1; page <= pages; page++)
+        {
+            var pageResult = await NexusApiV3.SearchAsync(domain, sort, page, pageSize, apiKey, search, ct)
+                .ConfigureAwait(false);
+            result.AddRange(pageResult.Mods);
+            if (result.Count >= count || pageResult.Mods.Count < pageSize) break;
+        }
+
+        return result.Take(count).ToList();
     }
 
     private static async Task<List<NexusModSummary>> TrySearchAsync(string domain, string apiKey,

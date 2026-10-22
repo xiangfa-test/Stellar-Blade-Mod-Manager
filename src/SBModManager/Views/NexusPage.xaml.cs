@@ -38,12 +38,9 @@ public sealed partial class NexusPage : Page
     private async Task LoadAsync()
     {
         var key = State.Config.NexusApiKey;
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            StatusText.Text = "请先在「设置」填写 Nexus API Key。";
-            return;
-        }
-
+        var missingKey = string.IsNullOrWhiteSpace(key);
+        ApiKeyBar.IsOpen = missingKey;
+        GetKeyButton.Visibility = missingKey ? Visibility.Visible : Visibility.Collapsed;
         var kind = (KindBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "latest_updated";
         SetBusy(true);
         StatusText.Text = "加载中…";
@@ -54,7 +51,9 @@ public sealed partial class NexusPage : Page
             Items.Clear();
             _shown = 0;
             AppendPage();
-            StatusText.Text = $"{_all.Count} 个模组";
+            StatusText.Text = string.IsNullOrWhiteSpace(key)
+                ? $"{_all.Count} 个模组（未配置 API Key：可浏览，详情与下载需要 Key）"
+                : $"{_all.Count} 个模组";
         }
         catch (Exception ex)
         {
@@ -139,6 +138,10 @@ public sealed partial class NexusPage : Page
 
     private async void Search_Submitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
         => await LoadAsync();
+
+    private async void OpenApiKeys_Click(object sender, RoutedEventArgs e)
+        => await Windows.System.Launcher.LaunchUriAsync(
+            new Uri("https://www.nexusmods.com/settings/api-keys"));
 
     private async void OpenSite_Click(object sender, RoutedEventArgs e)
         => await Windows.System.Launcher.LaunchUriAsync(
