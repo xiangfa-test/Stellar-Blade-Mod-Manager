@@ -69,6 +69,7 @@ public partial class App : Application
             Program.Trace("window created");
             MainWindow.Activate();
             Program.Trace("window activated");
+            MainWindow.DispatcherQueue.TryEnqueue(() => MainWindow.PromptStartMenuOnce());
             StartRequestPump(MainWindow);
 
             try

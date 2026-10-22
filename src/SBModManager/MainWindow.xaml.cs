@@ -240,6 +240,79 @@ public sealed partial class MainWindow : Window
         storyboard.Begin();
     }
 
+    private bool _startMenuPromptShown;
+
+    /// <summary>First-run prompt: ask whether to add a Start Menu shortcut.</summary>
+    public async void PromptStartMenuOnce()
+    {
+        if (_startMenuPromptShown) return;
+        _startMenuPromptShown = true;
+
+        try
+        {
+            var state = Services.AppState.Instance;
+            if (state.Config.StartMenuPromptDone) return;
+
+            // Already present (installed before, or created manually): keep the flag in sync.
+            if (Services.StartMenuShortcut.Exists())
+            {
+                state.Config.StartMenuPromptDone = true;
+                state.Config.StartMenuShortcutEnabled = true;
+                state.SaveConfig();
+                return;
+            }
+
+            // The dialog needs a live XamlRoot; wait for the first layout pass.
+            for (var i = 0; i < 40 && Content.XamlRoot is null; i++)
+            {
+                await Task.Delay(50);
+            }
+            if (Content.XamlRoot is null)
+            {
+                Services.Log.Warn("开始菜单提示跳过：窗口尚未就绪");
+                _startMenuPromptShown = false;
+                return;
+            }
+
+            var dialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = "添加到开始菜单？",
+                Content = new TextBlock
+                {
+                    TextWrapping = TextWrapping.Wrap,
+                    Text = "要在 Windows 开始菜单中添加「剑星 MOD 管理器」的快捷方式吗？\n" +
+                           "添加后按 Win 键即可搜索到，随时可以在「设置 → 高级」里移除。",
+                },
+                PrimaryButtonText = "添加到开始菜单",
+                CloseButtonText = "不用了",
+                DefaultButton = ContentDialogButton.Primary,
+            };
+
+            var result = await dialog.ShowAsync();
+            state.Config.StartMenuPromptDone = true;
+
+            if (result == ContentDialogResult.Primary)
+            {
+                var created = Services.StartMenuShortcut.Create();
+                state.Config.StartMenuShortcutEnabled = created;
+                Services.Log.Info("开始菜单快捷方式: " + (created ? "已创建" : "创建失败"));
+            }
+            else
+            {
+                state.Config.StartMenuShortcutEnabled = false;
+            }
+
+            state.SaveConfig();
+        }
+        catch (Exception ex)
+        {
+            Services.Log.Warn("开始菜单提示失败: " + ex.Message);
+            // Leave the prompt uncompleted so the next launch can ask again.
+            _startMenuPromptShown = false;
+        }
+    }
+
     private bool _startupUpdateChecked;
 
     public async void RunStartupUpdateCheck()

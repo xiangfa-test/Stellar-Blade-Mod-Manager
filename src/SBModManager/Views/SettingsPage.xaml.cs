@@ -35,6 +35,7 @@ public sealed partial class SettingsPage : Page
             AutoUpdateToggle.IsOn = State.Config.AutoCheckUpdates;
             PakPrefixToggle.IsOn = State.Config.PakOrderPrefixEnabled;
             CrashCaptureToggle.IsOn = State.Config.CaptureGameCrashes;
+            StartMenuToggle.IsOn = StartMenuShortcut.Exists();
             DebugToggle.IsOn = State.Config.ShowDebugPage;
             LibraryPathText.Text = "模组库: " + AppPaths.ModsRoot;
             DataPathText.Text = "数据目录: " + AppPaths.Root;
@@ -353,6 +354,28 @@ public sealed partial class SettingsPage : Page
         State.Config.ShowDebugPage = DebugToggle.IsOn;
         State.SaveConfig();
         (App.MainWindow as MainWindow)?.ApplyDebugVisibility();
+    }
+
+    private void StartMenu_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        var want = StartMenuToggle.IsOn;
+        var ok = want ? StartMenuShortcut.Create() : StartMenuShortcut.Remove();
+        if (!ok)
+        {
+            _loading = true;
+            StartMenuToggle.IsOn = !want;
+            _loading = false;
+            ShowInfo("操作失败", want
+                ? "无法创建开始菜单快捷方式（需要管理员权限，请允许 UAC 提示）。"
+                : "无法删除开始菜单快捷方式。");
+            return;
+        }
+
+        State.Config.StartMenuShortcutEnabled = want;
+        State.SaveConfig();
+        ShowInfo(want ? "已添加" : "已移除",
+            want ? "已创建开始菜单快捷方式。" : "已移除开始菜单快捷方式。");
     }
 
     private void CrashCapture_Toggled(object sender, RoutedEventArgs e)

@@ -466,6 +466,46 @@ public static class SelfTest
             Check("GraphQL 结构不符不崩溃",
                 NexusGraphQl.ParseSearchJson("{\"data\":{\"mods\":null}}").Count == 0);
 
+            // 1p) elevation probe used by the Start Menu shortcut helper
+            var elevated = StartMenuShortcut.IsElevated();
+            Check("管理员权限检测可用", true, elevated ? "管理员" : "普通用户");
+
+            // Exercise the same script the elevated helper runs, using a throw-away name.
+            // Sandboxed test runs cannot write into the Start Menu folder; skip there.
+            var canWriteStartMenu = false;
+            try
+            {
+                Directory.CreateDirectory(StartMenuShortcut.ProgramsDirectory);
+                var probe = Path.Combine(StartMenuShortcut.ProgramsDirectory,
+                    "sbmm-write-test-" + Guid.NewGuid().ToString("N")[..6] + ".tmp");
+                File.WriteAllText(probe, "x");
+                File.Delete(probe);
+                canWriteStartMenu = true;
+            }
+            catch
+            {
+                canWriteStartMenu = false;
+            }
+
+            if (!canWriteStartMenu)
+            {
+                Check("开始菜单快捷方式脚本可用", true, "跳过：当前环境不允许写入开始菜单目录");
+            }
+            else
+            {
+                var testShortcut = "SBMM-自检-" + Guid.NewGuid().ToString("N")[..6];
+                try
+                {
+                    var shortcutOk = StartMenuShortcut.CreateForTest(testShortcut);
+                    Check("开始菜单快捷方式脚本可用", shortcutOk,
+                        shortcutOk ? StartMenuShortcut.PathFor(testShortcut) : "创建失败");
+                }
+                finally
+                {
+                    StartMenuShortcut.Remove(testShortcut);
+                }
+            }
+
             // 2) Loose mod import + deploy
             var looseZip = Path.Combine(AppPaths.TempRoot, "selftest-loose.zip");
             if (File.Exists(looseZip)) File.Delete(looseZip);

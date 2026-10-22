@@ -183,6 +183,12 @@ public sealed class AppConfig
     /// <summary>Watch the game process and report crashes while the manager is running.</summary>
     public bool CaptureGameCrashes { get; set; } = true;
 
+    /// <summary>Whether the first-run "add to Start Menu" prompt has been shown.</summary>
+    public bool StartMenuPromptDone { get; set; }
+
+    /// <summary>User wants a Start Menu shortcut for the manager.</summary>
+    public bool StartMenuShortcutEnabled { get; set; }
+
     /// <summary>Remember the window size between runs (asked after the first manual resize).</summary>
     public bool RememberWindowSize { get; set; } = true;
     public bool WindowSizePromptDone { get; set; }
