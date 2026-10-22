@@ -20,7 +20,7 @@
             <Grid
                 Padding="24,16"
                 VerticalAlignment="Bottom"
-                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}">
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -53,7 +53,7 @@
                     <Button x:Name="ToggleButton" Click="Toggle_Click" />
                     <Button Click="OpenFolder_Click" Content="打开模组目录" />
                     <Button x:Name="NexusButton" Click="OpenNexus_Click" Content="N 网页面" />
-                    <Button x:Name="TranslateButton" Click="Translate_Click" Content="翻译说明" />
+                    <Button x:Name="TranslateButton" Click="Translate_Click" Content="翻译" />
                     <ProgressRing
                         x:Name="TranslateRing"
                         Width="20"

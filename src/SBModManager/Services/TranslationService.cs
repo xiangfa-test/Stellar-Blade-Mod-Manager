@@ -11,6 +11,58 @@ public static class TranslationService
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
+    /// <summary>Flatten Markdown to readable plain text before machine translation.</summary>
+    public static string StripMarkdown(string markdown)
+    {
+        var lines = new List<string>();
+        var inCode = false;
+        foreach (var raw in markdown.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = raw.TrimEnd();
+            if (line.TrimStart().StartsWith("```", StringComparison.Ordinal))
+            {
+                inCode = !inCode;
+                continue;
+            }
+            if (inCode)
+            {
+                lines.Add(line);
+                continue;
+            }
+            if (line.Length == 0)
+            {
+                lines.Add("");
+                continue;
+            }
+
+            line = System.Text.RegularExpressions.Regex.Replace(line, @"^#{1,6}\s*", "");
+            line = System.Text.RegularExpressions.Regex.Replace(line, @"^\s*[-*+]\s+", "• ");
+            line = System.Text.RegularExpressions.Regex.Replace(line, @"^\s*>\s?", "");
+            line = System.Text.RegularExpressions.Regex.Replace(line, @"\[([^\]]+)\]\([^)]+\)", "$1");
+            line = System.Text.RegularExpressions.Regex.Replace(line, @"\*\*(.+?)\*\*", "$1");
+            line = System.Text.RegularExpressions.Regex.Replace(line, @"\*([^*\n]+)\*", "$1");
+            line = line.Replace("__", "").Replace("`", "");
+            lines.Add(line);
+        }
+
+        return System.Text.RegularExpressions.Regex.Replace(
+            string.Join("\n", lines), "\n{3,}", "\n\n").Trim();
+    }
+
+    /// <summary>True when the text is mostly Chinese (then translate the other way).</summary>
+    public static bool LooksChinese(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return false;
+        var cjk = 0;
+        var letters = 0;
+        foreach (var c in text)
+        {
+            if (c >= '\u4e00' && c <= '\u9fff') cjk++;
+            if (char.IsLetter(c)) letters++;
+        }
+        return letters > 0 && cjk * 100 / letters >= 20;
+    }
+
     public static async Task<string?> TranslateAsync(string text, string from = "en", string to = "zh-CN",
         CancellationToken ct = default)
     {

@@ -175,7 +175,7 @@ public sealed partial class ModDetailPage : Page
         {
             DescriptionHost.Content = MarkdownRenderer.Render(_record.Description);
             _translated = null;
-            TranslateButton.Content = "翻译说明";
+            TranslateButton.Content = "翻译";
             return;
         }
 
@@ -185,7 +185,10 @@ public sealed partial class ModDetailPage : Page
         try
         {
             var source = _record.Description;
-            var result = await TranslationService.TranslateAsync(source);
+            var plain = TranslationService.StripMarkdown(source);
+            var toEnglish = TranslationService.LooksChinese(plain);
+            var result = await TranslationService.TranslateAsync(plain, toEnglish ? "zh-CN" : "en",
+                toEnglish ? "en" : "zh-CN");
             if (string.IsNullOrWhiteSpace(result))
             {
                 StatusText.Text = "翻译服务不可用（可能超限），已改为复制原文。";
@@ -196,8 +199,13 @@ public sealed partial class ModDetailPage : Page
             }
 
             _translated = result;
-            DescriptionHost.Content = MarkdownRenderer.Render(result);
-            TranslateButton.Content = "显示原文";
+            DescriptionHost.Content = new TextBlock
+            {
+                Text = result,
+                TextWrapping = TextWrapping.Wrap,
+                IsTextSelectionEnabled = true,
+            };
+            TranslateButton.Content = "原文";
             StatusText.Text = "已翻译（机器翻译，仅供参考）。";
         }
         catch (Exception ex)

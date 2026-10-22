@@ -334,6 +334,11 @@ public static class SelfTest
             ModActions.Delete(actionRecord);
             Check("ModActions 删除", AppState.Instance.Library.All(m => m.Id != actionRecord.Id));
 
+            // 1j) translation language detection
+            Check("翻译方向识别",
+                TranslationService.LooksChinese("这是一段中文说明") &&
+                !TranslationService.LooksChinese("This is an English description"));
+
             // 1i) Markdown renderer produces blocks for headings/lists/bold
             var markdownPanel = SBModManager.Ui.MarkdownRenderer.Render(
                 "# 标题\n\n**粗体** 和 *斜体* 和 `code`\n\n- 项目一\n- 项目二\n\n[链接](https://example.com)");

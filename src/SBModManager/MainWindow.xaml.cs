@@ -71,6 +71,17 @@ public sealed partial class MainWindow : Window
         };
         SelectPage(Program.PageTag ?? "mods");
 
+        if (Program.ModDetailId is { Length: > 0 } detailId)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (ContentFrame.Content is ModsPage)
+                {
+                    ContentFrame.Navigate(typeof(ModDetailPage), detailId);
+                }
+            });
+        }
+
         if (Program.NavTag is { Length: > 0 } navTag)
         {
             DispatcherQueue.TryEnqueue(() =>

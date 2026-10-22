@@ -55,6 +55,9 @@ public static class Program
     /// <summary>nxm:// URL passed by the browser / Nexus "Mod Manager Download" button.</summary>
     public static string? NxmUrl { get; private set; }
 
+    /// <summary>Open the full-screen detail page for this mod id (used for screenshots/tests).</summary>
+    public static string? ModDetailId { get; private set; }
+
     [STAThread]
     private static void Main(string[] args)
     {
@@ -88,6 +91,9 @@ public static class Program
                     break;
                 case "--nav" when i + 1 < args.Length:
                     NavTag = args[++i];
+                    break;
+                case "--mod-detail" when i + 1 < args.Length:
+                    ModDetailId = args[++i];
                     break;
                 case "--collection" when i + 1 < args.Length:
                     CollectionSlug = args[++i];
