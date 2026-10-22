@@ -52,6 +52,7 @@ public partial class App : Application
         {
             Program.Trace("onlaunched");
             Services.AppUpdater.CleanupTemp();
+            Services.GameCrashWatcher.Start();
             Services.AppState.Instance.Load();
             Services.DeployJournal.Recover();
             Program.Trace("state loaded");

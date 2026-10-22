@@ -39,6 +39,7 @@
                         <Button Click="OpenLogs_Click" Content="打开日志" />
                         <Button Click="OpenData_Click" Content="打开数据目录" />
                         <Button Click="ClearTemp_Click" Content="清理临时文件" />
+                        <Button Click="OpenCrashes_Click" Content="打开崩溃报告" />
                     </StackPanel>
                     <TextBlock
                         x:Name="ResultText"

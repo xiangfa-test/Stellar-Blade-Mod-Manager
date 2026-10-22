@@ -32,6 +32,9 @@ public sealed partial class DebugPage : Page
 
     private void OpenData_Click(object sender, RoutedEventArgs e) => GameLocator.OpenFolder(AppPaths.Root);
 
+    private void OpenCrashes_Click(object sender, RoutedEventArgs e)
+        => GameLocator.OpenFolder(Path.Combine(AppPaths.Root, "crashes"));
+
     private void ClearTemp_Click(object sender, RoutedEventArgs e)
     {
         try

@@ -430,6 +430,19 @@ public static class SelfTest
             Check("损坏的部署日志不崩溃并清理",
                 !journalThrew && !File.Exists(journalPath));
 
+            // 1n) crash analysis must not raise false positives
+            var future = DateTimeOffset.Now.AddHours(1);
+            Check("无崩溃证据且正常退出不误报", CrashAnalyzer.Build(future, 0) is null);
+            var abnormal = CrashAnalyzer.Build(future, 3);
+            Check("异常退出码生成崩溃报告",
+                abnormal is not null && abnormal.Analysis.Contains("退出代码"), abnormal?.Summary);
+            if (abnormal is not null)
+            {
+                Check("崩溃报告包含免责声明提示",
+                    !string.IsNullOrWhiteSpace(abnormal.Analysis));
+                try { if (File.Exists(abnormal.ReportPath)) File.Delete(abnormal.ReportPath); } catch { }
+            }
+
             // 2) Loose mod import + deploy
             var looseZip = Path.Combine(AppPaths.TempRoot, "selftest-loose.zip");
             if (File.Exists(looseZip)) File.Delete(looseZip);

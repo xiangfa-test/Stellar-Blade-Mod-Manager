@@ -135,6 +135,46 @@
                             VerticalAlignment="Center"
                             Toggled="PakPrefix_Toggled" />
                     </Grid>
+
+                    <Grid Style="{StaticResource SettingsRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE7BA;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="捕获游戏崩溃" />
+                            <TextBlock
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="管理器运行时监控剑星进程；游戏异常退出后收集 WER 报告、转储和日志，给出简要原因分析并保存到数据目录的 crashes 文件夹。" />
+                        </StackPanel>
+                        <ToggleSwitch
+                            x:Name="CrashCaptureToggle"
+                            Grid.Column="2"
+                            MinWidth="0"
+                            VerticalAlignment="Center"
+                            Toggled="CrashCapture_Toggled" />
+                    </Grid>
+
+                    <Grid Style="{StaticResource SettingsRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE9D9;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="崩溃报告" />
+                            <TextBlock
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="查看已保存的游戏崩溃分析记录。" />
+                        </StackPanel>
+                        <Button
+                            Grid.Column="2"
+                            Click="OpenCrashes_Click"
+                            Content="打开文件夹" />
+                    </Grid>
                 </StackPanel>
             </Border>
 

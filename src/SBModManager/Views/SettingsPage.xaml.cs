@@ -34,6 +34,7 @@ public sealed partial class SettingsPage : Page
             UpdateStatusText.Text = "当前版本 " + AppUpdater.CurrentVersion;
             AutoUpdateToggle.IsOn = State.Config.AutoCheckUpdates;
             PakPrefixToggle.IsOn = State.Config.PakOrderPrefixEnabled;
+            CrashCaptureToggle.IsOn = State.Config.CaptureGameCrashes;
             DebugToggle.IsOn = State.Config.ShowDebugPage;
             LibraryPathText.Text = "模组库: " + AppPaths.ModsRoot;
             DataPathText.Text = "数据目录: " + AppPaths.Root;
@@ -353,6 +354,17 @@ public sealed partial class SettingsPage : Page
         State.SaveConfig();
         (App.MainWindow as MainWindow)?.ApplyDebugVisibility();
     }
+
+    private void CrashCapture_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        State.Config.CaptureGameCrashes = CrashCaptureToggle.IsOn;
+        State.SaveConfig();
+        if (CrashCaptureToggle.IsOn) GameCrashWatcher.Start();
+    }
+
+    private void OpenCrashes_Click(object sender, RoutedEventArgs e)
+        => GameLocator.OpenFolder(Path.Combine(AppPaths.Root, "crashes"));
 
     private void PakPrefix_Toggled(object sender, RoutedEventArgs e)
     {

@@ -180,6 +180,9 @@ public sealed class AppConfig
     /// <summary>Show the debug page in the navigation (off by default).</summary>
     public bool ShowDebugPage { get; set; }
 
+    /// <summary>Watch the game process and report crashes while the manager is running.</summary>
+    public bool CaptureGameCrashes { get; set; } = true;
+
     /// <summary>Remember the window size between runs (asked after the first manual resize).</summary>
     public bool RememberWindowSize { get; set; } = true;
     public bool WindowSizePromptDone { get; set; }

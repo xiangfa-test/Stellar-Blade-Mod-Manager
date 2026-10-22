@@ -19,6 +19,8 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         Title = "剑星 MOD 管理器";
 
+        Services.GameCrashWatcher.CrashDetected += OnGameCrashDetected;
+
         // Merge the caption area into the app content: the custom title bar uses the
         // Mica backdrop and WinUI-typed caption buttons instead of the system frame.
         ExtendsContentIntoTitleBar = true;
@@ -322,6 +324,77 @@ public sealed partial class MainWindow : Window
             state.Config.WindowHeight = size.Height;
         }
         state.SaveConfig();
+    }
+
+    private void OnGameCrashDetected(Services.CrashReport report)
+    {
+        DispatcherQueue.TryEnqueue(async () =>
+        {
+            try
+            {
+                var panel = new StackPanel { Spacing = 10, MaxWidth = 720 };
+                panel.Children.Add(new TextBlock
+                {
+                    Text = report.Summary,
+                    Style = (Style)Application.Current.Resources["SubtitleTextBlockStyle"],
+                    TextWrapping = TextWrapping.Wrap,
+                });
+                panel.Children.Add(new TextBlock
+                {
+                    Text = "以下内容仅针对已知可能的崩溃原因做初步评估，不能完全确定问题所在。",
+                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCautionBrush"],
+                    TextWrapping = TextWrapping.Wrap,
+                });
+                panel.Children.Add(new ScrollViewer
+                {
+                    MaxHeight = 420,
+                    Content = new TextBlock
+                    {
+                        Text = report.Analysis,
+                        TextWrapping = TextWrapping.Wrap,
+                        IsTextSelectionEnabled = true,
+                        FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+                    },
+                });
+
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = Content.XamlRoot,
+                    Title = "检测到游戏崩溃",
+                    Content = panel,
+                    PrimaryButtonText = "导出报告",
+                    SecondaryButtonText = "打开报告",
+                    CloseButtonText = "关闭",
+                    DefaultButton = ContentDialogButton.Primary,
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    var zip = Services.CrashExporter.Export(report);
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                        Path.GetDirectoryName(zip)!)
+                    {
+                        UseShellExecute = true,
+                    });
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(zip)
+                    {
+                        UseShellExecute = true,
+                    });
+                }
+                else if (result == ContentDialogResult.Secondary && report.ReportPath.Length > 0)
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(report.ReportPath)
+                    {
+                        UseShellExecute = true,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Services.Log.Warn("显示崩溃报告失败: " + ex.Message);
+            }
+        });
     }
 
     /// <summary>Show the debug page only when enabled in settings.</summary>
