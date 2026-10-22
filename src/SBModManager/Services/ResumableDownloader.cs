@@ -114,31 +114,33 @@ public static class ResumableDownloader
                     total = length + (resumed ? existing : 0);
                 }
 
-                await using var input = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                await using var output = new FileStream(partPath, resumed ? FileMode.Append : FileMode.Create,
-                    FileAccess.Write, FileShare.None);
-
-                var buffer = new byte[81920];
                 var done = resumed ? existing : 0;
-                int read;
-                while ((read = await input.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+                await using (var input = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false))
+                await using (var output = new FileStream(partPath, resumed ? FileMode.Append : FileMode.Create,
+                                 FileAccess.Write, FileShare.None))
                 {
-                    await output.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
-                    done += read;
-                    if (total > 0)
+                    var buffer = new byte[81920];
+                    int read;
+                    while ((read = await input.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
                     {
-                        progress?.Report(Math.Clamp(done * 100.0 / total, 0, 100));
+                        await output.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                        done += read;
+                        if (total > 0)
+                        {
+                            progress?.Report(Math.Clamp(done * 100.0 / total, 0, 100));
+                        }
                     }
+
+                    await output.FlushAsync(ct).ConfigureAwait(false);
                 }
 
-                await output.FlushAsync(ct).ConfigureAwait(false);
-
+                // The part file must be closed before it can be moved onto the target.
                 if (total > 0 && done != total)
                 {
                     throw new IOException($"下载不完整：{done}/{total} 字节");
                 }
 
-                File.Move(partPath, targetPath, overwrite: true);
+                MoveWithRetry(partPath, targetPath);
                 File.WriteAllText(metaPath, url, Encoding.UTF8);
                 progress?.Report(100);
                 return;
@@ -170,6 +172,23 @@ public static class ResumableDownloader
                 {
                     throw;
                 }
+            }
+        }
+    }
+
+    /// <summary>Antivirus/indexers can briefly hold the freshly written file; retry the move.</summary>
+    private static void MoveWithRetry(string source, string target)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                File.Move(source, target, overwrite: true);
+                return;
+            }
+            catch (IOException) when (attempt < 4)
+            {
+                Thread.Sleep(150 * (attempt + 1));
             }
         }
     }
