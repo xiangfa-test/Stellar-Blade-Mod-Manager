@@ -17,6 +17,9 @@
                 x:Name="DragRegion"
                 Padding="16,0,0,0"
                 Background="Transparent">
+                <Grid.RenderTransform>
+                    <TranslateTransform x:Name="TitleShift" />
+                </Grid.RenderTransform>
                 <StackPanel
                     Orientation="Horizontal"
                     Spacing="9"
@@ -36,19 +39,21 @@
             <!--  Back button floats above the pane-toggle column; it must not shift the title.  -->
             <Button
                 x:Name="BackButton"
-                Width="28"
-                Height="28"
-                Margin="3,0,0,0"
+                Width="32"
+                Height="32"
+                Margin="4,0,0,0"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Center"
                 Background="Transparent"
                 BorderThickness="0"
                 Click="BackButton_Click"
                 CornerRadius="4"
-                Visibility="Collapsed"
-                Canvas.ZIndex="1"
-                ToolTipService.ToolTip="返回上一页">
-                <FontIcon FontSize="13" Glyph="&#xE72B;" />
+                Opacity="0"
+                Visibility="Collapsed">
+                <ToolTipService.ToolTip>
+                    <ToolTip Content="返回上一页" />
+                </ToolTipService.ToolTip>
+                <FontIcon FontSize="14" Glyph="&#xE72B;" />
             </Button>
         </Grid>
 

@@ -165,13 +165,79 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>Title slides right by this much while the back button is visible.</summary>
+    private const double TitleBackInset = 36;
+
+    /// <summary>Pages reachable from the navigation pane; they never show a back button.</summary>
+    private static readonly Type[] RootPages =
+    {
+        typeof(ModsPage), typeof(NexusPage), typeof(CollectionsPage), typeof(LoadOrderPage),
+        typeof(ProfilesPage), typeof(RuntimePage), typeof(DebugPage), typeof(SettingsPage),
+        typeof(AboutPage),
+    };
+
+    private static bool IsRootPage(Type? pageType)
+        => pageType is not null && RootPages.Contains(pageType);
+
+    private bool _backButtonShown;
+
     /// <summary>
-    /// Task-Manager style layout: the title bar only shows the back button when there is
-    /// something to go back to; the pane hamburger lives inside the navigation pane.
+    /// Task-Manager style layout: the back button appears only on secondary pages (when the
+    /// frame can go back). Showing it slides the title to the right; hiding reverses that.
     /// </summary>
     private void UpdateBackButton()
     {
-        BackButton.Visibility = ContentFrame.CanGoBack ? Visibility.Visible : Visibility.Collapsed;
+        // Only secondary pages (pushed on top of a root page) get a back button.
+        var show = ContentFrame.CanGoBack && !IsRootPage(ContentFrame.CurrentSourcePageType);
+        if (show == _backButtonShown) return;
+        _backButtonShown = show;
+
+        if (show)
+        {
+            BackButton.Visibility = Visibility.Visible;
+            BackButton.IsHitTestVisible = true;
+        }
+
+        AnimateTitleShift(show ? TitleBackInset : 0);
+
+        var fade = new DoubleAnimation
+        {
+            To = show ? 1 : 0,
+            Duration = TimeSpan.FromMilliseconds(160),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            EnableDependentAnimation = true,
+        };
+        Storyboard.SetTarget(fade, BackButton);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(fade);
+        if (!show)
+        {
+            storyboard.Completed += (_, _) =>
+            {
+                BackButton.Visibility = Visibility.Collapsed;
+                BackButton.IsHitTestVisible = false;
+            };
+        }
+        storyboard.Begin();
+    }
+
+    private void AnimateTitleShift(double to)
+    {
+        var slide = new DoubleAnimation
+        {
+            To = to,
+            Duration = TimeSpan.FromMilliseconds(220),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            EnableDependentAnimation = true,
+        };
+        Storyboard.SetTarget(slide, TitleShift);
+        Storyboard.SetTargetProperty(slide, "X");
+
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(slide);
+        storyboard.Begin();
     }
 
     private bool _startupUpdateChecked;
