@@ -12,32 +12,10 @@
 
         <!--  Custom title bar (drag region is the icon + title area)  -->
         <Grid x:Name="AppTitleBar" Grid.Row="0" Height="48">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <Button
-                x:Name="BackButton"
-                Grid.Column="0"
-                Width="40"
-                Height="40"
-                Margin="8,0,0,0"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Center"
-                Background="Transparent"
-                BorderThickness="0"
-                Click="BackButton_Click"
-                CornerRadius="4"
-                Visibility="Collapsed"
-                ToolTipService.ToolTip="返回上一页">
-                <FontIcon FontSize="16" Glyph="&#xE72B;" />
-            </Button>
-
+            <!--  Left inset matches the icon column of the NavigationView items below.  -->
             <Grid
                 x:Name="DragRegion"
-                Grid.Column="1"
-                Padding="6,0,0,0"
+                Padding="16,0,0,0"
                 Background="Transparent">
                 <StackPanel
                     Orientation="Horizontal"
@@ -54,6 +32,24 @@
                         Text="剑星 MOD 管理器" />
                 </StackPanel>
             </Grid>
+
+            <!--  Back button floats above the pane-toggle column; it must not shift the title.  -->
+            <Button
+                x:Name="BackButton"
+                Width="28"
+                Height="28"
+                Margin="3,0,0,0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="BackButton_Click"
+                CornerRadius="4"
+                Visibility="Collapsed"
+                Canvas.ZIndex="1"
+                ToolTipService.ToolTip="返回上一页">
+                <FontIcon FontSize="13" Glyph="&#xE72B;" />
+            </Button>
         </Grid>
 
         <NavigationView
