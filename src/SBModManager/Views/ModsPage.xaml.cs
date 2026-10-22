@@ -538,6 +538,38 @@ public sealed partial class ModsPage : Page
         {
             if (enable)
             {
+                var dependencyIssues = DependencyChecker.Check(item.Record);
+                if (dependencyIssues.Count > 0)
+                {
+                    var blocking = dependencyIssues.Where(d => d.Blocking).ToList();
+                    var lines = dependencyIssues.Select(d =>
+                        $"• {d.Missing}" + (string.IsNullOrWhiteSpace(d.Hint) ? "" : "\n    " + d.Hint));
+                    var dialog = new ContentDialog
+                    {
+                        XamlRoot = XamlRoot,
+                        Title = blocking.Count > 0 ? "缺少必要依赖" : "依赖提示",
+                        Content = new ScrollViewer
+                        {
+                            MaxHeight = 360,
+                            Content = new TextBlock
+                            {
+                                TextWrapping = TextWrapping.Wrap,
+                                Text = string.Join("\n", lines) +
+                                       (blocking.Count > 0 ? "\n\n缺少必要依赖时模组可能完全不起作用。" : ""),
+                            },
+                        },
+                        PrimaryButtonText = blocking.Count > 0 ? "仍然启用" : "知道了",
+                        CloseButtonText = "取消",
+                        DefaultButton = blocking.Count > 0 ? ContentDialogButton.Close : ContentDialogButton.Primary,
+                    };
+                    var choice = await dialog.ShowAsync();
+                    if (blocking.Count > 0 && choice != ContentDialogResult.Primary)
+                    {
+                        ShowMessage(InfoBarSeverity.Warning, "已取消", "缺少依赖，未启用该模组。");
+                        return;
+                    }
+                }
+
                 if (!string.IsNullOrWhiteSpace(item.Record.GroupKey))
                 {
                     foreach (var sibling in Mods.Where(m => m != item && m.Enabled &&
@@ -706,6 +738,12 @@ public sealed partial class ModsPage : Page
         if (item.Record.CnsRequirements.Count > 0) cnsParts.Add("依赖: " + string.Join(" / ", item.Record.CnsRequirements.Take(4)));
         DetailCns.Text = cnsParts.Count == 0 ? "" : "CNS  " + string.Join("   ·   ", cnsParts);
         DetailCns.Visibility = DetailCns.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        var deps = DependencyChecker.Check(item.Record);
+        DetailDeps.Text = deps.Count == 0
+            ? ""
+            : "缺少依赖: " + string.Join(" / ", deps.Select(d => d.Missing)) +
+              (deps.Any(d => d.Blocking) ? "（启用前需要先装）" : "");
+        DetailDeps.Visibility = DetailDeps.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         DetailNotes.Text = string.IsNullOrWhiteSpace(item.Record.Notes) ? "" : "备注: " + item.Record.Notes;
         var showUpdate = item.Record.UpdateAvailable && !item.Record.IgnoreUpdate;
         UpdateModButton.Visibility = showUpdate ? Visibility.Visible : Visibility.Collapsed;

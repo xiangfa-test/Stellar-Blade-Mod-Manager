@@ -333,6 +333,12 @@
                                     TextWrapping="Wrap"
                                     Visibility="Collapsed" />
                                 <TextBlock
+                                    x:Name="DetailDeps"
+                                    Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    TextWrapping="Wrap"
+                                    Visibility="Collapsed" />
+                                <TextBlock
                                     x:Name="DetailNotes"
                                     Style="{StaticResource CaptionTextBlockStyle}"
                                     TextWrapping="Wrap" />

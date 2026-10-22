@@ -450,6 +450,7 @@ public sealed partial class MainWindow : Window
 
         var pageType = tag switch
         {
+            "nexus" => typeof(NexusPage),
             "collections" => typeof(CollectionsPage),
             "loadorder" => typeof(LoadOrderPage),
             "profiles" => typeof(ProfilesPage),
@@ -496,6 +497,7 @@ public sealed partial class MainWindow : Window
         var pageType = tag switch
         {
             "mods" => typeof(ModsPage),
+            "nexus" => typeof(NexusPage),
             "collections" => typeof(CollectionsPage),
             "loadorder" => typeof(LoadOrderPage),
             "profiles" => typeof(ProfilesPage),
