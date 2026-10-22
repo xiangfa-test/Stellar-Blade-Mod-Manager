@@ -148,6 +148,34 @@ public sealed partial class ModsPage : Page
 
     // ---------------------------------------------------------------- reload
 
+    protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        if (e.NavigationMode == Microsoft.UI.Xaml.Navigation.NavigationMode.Back)
+        {
+            Loaded += (_, _) => RestoreDetailAnimation();
+        }
+    }
+
+    private void RestoreDetailAnimation()
+    {
+        if (ModList.SelectedItem is not ModItem item) return;
+        try
+        {
+            var animation = Microsoft.UI.Xaml.Media.Animation.ConnectedAnimationService
+                .GetForCurrentView()
+                .GetAnimation("modDetailBack");
+            if (animation is not null && ModList.ContainerFromItem(item) is FrameworkElement container)
+            {
+                animation.TryStart(container);
+            }
+        }
+        catch
+        {
+            // best-effort
+        }
+    }
+
     private void Reload()
     {
         State.ReloadLibrary();
@@ -709,6 +737,28 @@ public sealed partial class ModsPage : Page
     }
 
     // ---------------------------------------------------------------- details
+
+    private void ModList_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is not ModItem item) return;
+
+        // Expand the clicked row into the full-screen detail page (Store-style).
+        try
+        {
+            if (ModList.ContainerFromItem(item) is FrameworkElement container)
+            {
+                Microsoft.UI.Xaml.Media.Animation.ConnectedAnimationService
+                    .GetForCurrentView()
+                    .PrepareToAnimate("modDetail", container);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("准备详情动画失败: " + ex.Message);
+        }
+
+        Frame.Navigate(typeof(ModDetailPage), item.Record.Id);
+    }
 
     private void ModList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         => UpdateDetails(ModList.SelectedItem as ModItem);

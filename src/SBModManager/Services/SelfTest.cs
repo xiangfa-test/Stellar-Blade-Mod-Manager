@@ -334,6 +334,12 @@ public static class SelfTest
             ModActions.Delete(actionRecord);
             Check("ModActions 删除", AppState.Instance.Library.All(m => m.Id != actionRecord.Id));
 
+            // 1i) Markdown renderer produces blocks for headings/lists/bold
+            var markdownPanel = SBModManager.Ui.MarkdownRenderer.Render(
+                "# 标题\n\n**粗体** 和 *斜体* 和 `code`\n\n- 项目一\n- 项目二\n\n[链接](https://example.com)");
+            Check("Markdown 渲染分段", markdownPanel is Microsoft.UI.Xaml.Controls.StackPanel panel &&
+                panel.Children.Count >= 3, $"blocks={(markdownPanel as Microsoft.UI.Xaml.Controls.StackPanel)?.Children.Count}");
+
             // 2) Loose mod import + deploy
             var looseZip = Path.Combine(AppPaths.TempRoot, "selftest-loose.zip");
             if (File.Exists(looseZip)) File.Delete(looseZip);
