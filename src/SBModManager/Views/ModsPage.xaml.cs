@@ -545,8 +545,6 @@ public sealed partial class ModsPage : Page
     private async Task SetModEnabledAsync(ModItem item, bool enable)
     {
         if (item.Busy) return;
-        // A recycled ListView container can report a stale item that no longer belongs to the
-        // current list; never let it change the library.
         if (!Mods.Contains(item)) return;
         if (!EnsureGame(out var gameDir))
         {
@@ -560,13 +558,14 @@ public sealed partial class ModsPage : Page
         {
             if (enable)
             {
-                var dependencyIssues = DependencyChecker.Check(item.Record);
-                if (dependencyIssues.Count > 0)
+                // Dependency gate is a UI concern: ask before touching the game folder.
+                var issues = DependencyChecker.Check(item.Record);
+                var blocking = issues.Where(d => d.Blocking).ToList();
+                if (issues.Count > 0)
                 {
-                    var blocking = dependencyIssues.Where(d => d.Blocking).ToList();
-                    var lines = dependencyIssues.Select(d =>
+                    var lines = issues.Select(d =>
                         $"• {d.Missing}" + (string.IsNullOrWhiteSpace(d.Hint) ? "" : "\n    " + d.Hint));
-                    var dialog = new ContentDialog
+                    var dependencyDialog = new ContentDialog
                     {
                         XamlRoot = XamlRoot,
                         Title = blocking.Count > 0 ? "缺少必要依赖" : "依赖提示",
@@ -584,34 +583,24 @@ public sealed partial class ModsPage : Page
                         CloseButtonText = "取消",
                         DefaultButton = blocking.Count > 0 ? ContentDialogButton.Close : ContentDialogButton.Primary,
                     };
-                    var choice = await dialog.ShowAsync();
-                    if (blocking.Count > 0 && choice != ContentDialogResult.Primary)
+                    var dependencyChoice = await dependencyDialog.ShowAsync();
+                    if (blocking.Count > 0 && dependencyChoice != ContentDialogResult.Primary)
                     {
                         ShowMessage(InfoBarSeverity.Warning, "已取消", "缺少依赖，未启用该模组。");
                         return;
                     }
                 }
 
-                if (!string.IsNullOrWhiteSpace(item.Record.GroupKey))
-                {
-                    foreach (var sibling in Mods.Where(m => m != item && m.Enabled &&
-                                 string.Equals(m.Record.GroupKey, item.Record.GroupKey, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        Deployer.Undeploy(sibling.Record.Id);
-                        sibling.Enabled = false;
-                    }
-                }
-
-                var result = Deployer.Deploy(item.Record, gameDir, force: false);
+                var result = ModActions.Enable(item.Record);
                 if (!result.Success && result.Conflicts.Count > 0)
                 {
-                    var overwrite = await AskForceDeployAsync(item, result.Conflicts);
-                    if (!overwrite)
+                    if (!await AskForceDeployAsync(item, result.Conflicts))
                     {
                         ShowMessage(InfoBarSeverity.Warning, "已取消", "存在文件冲突，未启用该模组。");
                         return;
                     }
-                    result = Deployer.Deploy(item.Record, gameDir, force: true);
+
+                    result = ModActions.Enable(item.Record, force: true);
                 }
 
                 if (!result.Success)
@@ -620,12 +609,18 @@ public sealed partial class ModsPage : Page
                     return;
                 }
 
+                foreach (var sibling in Mods.Where(m => m != item &&
+                             string.Equals(m.Record.GroupKey, item.Record.GroupKey, StringComparison.OrdinalIgnoreCase)))
+                {
+                    sibling.Enabled = State.IsEnabled(sibling.Record.Id);
+                }
+
                 item.Enabled = true;
                 ShowMessage(InfoBarSeverity.Success, "已启用", $"「{item.Name}」已部署到游戏目录。");
             }
             else
             {
-                Deployer.Undeploy(item.Record.Id);
+                ModActions.Disable(item.Record);
                 item.Enabled = false;
                 ShowMessage(InfoBarSeverity.Success, "已停用", $"「{item.Name}」的文件已从游戏目录移除。");
             }
@@ -679,7 +674,7 @@ public sealed partial class ModsPage : Page
         {
             foreach (var item in Mods.Where(m => !m.Enabled).ToList())
             {
-                var result = Deployer.Deploy(item.Record, gameDir, force: false);
+                var result = ModActions.Enable(item.Record);
                 if (result.Success)
                 {
                     item.Enabled = true;
@@ -705,7 +700,7 @@ public sealed partial class ModsPage : Page
     {
         foreach (var item in Mods.Where(m => m.Enabled).ToList())
         {
-            Deployer.Undeploy(item.Record.Id);
+            ModActions.Disable(item.Record);
             item.Enabled = false;
         }
         UpdateStatus();
@@ -733,8 +728,7 @@ public sealed partial class ModsPage : Page
 
         try
         {
-            Deployer.Undeploy(item.Record.Id);
-            ModStore.Delete(item.Record);
+            ModActions.Delete(item.Record);
             Reload();
             ShowMessage(InfoBarSeverity.Success, "已删除", $"「{item.Name}」已从模组库删除。");
         }
