@@ -295,8 +295,8 @@ public sealed partial class SettingsPage : Page
             Content = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Text = $"将下载 {update.Package.Name}，校验 SHA256 后关闭应用、覆盖程序文件并自动重启。\n" +
-                       "模组库与设置不会受影响。更新期间请不要关闭游戏或强制结束进程。",
+                Text = $"将下载 {update.Package.Name}，校验 SHA256 后关闭管理器、覆盖程序文件并自动重启。\n" +
+                       "模组库、设置和游戏目录都不会受影响；更新期间请不要强制结束进程。",
             },
             PrimaryButtonText = "下载并更新",
             CloseButtonText = "取消",
