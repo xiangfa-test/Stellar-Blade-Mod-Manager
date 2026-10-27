@@ -25,6 +25,7 @@ public sealed partial class NexusDetailPage : Page
     private NexusModDetail? _detail;
     private string? _translated;
     private string _originalSummary = "";
+    private DownloadFallbackController? _fallback;
 
     private static AppState State => AppState.Instance;
 
@@ -134,12 +135,22 @@ public sealed partial class NexusDetailPage : Page
             DescriptionHost.Content = MarkdownRenderer.Render(
                 string.IsNullOrWhiteSpace(markdown) ? "（该模组没有说明）" : markdown);
             TranslateButton.IsEnabled = !string.IsNullOrWhiteSpace(markdown);
-            FilesText.Text = _detail.Files.Count == 0
-                ? "（没有文件信息）"
-                : string.Join("\n", _detail.Files.Take(12).Select(f =>
-                    $"• {f.Name}" +
-                    (string.IsNullOrWhiteSpace(f.Version) ? "" : $"  v{f.Version}") +
-                    (string.IsNullOrWhiteSpace(f.Category) ? "" : $"  [{f.Category}]")));
+            var files = _detail.Files;
+            if (files.Count == 0)
+            {
+                // v3 details carry no file list without extra calls; GraphQL exposes it publicly.
+                files = await NexusGraphQl.GetModFilesAsync(_domain, _modId);
+            }
+
+            FilesText.Text = files.Count == 0
+                ? "（没有读取到文件信息，可点「打开网页」查看）"
+                : string.Join("\n", files
+                    .OrderByDescending(f => f.UploadedTimestamp)
+                    .Take(12)
+                    .Select(f =>
+                        $"• {f.Name}" +
+                        (string.IsNullOrWhiteSpace(f.Version) ? "" : $"  v{f.Version}") +
+                        (string.IsNullOrWhiteSpace(f.Category) ? "" : $"  [{DescribeCategory(f.Category)}]")));
         }
         finally
         {
@@ -169,9 +180,19 @@ public sealed partial class NexusDetailPage : Page
         {
             var progress = new Progress<string>(text => StatusText.Text = text);
             var (record, error) = await NexusInstaller.InstallAsync(_domain, _modId, _detail, key, progress);
-            StatusText.Text = record is not null
-                ? $"已导入「{record.Name}」。"
-                : "下载失败: " + (error ?? "未知错误");
+            if (record is not null)
+            {
+                StatusText.Text = $"已导入「{record.Name}」。";
+            }
+            else if (DownloadFallbackController.IsPremiumOnly(error))
+            {
+                StatusText.Text = "免费账号需要通过网页下载。";
+                OpenFallback($"https://www.nexusmods.com/{_domain}/mods/{_modId}?tab=files");
+            }
+            else
+            {
+                StatusText.Text = "下载失败: " + (error ?? "未知错误");
+            }
         }
         catch (Exception ex)
         {
@@ -183,6 +204,24 @@ public sealed partial class NexusDetailPage : Page
             BusyRing.IsActive = false;
             DownloadButton.IsEnabled = true;
         }
+    }
+
+    private static string DescribeCategory(string category) => category.ToUpperInvariant() switch
+    {
+        "MAIN" => "主文件",
+        "UPDATE" => "更新",
+        "OPTIONAL" => "可选",
+        "MISCELLANEOUS" => "其他",
+        "ARCHIVED" => "旧版",
+        "OLD_VERSION" => "旧版",
+        _ => category,
+    };
+
+    private void OpenFallback(string url)
+    {
+        _fallback ??= new DownloadFallbackController(DownloadFallbackBar,
+            target => _ = Windows.System.Launcher.LaunchUriAsync(new Uri(target)));
+        _fallback.Show(url);
     }
 
     private async void Translate_Click(object sender, RoutedEventArgs e)

@@ -11,6 +11,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -32,8 +33,16 @@
             Title="还没有配置 Nexus API Key"
             Message="浏览可匿名；详情、检查更新与下载需要 Key。获取后粘贴到「设置 → 网络与集成」。" />
 
-        <ui:WrapPanel
+        <InfoBar
+            x:Name="DownloadFallbackBar"
             Grid.Row="2"
+            Margin="0,4,0,4"
+            IsOpen="False"
+            Severity="Warning"
+            Title="无法通过 API 下载" />
+
+        <ui:WrapPanel
+            Grid.Row="3"
             HorizontalSpacing="8"
             VerticalSpacing="8">
             <ComboBox
@@ -79,7 +88,7 @@
         </ui:WrapPanel>
 
         <Border
-            Grid.Row="3"
+            Grid.Row="4"
             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="1"

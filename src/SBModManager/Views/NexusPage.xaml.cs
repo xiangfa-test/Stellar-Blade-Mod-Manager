@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using SBModManager.Services;
+using SBModManager.Ui;
 
 namespace SBModManager.Views;
 
@@ -22,6 +23,7 @@ public sealed partial class NexusPage : Page
     private const int PageSize = 40;
     private List<NexusModSummary> _all = new();
     private int _shown;
+    private DownloadFallbackController? _fallback;
 
     private static AppState State => AppState.Instance;
 
@@ -225,6 +227,13 @@ public sealed partial class NexusPage : Page
         OpenDetail(modId, null);
     }
 
+    private void OpenFallback(string url)
+    {
+        _fallback ??= new DownloadFallbackController(DownloadFallbackBar,
+            target => _ = Windows.System.Launcher.LaunchUriAsync(new Uri(target)));
+        _fallback.Show(url);
+    }
+
     private void ModList_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is not NexusItem item) return;
@@ -284,9 +293,19 @@ public sealed partial class NexusPage : Page
             var progress = new Progress<string>(text => StatusText.Text = text);
             var (record, error) = await NexusInstaller.InstallAsync(
                 State.Config.NexusGameDomain, modId, null, key, progress);
-            StatusText.Text = record is not null
-                ? $"已导入「{record.Name}」"
-                : "下载失败: " + (error ?? "未知错误");
+            if (record is not null)
+            {
+                StatusText.Text = $"已导入「{record.Name}」";
+            }
+            else if (DownloadFallbackController.IsPremiumOnly(error))
+            {
+                StatusText.Text = "免费账号需要通过网页下载。";
+                OpenFallback($"https://www.nexusmods.com/{State.Config.NexusGameDomain}/mods/{modId}?tab=files");
+            }
+            else
+            {
+                StatusText.Text = "下载失败: " + (error ?? "未知错误");
+            }
         }
         catch (Exception ex)
         {

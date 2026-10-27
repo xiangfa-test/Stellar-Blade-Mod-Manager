@@ -275,7 +275,8 @@ public static class NexusService
             Log.Warn("v3 文件列表失败，回退 v1: " + ex.Message);
         }
 
-        var url = $"https://api.nexusmods.com/v1/games/{Uri.EscapeDataString(domain)}/mods/{modId}/files.json?category=main";
+        // All file categories (main/optional/misc), newest first; the API returns them together.
+        var url = $"https://api.nexusmods.com/v1/games/{Uri.EscapeDataString(domain)}/mods/{modId}/files.json";
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.TryAddWithoutValidation("apikey", apiKey);
         request.Headers.UserAgent.ParseAdd("SBModManager/1.1");

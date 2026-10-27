@@ -124,6 +124,87 @@ public static class NexusGraphQl
         }
     }
 
+    private const string FilesQuery = """
+        query($modId: ID!, $gameId: ID!) {
+          modFiles(modId: $modId, gameId: $gameId) {
+            fileId
+            name
+            version
+            category
+            date
+            size
+            primary
+          }
+        }
+        """;
+
+    private const string GameQuery = """
+        query($domain: String!) {
+          game(domainName: $domain) { id }
+        }
+        """;
+
+    /// <summary>File list for a mod; works anonymously through the public GraphQL endpoint.</summary>
+    public static async Task<List<NexusFileInfo>> GetModFilesAsync(string domain, int modId,
+        CancellationToken ct = default)
+    {
+        var result = new List<NexusFileInfo>();
+        try
+        {
+            var gameRoot = await PostAsync(new
+            {
+                query = GameQuery,
+                variables = new Dictionary<string, object> { ["domain"] = domain },
+            }, ct).ConfigureAwait(false);
+
+            if (!gameRoot.TryGetProperty("data", out var gameData) ||
+                gameData.ValueKind != JsonValueKind.Object ||
+                !gameData.TryGetProperty("game", out var game) ||
+                game.ValueKind != JsonValueKind.Object)
+            {
+                return result;
+            }
+
+            var gameId = GetString(game, "id");
+            if (string.IsNullOrWhiteSpace(gameId)) return result;
+
+            var root = await PostAsync(new
+            {
+                query = FilesQuery,
+                variables = new Dictionary<string, object>
+                {
+                    ["modId"] = modId.ToString(),
+                    ["gameId"] = gameId,
+                },
+            }, ct).ConfigureAwait(false);
+
+            if (!root.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Object ||
+                !data.TryGetProperty("modFiles", out var files) || files.ValueKind != JsonValueKind.Array)
+            {
+                return result;
+            }
+
+            foreach (var file in files.EnumerateArray())
+            {
+                if (file.ValueKind != JsonValueKind.Object) continue;
+                result.Add(new NexusFileInfo
+                {
+                    FileId = GetInt(file, "fileId"),
+                    Name = GetString(file, "name"),
+                    Version = GetString(file, "version"),
+                    Category = GetString(file, "category"),
+                    UploadedTimestamp = GetLong(file, "date"),
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("读取模组文件列表失败: " + ex.Message);
+        }
+
+        return result;
+    }
+
     /// <summary>Tags actually used by the most downloaded mods of this game.</summary>
     public static async Task<List<string>> GetUsedTagsAsync(string domain, CancellationToken ct = default)
     {

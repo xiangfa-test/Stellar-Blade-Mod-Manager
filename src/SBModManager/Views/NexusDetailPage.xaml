@@ -62,6 +62,12 @@
                         IsActive="False" />
                 </StackPanel>
 
+                <InfoBar
+                    x:Name="DownloadFallbackBar"
+                    IsOpen="False"
+                    Severity="Warning"
+                    Title="无法通过 API 下载" />
+
                 <TextBlock x:Name="StatusText" TextWrapping="Wrap" />
                 <TextBlock x:Name="SummaryText" TextWrapping="Wrap" />
 
