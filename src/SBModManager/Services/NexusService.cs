@@ -296,7 +296,10 @@ public static class NexusService
             {
                 result.Add(new NexusFileInfo
                 {
-                    FileId = file.TryGetProperty("file_id", out var id) ? id.GetInt32() : 0,
+                    FileId = file.TryGetProperty("file_id", out var id) &&
+                             id.ValueKind == JsonValueKind.Number && id.TryGetInt32(out var fileId)
+                        ? fileId
+                        : 0,
                     Name = GetString(file, "name"),
                     Version = GetString(file, "version"),
                     Category = GetString(file, "category_name"),

@@ -152,6 +152,11 @@ public sealed partial class NexusDetailPage : Page
                         (string.IsNullOrWhiteSpace(f.Version) ? "" : $"  v{f.Version}") +
                         (string.IsNullOrWhiteSpace(f.Category) ? "" : $"  [{DescribeCategory(f.Category)}]")));
         }
+        catch (Exception ex)
+        {
+            Log.Error("加载 N 网详情失败", ex);
+            StatusText.Text = "详情加载失败: " + ex.Message;
+        }
         finally
         {
             BusyRing.IsActive = false;

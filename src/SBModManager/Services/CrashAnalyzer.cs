@@ -164,7 +164,7 @@ public static class CrashAnalyzer
 
                     var code = "";
                     var module = "";
-                    foreach (var line in File.ReadLines(reportFile))
+                    foreach (var line in ReadWerLines(reportFile))
                     {
                         if (line.StartsWith("ExceptionCode=", StringComparison.OrdinalIgnoreCase))
                         {
@@ -185,6 +185,30 @@ public static class CrashAnalyzer
             Log.Warn("读取 WER 报告失败: " + ex.Message);
         }
         return null;
+    }
+
+    /// <summary>WER writes Report.wer as UTF-16LE (sometimes with a BOM).</summary>
+    private static IEnumerable<string> ReadWerLines(string path)
+    {
+        string text;
+        try
+        {
+            var bytes = File.ReadAllBytes(path);
+            text = bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE
+                ? Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2)
+                : bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF
+                    ? Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2)
+                    : Encoding.UTF8.GetString(bytes);
+        }
+        catch
+        {
+            yield break;
+        }
+
+        foreach (var raw in text.Split('\n'))
+        {
+            yield return raw.TrimEnd('\r');
+        }
     }
 
     private static string? FindDump(DateTimeOffset since)

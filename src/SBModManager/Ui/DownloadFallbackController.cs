@@ -26,11 +26,8 @@ public sealed class DownloadFallbackController
         _openUrl = openUrl;
         _bar.RenderTransform = new TranslateTransform();
         _bar.IsOpen = false;
-        _bar.Closed += (_, _) =>
-        {
-            _timer?.Stop();
-            _timer = null;
-        };
+        _bar.Closed += (_, _) => StopCountdown();
+        _bar.Unloaded += (_, _) => StopCountdown();
     }
 
     /// <summary>True when the failure means "free account cannot use the API download".</summary>
@@ -75,6 +72,12 @@ public sealed class DownloadFallbackController
             _bar.Message = BuildMessage();
         };
         _timer.Start();
+    }
+
+    private void StopCountdown()
+    {
+        _timer?.Stop();
+        _timer = null;
     }
 
     private string BuildMessage()
