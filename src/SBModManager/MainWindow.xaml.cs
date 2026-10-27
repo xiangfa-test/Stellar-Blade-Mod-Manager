@@ -20,6 +20,7 @@ public sealed partial class MainWindow : Window
         Title = "剑星 MOD 管理器";
 
         Services.GameCrashWatcher.CrashDetected += OnGameCrashDetected;
+        Services.Localization.Initialize(Services.AppState.Instance.Config.Language);
 
         // Merge the caption area into the app content: the custom title bar uses the
         // Mica backdrop and WinUI-typed caption buttons instead of the system frame.
@@ -70,7 +71,16 @@ public sealed partial class MainWindow : Window
         {
             UpdateBackButton();
             AnimatePageIn();
+
+            // A freshly navigated page builds its visual tree after this event; apply twice.
+            if (ContentFrame.Content is FrameworkElement page)
+            {
+                page.Loaded += (_, _) => Services.Localization.Apply(page);
+                DispatcherQueue.TryEnqueue(() => Services.Localization.Apply(page));
+            }
         };
+        NavView.Loaded += (_, _) => Services.Localization.Apply(NavView);
+        DispatcherQueue.TryEnqueue(() => Services.Localization.Apply(NavView));
         SelectPage(Program.PageTag ?? "mods");
 
         if (Program.NavTag is { Length: > 0 } navTag)
@@ -536,6 +546,14 @@ public sealed partial class MainWindow : Window
         });
     }
 
+    /// <summary>Re-apply UI text after the language setting changes.</summary>
+    public void ApplyLanguage()
+    {
+        Services.Localization.Initialize(Services.AppState.Instance.Config.Language);
+        Services.Localization.Apply(NavView);
+        Services.Localization.Apply(ContentFrame.Content as DependencyObject);
+    }
+
     /// <summary>Show the debug page only when enabled in settings.</summary>
     public void ApplyDebugVisibility()
     {
@@ -678,23 +696,37 @@ public sealed partial class MainWindow : Window
             NavView.SelectedItem = item;
         }
 
-        var pageType = tag switch
-        {
-            "nexus" => typeof(NexusPage),
-            "collections" => typeof(CollectionsPage),
-            "loadorder" => typeof(LoadOrderPage),
-            "profiles" => typeof(ProfilesPage),
-            "runtime" => typeof(RuntimePage),
-            "debug" => typeof(DebugPage),
-            "settings" => typeof(SettingsPage),
-            "about" => typeof(AboutPage),
-            _ => typeof(ModsPage),
-        };
+        var pageType = PageTypeForTag(tag);
+        if (pageType is null) return;
+
         if (ContentFrame.CurrentSourcePageType != pageType)
         {
-            ContentFrame.Navigate(pageType);
+            try
+            {
+                ContentFrame.Navigate(pageType);
+                ContentFrame.BackStack.Clear();
+                UpdateBackButton();
+            }
+            catch (Exception ex)
+            {
+                Services.Log.Error("导航失败: " + pageType.Name, ex);
+            }
         }
     }
+
+    private static Type? PageTypeForTag(string tag) => tag switch
+    {
+        "mods" => typeof(ModsPage),
+        "nexus" => typeof(NexusPage),
+        "collections" => typeof(CollectionsPage),
+        "loadorder" => typeof(LoadOrderPage),
+        "profiles" => typeof(ProfilesPage),
+        "runtime" => typeof(RuntimePage),
+        "debug" => typeof(DebugPage),
+        "settings" => typeof(SettingsPage),
+        "about" => typeof(AboutPage),
+        _ => typeof(ModsPage),
+    };
 
     /// <summary>Open the Collections page and parse a collection URL/slug.</summary>
     public void OpenCollection(string input)
@@ -724,28 +756,32 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var pageType = tag switch
+        // "问题反馈" opens GitHub Issues instead of navigating to a page.
+        if (tag == "feedback")
         {
-            "mods" => typeof(ModsPage),
-            "nexus" => typeof(NexusPage),
-            "collections" => typeof(CollectionsPage),
-            "loadorder" => typeof(LoadOrderPage),
-            "profiles" => typeof(ProfilesPage),
-            "runtime" => typeof(RuntimePage),
-            "debug" => typeof(DebugPage),
-            "settings" => typeof(SettingsPage),
-            "about" => typeof(AboutPage),
-            _ => typeof(ModsPage),
-        };
+            _ = Windows.System.Launcher.LaunchUriAsync(
+                new Uri("https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/issues"));
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                var current = ContentFrame.CurrentSourcePageType;
+                var restore = NavView.MenuItems.Concat(NavView.FooterMenuItems)
+                    .OfType<NavigationViewItem>()
+                    .FirstOrDefault(i => i.Tag is string t && PageTypeForTag(t) == current);
+                if (restore is not null) NavView.SelectedItem = restore;
+            });
+            return;
+        }
+
+        var pageType = PageTypeForTag(tag);
+        if (pageType is null) return;
 
         if (ContentFrame.CurrentSourcePageType != pageType)
         {
             try
             {
-                var ok = ContentFrame.Navigate(pageType);
+                ContentFrame.Navigate(pageType);
                 ContentFrame.BackStack.Clear();
                 UpdateBackButton();
-                Services.Log.Info($"导航到 {pageType.Name}: {ok}");
             }
             catch (Exception ex)
             {
@@ -753,4 +789,5 @@ public sealed partial class MainWindow : Window
             }
         }
     }
+
 }

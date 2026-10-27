@@ -165,8 +165,12 @@ public static class NexusGraphQl
                 return result;
             }
 
-            var gameId = GetString(game, "id");
-            if (string.IsNullOrWhiteSpace(gameId)) return result;
+            var gameId = GetIdString(game, "id");
+            if (string.IsNullOrWhiteSpace(gameId))
+            {
+                Log.Warn("读取游戏 ID 失败，无法获取文件列表");
+                return result;
+            }
 
             var root = await PostAsync(new
             {
@@ -252,6 +256,21 @@ public static class NexusGraphQl
 
     private static long ParseTimestamp(string value)
         => DateTimeOffset.TryParse(value, out var parsed) ? parsed.ToUnixTimeSeconds() : 0;
+
+    /// <summary>ID fields come back as either strings or numbers depending on the query.</summary>
+    private static string GetIdString(JsonElement element, string property)
+    {
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(property, out var value))
+        {
+            return "";
+        }
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString() ?? "",
+            JsonValueKind.Number => value.TryGetInt64(out var number) ? number.ToString() : value.GetRawText(),
+            _ => "",
+        };
+    }
 
     private static string GetString(JsonElement element, string property)
         => element.ValueKind == JsonValueKind.Object &&

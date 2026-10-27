@@ -189,6 +189,9 @@ public sealed class AppConfig
     /// <summary>User wants a Start Menu shortcut for the manager.</summary>
     public bool StartMenuShortcutEnabled { get; set; }
 
+    /// <summary>UI language key, e.g. zh-CN or en-US (see strings.json).</summary>
+    public string Language { get; set; } = "zh-CN";
+
     /// <summary>Remember the window size between runs (asked after the first manual resize).</summary>
     public bool RememberWindowSize { get; set; } = true;
     public bool WindowSizePromptDone { get; set; }

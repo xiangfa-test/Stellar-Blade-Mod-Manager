@@ -36,6 +36,7 @@ public sealed partial class SettingsPage : Page
             PakPrefixToggle.IsOn = State.Config.PakOrderPrefixEnabled;
             CrashCaptureToggle.IsOn = State.Config.CaptureGameCrashes;
             StartMenuToggle.IsOn = StartMenuShortcut.Exists();
+            LanguageBox.SelectedIndex = (State.Config.Language == "en-US") ? 1 : 0;
             DebugToggle.IsOn = State.Config.ShowDebugPage;
             LibraryPathText.Text = "模组库: " + AppPaths.ModsRoot;
             DataPathText.Text = "数据目录: " + AppPaths.Root;
@@ -354,6 +355,18 @@ public sealed partial class SettingsPage : Page
         State.Config.ShowDebugPage = DebugToggle.IsOn;
         State.SaveConfig();
         (App.MainWindow as MainWindow)?.ApplyDebugVisibility();
+    }
+
+    private void Language_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading) return;
+        if (LanguageBox.SelectedItem is not ComboBoxItem item) return;
+        var tag = item.Tag as string ?? "zh-CN";
+        if (tag == State.Config.Language) return;
+
+        State.Config.Language = tag;
+        State.SaveConfig();
+        (App.MainWindow as MainWindow)?.ApplyLanguage();
     }
 
     private void StartMenu_Toggled(object sender, RoutedEventArgs e)

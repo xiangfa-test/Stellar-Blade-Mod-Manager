@@ -182,6 +182,31 @@
             <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="外观与行为" />
 
             <Border Style="{StaticResource SettingsCardStyle}">
+                <Grid Style="{StaticResource SettingsRowStyle}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Grid.Column="0" Glyph="&#xE774;" Style="{StaticResource SettingsRowIconStyle}" />
+                    <StackPanel Grid.Column="1" Spacing="0">
+                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="界面语言" />
+                        <TextBlock
+                            Style="{StaticResource SettingsRowDescriptionStyle}"
+                            Text="界面文字来自程序目录下的 strings.json，可自行修改；切换后立即生效。" />
+                    </StackPanel>
+                    <ComboBox
+                        x:Name="LanguageBox"
+                        Grid.Column="2"
+                        MinWidth="130"
+                        SelectionChanged="Language_Changed">
+                        <ComboBoxItem Content="中文" Tag="zh-CN" />
+                        <ComboBoxItem Content="English" Tag="en-US" />
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCardStyle}">
                 <StackPanel>
                     <Grid Style="{StaticResource SettingsRowStyle}">
                         <Grid.ColumnDefinitions>

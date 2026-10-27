@@ -115,6 +115,11 @@
             </NavigationView.MenuItems>
 
             <NavigationView.FooterMenuItems>
+                <NavigationViewItem Content="问题反馈" Tag="feedback">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE939;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem Content="关于" Tag="about">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE946;" />
