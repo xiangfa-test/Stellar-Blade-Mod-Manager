@@ -63,7 +63,7 @@ public static class GameCrashWatcher
         if (!_enabled) return;
         try
         {
-            if (!AppState.Instance.Config.CaptureGameCrashes) return;
+            if (!AppServices.State.Config.CaptureGameCrashes) return;
 
             var running = FindGameProcess();
             if (running is not null)

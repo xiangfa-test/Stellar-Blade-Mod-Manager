@@ -20,7 +20,7 @@ public static class DependencyChecker
 {
 
     /// <summary>State used by this service; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = AppState.Instance;
+    public static IAppState State { get; set; } = AppServices.State;
 
     public static List<DependencyIssue> Check(ModRecord record)
     {

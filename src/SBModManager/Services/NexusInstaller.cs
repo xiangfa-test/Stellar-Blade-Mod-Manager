@@ -54,7 +54,7 @@ public static class NexusInstaller
             record.GroupKey = ModImporter.GroupKeyFor(record.Name, record.NexusModId);
             CollectionInstaller.TagAsLocal(record);
             ModStore.Save(record);
-            AppState.Instance.ReloadLibrary();
+            AppServices.State.ReloadLibrary();
 
             try
             {

@@ -23,7 +23,7 @@ public static class ProfileStore
 {
 
     /// <summary>State used by this service; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = AppState.Instance;
+    public static IAppState State { get; set; } = AppServices.State;
 
     private static string DirectoryPath => Path.Combine(AppPaths.Root, "profiles");
 

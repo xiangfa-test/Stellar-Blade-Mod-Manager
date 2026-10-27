@@ -6,6 +6,7 @@ using SBModManager.Models;
 using SBModManager.Services;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
+using SBModManager.Ui;
 
 namespace SBModManager.Views;
 
@@ -61,7 +62,7 @@ public sealed partial class CollectionsPage : Page
                 if (Pending.Count == 0) return;
                 next = Pending.Dequeue();
             }
-            _ = LoadAsync(next);
+            UiTask.Safe(() => LoadAsync(next));
         }
     }
 
@@ -83,7 +84,7 @@ public sealed partial class CollectionsPage : Page
             HandlePendingOpen();
             if (Program.TakeCollectionSlug() is { Length: > 0 } slug)
             {
-                _ = LoadAsync(slug);
+                UiTask.Safe(() => LoadAsync(slug));
             }
         };
     }

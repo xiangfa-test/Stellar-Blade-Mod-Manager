@@ -10,6 +10,7 @@ using SBModManager.ViewModels;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.Storage;
+using SBModManager.Ui;
 
 namespace SBModManager.Views;
 
@@ -60,7 +61,7 @@ public sealed partial class ModsPage : Page
                 if (!_nxmHandled && Program.NxmUrl is { } nxm)
                 {
                     _nxmHandled = true;
-                    _ = HandleNxmAsync(nxm);
+                    UiTask.Safe(() => HandleNxmAsync(nxm));
                 }
             }
         };
@@ -1018,7 +1019,7 @@ public sealed partial class ModsPage : Page
                 if (PendingExternal.Count == 0) return;
                 url = PendingExternal.Dequeue();
             }
-            _ = HandleNxmAsync(url);
+            UiTask.Safe(() => HandleNxmAsync(url));
         }
     }
 

@@ -21,7 +21,7 @@ public static class SelfTest
             report.AppendLine($"[{(ok ? "PASS" : "FAIL")}] {name}{(detail is null ? "" : " — " + detail)}");
         }
 
-        var state = AppState.Instance;
+        var state = AppServices.State;
         var gameDir = state.GameDir;
         report.AppendLine($"gameDir={gameDir ?? "(null)"}");
         report.AppendLine($"library={AppPaths.ModsRoot}");
@@ -192,7 +192,7 @@ public static class SelfTest
             ProfileStore.Save(profile);
             var loadedProfile = ProfileStore.LoadAll().FirstOrDefault(p => p.Id == profile.Id);
             Check("方案保存/读取", loadedProfile is { } lp && lp.Name == "selftest-profile" &&
-                lp.Entries.Count == AppState.Instance.Library.Count);
+                lp.Entries.Count == AppServices.State.Library.Count);
             ProfileStore.Delete(profile.Id);
             Check("方案删除", ProfileStore.LoadAll().All(p => p.Id != profile.Id));
 
@@ -302,7 +302,7 @@ public static class SelfTest
             File.WriteAllText(Path.Combine(journalDir, "Journal_P.pak"), "J");
             journalMod.Files = new List<string> { "Journal_P.pak" };
             ModStore.Save(journalMod);
-            AppState.Instance.ReloadLibrary();
+            AppServices.State.ReloadLibrary();
             var journalTarget = Path.Combine(Deployer.PaksModsDir(gameDir),
                 Deployer.PakFileName(journalMod, "Journal_P.pak"));
             Directory.CreateDirectory(Path.GetDirectoryName(journalTarget)!);
@@ -311,10 +311,10 @@ public static class SelfTest
                 new Dictionary<string, string>());
             DeployJournal.Recover();
             Check("部署日志恢复接管文件",
-                AppState.Instance.Deployed.Mods.TryGetValue(journalMod.Id, out var journalDeployed) &&
+                AppServices.State.Deployed.Mods.TryGetValue(journalMod.Id, out var journalDeployed) &&
                 journalDeployed.Files.Contains(journalTarget),
                 journalTarget);
-            if (AppState.Instance.Deployed.Mods.ContainsKey(journalMod.Id))
+            if (AppServices.State.Deployed.Mods.ContainsKey(journalMod.Id))
             {
                 Deployer.Undeploy(journalMod.Id);
             }
@@ -326,13 +326,13 @@ public static class SelfTest
             File.WriteAllText(Path.Combine(actionDir, "Action_P.pak"), "A");
             actionRecord.Files = new List<string> { "Action_P.pak" };
             ModStore.Save(actionRecord);
-            AppState.Instance.ReloadLibrary();
+            AppServices.State.ReloadLibrary();
             var actionEnabled = ModActions.Enable(actionRecord);
             Check("ModActions 启用", actionEnabled.Success, actionEnabled.Error);
             ModActions.Disable(actionRecord);
-            Check("ModActions 停用", !AppState.Instance.IsEnabled(actionRecord.Id));
+            Check("ModActions 停用", !AppServices.State.IsEnabled(actionRecord.Id));
             ModActions.Delete(actionRecord);
-            Check("ModActions 删除", AppState.Instance.Library.All(m => m.Id != actionRecord.Id));
+            Check("ModActions 删除", AppServices.State.Library.All(m => m.Id != actionRecord.Id));
 
             // 1j) translation language detection
             Check("翻译方向识别",
@@ -629,10 +629,10 @@ public static class SelfTest
                 },
             };
             ModStore.Save(legacy);
-            AppState.Instance.ReloadLibrary();
+            AppServices.State.ReloadLibrary();
             ModImporter.MigrateGameRootOverlays();
-            AppState.Instance.ReloadLibrary();
-            var migratedRecord = AppState.Instance.Library.FirstOrDefault(r => r.Id == legacy.Id);
+            AppServices.State.ReloadLibrary();
+            var migratedRecord = AppServices.State.Library.FirstOrDefault(r => r.Id == legacy.Id);
             Check("旧 CNS 包迁移为游戏根目录",
                 migratedRecord is { Type: ModType.GameRoot } &&
                 migratedRecord.Files.All(f => f.StartsWith(@"SB\", StringComparison.OrdinalIgnoreCase)),
@@ -640,7 +640,7 @@ public static class SelfTest
             if (migratedRecord is not null)
             {
                 ModStore.Delete(migratedRecord);
-                AppState.Instance.ReloadLibrary();
+                AppServices.State.ReloadLibrary();
             }
 
             // 2a4) CNS base pack without the SB\ prefix (Binaries/ + Content/ at archive root)
@@ -698,10 +698,10 @@ public static class SelfTest
             File.WriteAllText(Path.Combine(legacyDir, "Content", "Paks", "LogicMods", "DekCNS_P.pak"), "pak");
 
             ModStore.Save(legacyNoPrefix);
-            AppState.Instance.ReloadLibrary();
+            AppServices.State.ReloadLibrary();
             ModImporter.MigrateGameRootOverlaysV2();
-            AppState.Instance.ReloadLibrary();
-            var migratedNoPrefix = AppState.Instance.Library.FirstOrDefault(r => r.Id == legacyNoPrefix.Id);
+            AppServices.State.ReloadLibrary();
+            var migratedNoPrefix = AppServices.State.Library.FirstOrDefault(r => r.Id == legacyNoPrefix.Id);
             var movedFile = Path.Combine(legacyDir, "SB", "Content", "Paks", "LogicMods", "DekCNS_P.pak");
             var oldFile = Path.Combine(legacyDir, "Content", "Paks", "LogicMods", "DekCNS_P.pak");
             Check("无 SB 前缀旧记录迁移",
@@ -712,7 +712,7 @@ public static class SelfTest
             if (migratedNoPrefix is not null)
             {
                 ModStore.Delete(migratedNoPrefix);
-                AppState.Instance.ReloadLibrary();
+                AppServices.State.ReloadLibrary();
             }
             try { Directory.Delete(legacyDir, recursive: true); } catch { }
 
@@ -902,7 +902,7 @@ public static class SelfTest
                 Check("同名 PAK 后装 B 覆盖", Deployer.Deploy(pakB, gameDir, force: true).Success &&
                     File.ReadAllText(sharedTarget) == "BBB");
 
-                var takenOver = AppState.Instance.Deployed.Mods.TryGetValue(pakB.Id, out var pakBDeployment) &&
+                var takenOver = AppServices.State.Deployed.Mods.TryGetValue(pakB.Id, out var pakBDeployment) &&
                     pakBDeployment.Displaced.ContainsKey(sharedTarget);
                 Check("记录被覆盖的模组", takenOver);
 
@@ -1090,7 +1090,7 @@ public static class SelfTest
             var modB = ModImporter.ImportArchive(dupB).Mod;
             if (modA is not null && modB is not null)
             {
-                AppState.Instance.ReloadLibrary();
+                AppServices.State.ReloadLibrary();
                 madeMods.Add(modA);
                 madeMods.Add(modB);
                 var deployA = Deployer.Deploy(modA, gameDir, force: false);

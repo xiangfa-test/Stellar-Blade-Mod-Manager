@@ -16,7 +16,7 @@ public sealed class EnableResult
 /// </summary>
 public static class ModActions
 {
-    public static IAppState State { get; set; } = AppState.Instance;
+    public static IAppState State { get; set; } = AppServices.State;
 
     public static ImportResult Import(string path)
     {

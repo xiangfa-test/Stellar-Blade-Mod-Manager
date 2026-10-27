@@ -10,7 +10,8 @@ public static class ModImporter
 
     /// <summary>Import a packaged mod (.zip/.7z/.rar) or a set of pak files.</summary>
     public static ImportResult ImportArchive(string path)
-        => ImportArchiveAsync(path, null).GetAwaiter().GetResult();
+        // Run on the pool: blocking the UI thread on a context-capturing await would deadlock.
+        => Task.Run(() => ImportArchiveAsync(path, null)).GetAwaiter().GetResult();
 
     /// <summary>
     /// Extract + import. When the archive is a FOMOD and <paramref name="chooser"/> is provided,
@@ -210,7 +211,7 @@ public static class ModImporter
                 name = name.Replace(version, "").Trim(' ', '_', '-', '[', ']');
             }
 
-            var library = AppState.Instance.Library;
+            var library = AppServices.State.Library;
             var nextPriority = library.Count == 0 ? 0 : library.Max(m => m.Priority) + 1;
 
             var record = new ModRecord
@@ -279,7 +280,7 @@ public static class ModImporter
     /// </summary>
     public static int MigrateGameRootOverlaysV2()
     {
-        var state = AppState.Instance;
+        var state = AppServices.State;
         var migrated = 0;
 
         foreach (var record in state.Library.ToList())
@@ -408,7 +409,7 @@ public static class ModImporter
     /// </summary>
     public static int MigrateGameRootOverlays()
     {
-        var state = AppState.Instance;
+        var state = AppServices.State;
         var migrated = 0;
 
         foreach (var record in state.Library.ToList())

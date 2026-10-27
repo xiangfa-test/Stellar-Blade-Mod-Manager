@@ -239,7 +239,7 @@ public static class CrashAnalyzer
         try
         {
             var candidates = new List<string>();
-            var gameDir = AppState.Instance.GameDir;
+            var gameDir = AppServices.State.GameDir;
             if (gameDir is not null)
             {
                 candidates.Add(Path.Combine(gameDir, "SB", "Saved", "Logs", "SB.log"));
@@ -273,7 +273,7 @@ public static class CrashAnalyzer
         var hints = new List<string>();
         try
         {
-            var state = AppState.Instance;
+            var state = AppServices.State;
             var enabled = state.Library.Where(m => state.IsEnabled(m.Id)).ToList();
 
             foreach (var mod in enabled.Where(m => m.Type == ModType.Ue4ss).Take(4))

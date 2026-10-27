@@ -21,6 +21,13 @@ public partial class App : Application
             Services.Log.Error("未处理异常", e.Exception);
             e.Handled = true;
         };
+
+        // Fire-and-forget UI work that fails must not crash the process silently.
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Services.Log.Error("未观察的任务异常", e.Exception);
+            e.SetObserved();
+        };
     }
 
     private static async Task RunSelfUpdateAsync()

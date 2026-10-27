@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using SBModManager.Views;
 using Windows.Graphics;
+using SBModManager.Ui;
 
 namespace SBModManager;
 
@@ -421,7 +422,7 @@ public sealed partial class MainWindow : Window
 
         if (!config.WindowSizePromptDone)
         {
-            _ = PromptWindowSizeAsync(size);
+            UiTask.Safe(() => PromptWindowSizeAsync(size));
         }
     }
 

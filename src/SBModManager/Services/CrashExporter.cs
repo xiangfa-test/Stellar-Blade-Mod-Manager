@@ -77,7 +77,7 @@ public static class CrashExporter
 
     private static string BuildEnvironmentText()
     {
-        var state = AppState.Instance;
+        var state = AppServices.State;
         var sb = new StringBuilder();
         sb.AppendLine("=== 管理器 / 系统 ===");
         sb.AppendLine($"管理器版本: {AppUpdater.CurrentVersion}");
@@ -115,7 +115,7 @@ public static class CrashExporter
 
     private static string BuildModsText()
     {
-        var state = AppState.Instance;
+        var state = AppServices.State;
         var sb = new StringBuilder();
         sb.AppendLine("=== 已安装模组（按优先级）===");
         foreach (var mod in state.Library.OrderByDescending(m => m.Priority))
@@ -162,7 +162,7 @@ public static class CrashExporter
 
     private static IEnumerable<string> GameLogs()
     {
-        var gameDir = AppState.Instance.GameDir;
+        var gameDir = AppServices.State.GameDir;
         if (gameDir is null) yield break;
 
         foreach (var rel in new[]

@@ -131,7 +131,7 @@ public static class Deployer
     private static readonly object FileLock = new();
 
     /// <summary>State used by the deployer; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = AppState.Instance;
+    public static IAppState State { get; set; } = AppServices.State;
 
     /// <summary>Raised after deploy/undeploy/redeploy so caches (conflict stats) can be dropped.</summary>
     public static event Action? DeploymentChanged;
@@ -406,7 +406,7 @@ public static class Deployer
     private static void RestoreDisplaced(DeployedMod deployed)
     {
         if (deployed.Displaced.Count == 0) return;
-        var state = AppState.Instance;
+        var state = AppServices.State;
         if (state.GameDir is not { } gameDir) return;
 
         foreach (var (target, ownerId) in deployed.Displaced)
@@ -565,7 +565,7 @@ public static class Deployer
     /// <summary>Build a readable conflict graph across currently enabled mods.</summary>
     public static ConflictReport BuildConflictReport(string gameDir)
     {
-        var state = AppState.Instance;
+        var state = AppServices.State;
         var enabled = state.Library.Where(m => state.IsEnabled(m.Id)).ToList();
         var byFile = new Dictionary<string, List<ModRecord>>(StringComparer.OrdinalIgnoreCase);
 
@@ -638,7 +638,7 @@ public static class Deployer
 
     private static (int Deployed, int Failed) RedeployAllCore(string gameDir)
     {
-        var state = AppState.Instance;
+        var state = AppServices.State;
         var enabled = state.Library.Where(m => state.IsEnabled(m.Id))
             .OrderBy(m => m.Priority).ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();

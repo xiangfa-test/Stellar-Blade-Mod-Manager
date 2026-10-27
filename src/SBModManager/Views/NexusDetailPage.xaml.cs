@@ -64,7 +64,7 @@ public sealed partial class NexusDetailPage : Page
             };
         }
 
-        _ = LoadAsync();
+        UiTask.Safe(LoadAsync);
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)

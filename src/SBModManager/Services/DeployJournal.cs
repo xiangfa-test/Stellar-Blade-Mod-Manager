@@ -71,7 +71,7 @@ public static class DeployJournal
                 return;
             }
 
-            var state = AppState.Instance;
+            var state = AppServices.State;
             var existing = entry.Targets.Where(File.Exists).ToList();
             var missing = entry.Targets.Count - existing.Count;
 
