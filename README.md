@@ -2,7 +2,7 @@
 
 基于 **WinUI 3 + .NET 8** 的《Stellar Blade（剑星）》模组管理器，原生 Fluent + Mica 界面。
 
-当前版本 **v1.14.0** ｜ 协议 **GPL-3.0** ｜ [下载最新版](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/releases/latest)
+当前版本 **v1.14.1** ｜ 协议 **GPL-3.0** ｜ [下载最新版](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/releases/latest)
 
 ![模组管理](docs/screenshots/mods.png)
 
