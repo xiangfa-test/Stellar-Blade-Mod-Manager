@@ -288,15 +288,15 @@ public sealed partial class NexusPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "下载并导入",
+            Title = Localization.T("下载并导入"),
             Content = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
                 Text = $"将下载「{item?.Name ?? "mod " + modId}」的最新主文件并导入。\n\n" +
-                       "免费账号需要带授权 key 的下载链接；如果失败会提示改用网页下载。",
+                       Localization.T("免费账号需要带授权 key 的下载链接；如果失败会提示改用网页下载。"),
             },
-            PrimaryButtonText = "下载",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("下载"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;

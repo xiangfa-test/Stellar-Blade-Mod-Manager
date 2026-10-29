@@ -37,15 +37,15 @@ public sealed partial class ModsPage
         var key = State.Config.NexusApiKey;
         if (string.IsNullOrWhiteSpace(key))
         {
-            ShowMessage(InfoBarSeverity.Warning, "缺少 Nexus API Key", "请先在「设置」中填写 Nexus API Key 才能检查更新。");
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("缺少 Nexus API Key"), Localization.T("请先在「设置」中填写 Nexus API Key 才能检查更新。"));
             return;
         }
 
         var candidates = State.Library.Where(r => r.NexusModId is > 0).ToList();
         if (candidates.Count == 0)
         {
-            ShowMessage(InfoBarSeverity.Informational, "没有可检查的模组",
-                "只有通过 nxm:// 链接导入、带 Nexus 模组 ID 的模组才能自动检查更新。");
+            ShowMessage(InfoBarSeverity.Informational, Localization.T("没有可检查的模组"),
+                Localization.T("只有通过 nxm:// 链接导入、带 Nexus 模组 ID 的模组才能自动检查更新。"));
             return;
         }
 
@@ -85,7 +85,7 @@ public sealed partial class ModsPage
         if (errors > 0) detailText += $"\n{errors} 个检查失败（见日志）。";
 
         ShowMessage(updates > 0 ? InfoBarSeverity.Success : InfoBarSeverity.Informational,
-            "更新检查完成", detailText);
+            Localization.T("更新检查完成"), detailText);
         }
         catch (Exception ex)
         {
@@ -102,17 +102,17 @@ public sealed partial class ModsPage
                 State.Config.NexusGameDomain);
             if (!string.IsNullOrEmpty(info.Error))
             {
-                ShowMessage(InfoBarSeverity.Warning, "检查更新失败", info.Error);
+                ShowMessage(InfoBarSeverity.Warning, Localization.T("检查更新失败"), info.Error);
             }
             else if (info.HasUpdate)
             {
-                ShowMessage(InfoBarSeverity.Success, "发现新版本",
+                ShowMessage(InfoBarSeverity.Success, Localization.T("发现新版本"),
                     $"「{item.Name}」: {info.CurrentVersion} → {info.LatestVersion}" +
                     (string.IsNullOrWhiteSpace(info.PageUrl) ? "" : "\n" + info.PageUrl));
             }
             else
             {
-                ShowMessage(InfoBarSeverity.Informational, "已是最新", $"「{item.Name}」没有检测到更新。");
+                ShowMessage(InfoBarSeverity.Informational, Localization.T("已是最新"), $"「{item.Name}」没有检测到更新。");
             }
         }
         finally
@@ -166,7 +166,7 @@ public sealed partial class ModsPage
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "冲突链分析",
+            Title = Localization.T("冲突链分析"),
             Content = new ScrollViewer
             {
                 MaxHeight = 460,
@@ -178,7 +178,7 @@ public sealed partial class ModsPage
                     IsTextSelectionEnabled = true,
                 },
             },
-            CloseButtonText = "关闭",
+            CloseButtonText = Localization.T("关闭"),
         };
         UiTask.Safe(dialog.ShowAsync());
     }
@@ -190,16 +190,16 @@ public sealed partial class ModsPage
         var enabled = State.Library.Where(m => State.IsEnabled(m.Id)).ToList();
         if (enabled.Count == 0)
         {
-            ShowMessage(InfoBarSeverity.Informational, "没有已启用的模组", "先启用模组再分析。");
+            ShowMessage(InfoBarSeverity.Informational, Localization.T("没有已启用的模组"), Localization.T("先启用模组再分析。"));
             return;
         }
 
         var progressDialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "资源级冲突分析",
-            Content = new TextBlock { Text = "正在读取 pak 的 .utoc 资源清单…", TextWrapping = TextWrapping.Wrap },
-            CloseButtonText = "取消",
+            Title = Localization.T("资源级冲突分析"),
+            Content = new TextBlock { Text = Localization.T("正在读取 pak 的 .utoc 资源清单…"), TextWrapping = TextWrapping.Wrap },
+            CloseButtonText = Localization.T("取消"),
         };
         UiTask.Safe(progressDialog.ShowAsync());
 
@@ -252,10 +252,10 @@ public sealed partial class ModsPage
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "资源级冲突分析",
+            Title = Localization.T("资源级冲突分析"),
             Content = panel,
-            PrimaryButtonText = "复制结果",
-            CloseButtonText = "关闭",
+            PrimaryButtonText = Localization.T("复制结果"),
+            CloseButtonText = Localization.T("关闭"),
             DefaultButton = ContentDialogButton.Close,
         };
         dialog.PrimaryButtonClick += (_, args) =>
@@ -293,7 +293,7 @@ public sealed partial class ModsPage
                 MaxHeight = 460,
                 Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
             },
-            CloseButtonText = "好",
+            CloseButtonText = Localization.T("好"),
         };
         await dialog.ShowAsync();
     }
@@ -304,17 +304,17 @@ public sealed partial class ModsPage
         var record = item.Record;
         if (record.NexusModId is not > 0)
         {
-            ShowMessage(InfoBarSeverity.Warning, "无法更新", "这个模组没有 Nexus 模组 ID。");
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("无法更新"), Localization.T("这个模组没有 Nexus 模组 ID。"));
             return;
         }
 
         var confirm = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "下载并更新",
+            Title = Localization.T("下载并更新"),
             Content = $"将从 Nexus 下载最新主文件并替换「{record.Name}」。\n标签、备注、加载顺序和启用状态会保留。",
-            PrimaryButtonText = "更新",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("更新"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
         if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
@@ -322,17 +322,17 @@ public sealed partial class ModsPage
         SetBusy(true);
         try
         {
-            var progress = new Progress<string>(text => ShowMessage(InfoBarSeverity.Informational, "更新中", text));
+            var progress = new Progress<string>(text => ShowMessage(InfoBarSeverity.Informational, Localization.T("更新中"), text));
             var updated = await ModUpdater.UpdateAsync(record, State.Config.NexusApiKey ?? "",
                 State.Config.NexusApiKey, progress);
             Reload();
-            ShowMessage(InfoBarSeverity.Success, "更新完成",
+            ShowMessage(InfoBarSeverity.Success, Localization.T("更新完成"),
                 $"「{updated.Name}」已更新到 {updated.VersionLabel}。");
         }
         catch (Exception ex)
         {
             Log.Error("模组更新失败", ex);
-            ShowMessage(InfoBarSeverity.Error, "更新失败", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, Localization.T("更新失败"), ex.Message);
         }
         finally
         {
@@ -345,7 +345,7 @@ public sealed partial class ModsPage
     {
         if (string.IsNullOrWhiteSpace(State.Config.NexusApiKey))
         {
-            ShowMessage(InfoBarSeverity.Warning, "缺少 Nexus API Key", "请先在「设置」中填写 Nexus API Key。");
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("缺少 Nexus API Key"), Localization.T("请先在「设置」中填写 Nexus API Key。"));
             return;
         }
 
@@ -355,12 +355,12 @@ public sealed partial class ModsPage
             var filled = await ModUpdater.FillVersionsAsync();
             Reload();
             ShowMessage(filled > 0 ? InfoBarSeverity.Success : InfoBarSeverity.Informational,
-                "补全版本号", filled > 0 ? $"已补全 {filled} 个模组的版本号。" : "没有需要补全的版本号。");
+                Localization.T("补全版本号"), filled > 0 ? $"已补全 {filled} 个模组的版本号。" : Localization.T("没有需要补全的版本号。"));
         }
         catch (Exception ex)
         {
             Log.Error("补全版本号失败", ex);
-            ShowMessage(InfoBarSeverity.Error, "补全失败", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, Localization.T("补全失败"), ex.Message);
         }
         finally
         {
@@ -372,7 +372,7 @@ public sealed partial class ModsPage
     {
         if (string.IsNullOrWhiteSpace(State.Config.NexusApiKey))
         {
-            ShowMessage(InfoBarSeverity.Warning, "缺少 Nexus API Key", "请先在「设置」中填写 Nexus API Key。");
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("缺少 Nexus API Key"), Localization.T("请先在「设置」中填写 Nexus API Key。"));
             return;
         }
 
@@ -382,12 +382,12 @@ public sealed partial class ModsPage
             var renamed = await ModUpdater.RenameGenericAsync();
             Reload();
             ShowMessage(renamed > 0 ? InfoBarSeverity.Success : InfoBarSeverity.Informational,
-                "补全名称", renamed > 0 ? $"已从 N 网补全 {renamed} 个模组的名称。" : "没有需要补全的模组。");
+                Localization.T("补全名称"), renamed > 0 ? $"已从 N 网补全 {renamed} 个模组的名称。" : Localization.T("没有需要补全的模组。"));
         }
         catch (Exception ex)
         {
             Log.Error("补全 N 网名称失败", ex);
-            ShowMessage(InfoBarSeverity.Error, "补全失败", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, Localization.T("补全失败"), ex.Message);
         }
         finally
         {
@@ -401,7 +401,7 @@ public sealed partial class ModsPage
         item.Record.IgnoreUpdate = !item.Record.IgnoreUpdate;
         ModStore.Save(item.Record);
         UpdateDetails(item);
-        ShowMessage(InfoBarSeverity.Informational, "更新提示",
-            item.Record.IgnoreUpdate ? $"已忽略「{item.Name}」的更新提示。" : "已恢复更新提示。");
+        ShowMessage(InfoBarSeverity.Informational, Localization.T("更新提示"),
+            item.Record.IgnoreUpdate ? $"已忽略「{item.Name}」的更新提示。" : Localization.T("已恢复更新提示。"));
     }
 }

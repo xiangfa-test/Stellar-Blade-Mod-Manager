@@ -104,7 +104,7 @@ public sealed partial class ModsPage : Page
         if (!_shownDataDirNotice && AppPaths.RootResolutionLog.Count > 1)
         {
             _shownDataDirNotice = true;
-            ShowMessage(InfoBarSeverity.Informational, "数据目录已回退",
+            ShowMessage(InfoBarSeverity.Informational, Localization.T("数据目录已回退"),
                 $"默认数据目录不可写，已改用: {AppPaths.Root}");
         }
     }
@@ -305,7 +305,7 @@ public sealed partial class ModsPage : Page
             return true;
         }
         gameDir = "";
-        ShowMessage(InfoBarSeverity.Error, "没有找到游戏目录", "请先在「设置」页面选择 StellarBlade 的安装目录。");
+        ShowMessage(InfoBarSeverity.Error, Localization.T("没有找到游戏目录"), Localization.T("请先在「设置」页面选择 StellarBlade 的安装目录。"));
         return false;
     }
 
@@ -325,7 +325,7 @@ public sealed partial class ModsPage : Page
         }
         catch (Exception ex)
         {
-            ShowMessage(InfoBarSeverity.Error, "导入失败", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, Localization.T("导入失败"), ex.Message);
             Log.Error("选择压缩包失败", ex);
         }
     }
@@ -349,7 +349,7 @@ public sealed partial class ModsPage : Page
         catch (Exception ex)
         {
             SetBusy(false);
-            ShowMessage(InfoBarSeverity.Error, "导入失败", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, Localization.T("导入失败"), ex.Message);
             Log.Error("导入 PAK 失败", ex);
         }
     }
@@ -369,7 +369,7 @@ public sealed partial class ModsPage : Page
         catch (Exception ex)
         {
             SetBusy(false);
-            ShowMessage(InfoBarSeverity.Error, "导入失败", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, Localization.T("导入失败"), ex.Message);
             Log.Error("导入文件夹失败", ex);
         }
     }
@@ -398,11 +398,11 @@ public sealed partial class ModsPage : Page
         Reload();
         if (imported > 0)
         {
-            ShowMessage(InfoBarSeverity.Success, "导入完成", $"成功导入 {imported} 个模组。");
+            ShowMessage(InfoBarSeverity.Success, Localization.T("导入完成"), $"成功导入 {imported} 个模组。");
         }
         if (errors.Count > 0)
         {
-            ShowMessage(InfoBarSeverity.Warning, "部分文件导入失败", string.Join(Environment.NewLine, errors.Take(6)));
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("部分文件导入失败"), string.Join(Environment.NewLine, errors.Take(6)));
         }
     }
 
@@ -470,10 +470,10 @@ public sealed partial class ModsPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "FOMOD 安装选项",
+            Title = Localization.T("FOMOD 安装选项"),
             Content = new ScrollViewer { MaxHeight = 480, Content = panel },
-            PrimaryButtonText = "安装",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("安装"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary)
@@ -494,11 +494,11 @@ public sealed partial class ModsPage : Page
         if (result.Mod is not null)
         {
             CollectionInstaller.TagAsLocal(result.Mod);
-            ShowMessage(InfoBarSeverity.Success, "导入完成", $"已导入「{result.Mod.Name}」（{result.Mod.DisplayType}）");
+            ShowMessage(InfoBarSeverity.Success, Localization.T("导入完成"), $"已导入「{result.Mod.Name}」（{result.Mod.DisplayType}）");
         }
         else
         {
-            ShowMessage(InfoBarSeverity.Error, "导入失败", result.Error ?? "未知错误");
+            ShowMessage(InfoBarSeverity.Error, Localization.T("导入失败"), result.Error ?? Localization.T("未知错误"));
         }
     }
 
@@ -553,7 +553,7 @@ public sealed partial class ModsPage : Page
                     var dependencyDialog = new ContentDialog
                     {
                         XamlRoot = XamlRoot,
-                        Title = blocking.Count > 0 ? "缺少必要依赖" : "依赖提示",
+                        Title = blocking.Count > 0 ? Localization.T("缺少必要依赖") : Localization.T("依赖提示"),
                         Content = new ScrollViewer
                         {
                             MaxHeight = 360,
@@ -561,17 +561,17 @@ public sealed partial class ModsPage : Page
                             {
                                 TextWrapping = TextWrapping.Wrap,
                                 Text = string.Join("\n", lines) +
-                                       (blocking.Count > 0 ? "\n\n缺少必要依赖时模组可能完全不起作用。" : ""),
+                                       (blocking.Count > 0 ? "\n\n" + Localization.T("缺少必要依赖时模组可能完全不起作用。") : ""),
                             },
                         },
-                        PrimaryButtonText = blocking.Count > 0 ? "仍然启用" : "知道了",
-                        CloseButtonText = "取消",
+                        PrimaryButtonText = blocking.Count > 0 ? Localization.T("仍然启用") : Localization.T("知道了"),
+                        CloseButtonText = Localization.T("取消"),
                         DefaultButton = blocking.Count > 0 ? ContentDialogButton.Close : ContentDialogButton.Primary,
                     };
                     var dependencyChoice = await dependencyDialog.ShowAsync();
                     if (blocking.Count > 0 && dependencyChoice != ContentDialogResult.Primary)
                     {
-                        ShowMessage(InfoBarSeverity.Warning, "已取消", "缺少依赖，未启用该模组。");
+                        ShowMessage(InfoBarSeverity.Warning, Localization.T("已取消"), Localization.T("缺少依赖，未启用该模组。"));
                         return;
                     }
                 }
@@ -581,7 +581,7 @@ public sealed partial class ModsPage : Page
                 {
                     if (!await AskForceDeployAsync(item, result.Conflicts))
                     {
-                        ShowMessage(InfoBarSeverity.Warning, "已取消", "存在文件冲突，未启用该模组。");
+                        ShowMessage(InfoBarSeverity.Warning, Localization.T("已取消"), Localization.T("存在文件冲突，未启用该模组。"));
                         return;
                     }
 
@@ -590,7 +590,7 @@ public sealed partial class ModsPage : Page
 
                 if (!result.Success)
                 {
-                    ShowMessage(InfoBarSeverity.Error, "启用失败", result.Error ?? "未知错误");
+                    ShowMessage(InfoBarSeverity.Error, Localization.T("启用失败"), result.Error ?? Localization.T("未知错误"));
                     return;
                 }
 
@@ -601,18 +601,18 @@ public sealed partial class ModsPage : Page
                 }
 
                 item.Enabled = true;
-                ShowMessage(InfoBarSeverity.Success, "已启用", $"「{item.Name}」已部署到游戏目录。");
+                ShowMessage(InfoBarSeverity.Success, Localization.T("已启用"), $"「{item.Name}」已部署到游戏目录。");
             }
             else
             {
                 ModActions.Disable(item.Record);
                 item.Enabled = false;
-                ShowMessage(InfoBarSeverity.Success, "已停用", $"「{item.Name}」的文件已从游戏目录移除。");
+                ShowMessage(InfoBarSeverity.Success, Localization.T("已停用"), $"「{item.Name}」的文件已从游戏目录移除。");
             }
         }
         catch (Exception ex)
         {
-            ShowMessage(InfoBarSeverity.Error, "操作失败", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, Localization.T("操作失败"), ex.Message);
             Log.Error("切换模组状态失败", ex);
         }
         finally
@@ -633,7 +633,7 @@ public sealed partial class ModsPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "文件冲突",
+            Title = Localization.T("文件冲突"),
             Content = new ScrollViewer
             {
                 MaxHeight = 320,
@@ -643,8 +643,8 @@ public sealed partial class ModsPage : Page
                     TextWrapping = TextWrapping.Wrap,
                 },
             },
-            PrimaryButtonText = "强制启用",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("强制启用"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Close,
         };
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
@@ -679,8 +679,9 @@ public sealed partial class ModsPage : Page
         }
 
         ShowMessage(failed.Count == 0 ? InfoBarSeverity.Success : InfoBarSeverity.Warning,
-            "批量启用完成",
-            failed.Count == 0 ? "所有模组都已启用。" : "部分模组未启用:\n" + string.Join(Environment.NewLine, failed.Take(8)));
+            Localization.T("批量启用完成"),
+            failed.Count == 0 ? Localization.T("所有模组都已启用。") : Localization.T("部分模组未启用:") +
+                "\n" + string.Join(Environment.NewLine, failed.Take(8)));
         }
         catch (Exception ex)
         {
@@ -697,7 +698,7 @@ public sealed partial class ModsPage : Page
         }
         UpdateStatus();
         UpdateDetails(ModList.SelectedItem as ModItem);
-        ShowMessage(InfoBarSeverity.Success, "已全部停用", "所有由本工具部署的文件已从游戏目录移除。");
+        ShowMessage(InfoBarSeverity.Success, Localization.T("已全部停用"), Localization.T("所有由本工具部署的文件已从游戏目录移除。"));
     }
 
     // ---------------------------------------------------------------- details
@@ -722,11 +723,11 @@ public sealed partial class ModsPage : Page
         {
             ModActions.Delete(item.Record);
             Reload();
-            ShowMessage(InfoBarSeverity.Success, "已删除", $"「{item.Name}」已从模组库删除。");
+            ShowMessage(InfoBarSeverity.Success, Localization.T("已删除"), $"「{item.Name}」已从模组库删除。");
         }
         catch (Exception ex)
         {
-            ShowMessage(InfoBarSeverity.Error, "删除失败", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, Localization.T("删除失败"), ex.Message);
         }
     }
 
@@ -781,7 +782,7 @@ public sealed partial class ModsPage : Page
             if (!await ConfirmAsync("删除外部文件", $"确定删除「{item.Name}」下的 {item.Mod.Files.Count} 个文件吗？此操作不可撤销。")) return;
             Deployer.DeleteExternal(item.Mod);
             RebuildExternals();
-            ShowMessage(InfoBarSeverity.Success, "已删除", $"「{item.Name}」的外部文件已删除。");
+            ShowMessage(InfoBarSeverity.Success, Localization.T("已删除"), $"「{item.Name}」的外部文件已删除。");
         };
         flyout.Items.Add(delete);
 
@@ -860,18 +861,6 @@ public sealed partial class ModsPage : Page
     // ---------------------------------------------------------- versions / tags / order
 
 
-
-    private void EnsurePriorities()
-    {
-        var ordered = Mods.OrderBy(m => m.Record.Priority).ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase).ToList();
-        var needsFix = ordered.Select(m => m.Record.Priority).Distinct().Count() != ordered.Count;
-        if (!needsFix) return;
-        for (var i = 0; i < ordered.Count; i++)
-        {
-            ordered[i].Record.Priority = i;
-            ModStore.Save(ordered[i].Record);
-        }
-    }
 
     // ---------------------------------------------------------- updates / conflicts
 

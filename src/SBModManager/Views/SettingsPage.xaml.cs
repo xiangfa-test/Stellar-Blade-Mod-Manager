@@ -179,7 +179,7 @@ public sealed partial class SettingsPage : Page
             XamlRoot = XamlRoot,
             Title = title,
             Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
-            CloseButtonText = "好",
+            CloseButtonText = Localization.T("好"),
         };
         UiTask.Safe(dialog.ShowAsync());
     }
@@ -293,15 +293,15 @@ public sealed partial class SettingsPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "更新到 " + update.Tag,
+            Title = Localization.T("更新到 ") + update.Tag,
             Content = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
                 Text = $"将下载 {update.Package.Name}，校验 SHA256 后关闭管理器、覆盖程序文件并自动重启。\n" +
-                       "模组库、设置和游戏目录都不会受影响；更新期间请不要强制结束进程。",
+                       Localization.T("模组库、设置和游戏目录都不会受影响；更新期间请不要强制结束进程。"),
             },
-            PrimaryButtonText = "下载并更新",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("下载并更新"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary)

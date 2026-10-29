@@ -42,15 +42,15 @@ public sealed partial class MainWindow
             var dialog = new ContentDialog
             {
                 XamlRoot = Content.XamlRoot,
-                Title = "添加到开始菜单？",
+                Title = Localization.T("添加到开始菜单？"),
                 Content = new TextBlock
                 {
                     TextWrapping = TextWrapping.Wrap,
-                    Text = "要在 Windows 开始菜单中添加「剑星 MOD 管理器」的快捷方式吗？\n" +
-                           "添加后按 Win 键即可搜索到，随时可以在「设置 → 高级」里移除。",
+                    Text = Localization.T("要在 Windows 开始菜单中添加「剑星 MOD 管理器」的快捷方式吗？") + "\n" +
+                           Localization.T("添加后按 Win 键即可搜索到，随时可以在「设置 → 高级」里移除。"),
                 },
-                PrimaryButtonText = "添加到开始菜单",
-                CloseButtonText = "不用了",
+                PrimaryButtonText = Localization.T("添加到开始菜单"),
+                CloseButtonText = Localization.T("不用了"),
                 DefaultButton = ContentDialogButton.Primary,
             };
 
@@ -109,12 +109,12 @@ public sealed partial class MainWindow
         var dialog = new ContentDialog
         {
             XamlRoot = RootGrid.XamlRoot,
-            Title = "记住窗口大小？",
+            Title = Localization.T("记住窗口大小？"),
             Content = $"下次启动时使用当前窗口大小（{size.Width} × {size.Height}）吗？\n\n" +
-                      "选择「记住」后，之后每次调整窗口都会自动记住。" +
-                      "想反悔可到「设置 → 窗口 → 重置为默认大小」清除。",
-            PrimaryButtonText = "记住",
-            CloseButtonText = "不记住",
+                      Localization.T("选择「记住」后，之后每次调整窗口都会自动记住。") +
+                      Localization.T("想反悔可到「设置 → 窗口 → 重置为默认大小」清除。"),
+            PrimaryButtonText = Localization.T("记住"),
+            CloseButtonText = Localization.T("不记住"),
             DefaultButton = ContentDialogButton.Primary,
         };
         var result = await dialog.ShowAsync();
@@ -161,11 +161,11 @@ public sealed partial class MainWindow
                 var dialog = new ContentDialog
                 {
                     XamlRoot = Content.XamlRoot,
-                    Title = "检测到游戏崩溃",
+                    Title = Localization.T("检测到游戏崩溃"),
                     Content = panel,
-                    PrimaryButtonText = "导出报告",
-                    SecondaryButtonText = "打开报告",
-                    CloseButtonText = "关闭",
+                    PrimaryButtonText = Localization.T("导出报告"),
+                    SecondaryButtonText = Localization.T("打开报告"),
+                    CloseButtonText = Localization.T("关闭"),
                     DefaultButton = ContentDialogButton.Primary,
                 };
 

@@ -106,12 +106,12 @@ public sealed partial class CollectionsPage : Page
         input = (input ?? "").Trim();
         if (input.Length == 0)
         {
-            StatusLine.Text = "先粘贴一个 Nexus 合集链接。";
+            StatusLine.Text = Localization.T("先粘贴一个 Nexus 合集链接。");
             return;
         }
 
         ParseButton.IsEnabled = false;
-        StatusLine.Text = "正在解析合集…";
+        StatusLine.Text = Localization.T("正在解析合集…");
         try
         {
             var collection = await NexusService.GetCollectionAsync(input, State.Config.NexusApiKey, revision);
@@ -123,7 +123,7 @@ public sealed partial class CollectionsPage : Page
         catch (Exception ex)
         {
             Log.Error("解析合集失败", ex);
-            StatusLine.Text = "解析失败: " + ex.Message;
+            StatusLine.Text = Localization.T("解析失败: ") + ex.Message;
         }
         finally
         {
@@ -217,15 +217,15 @@ public sealed partial class CollectionsPage : Page
             var dialog = new ContentDialog
             {
                 XamlRoot = XamlRoot,
-                Title = "需要 Nexus API Key",
+                Title = Localization.T("需要 Nexus API Key"),
                 Content = new TextBlock
                 {
                     TextWrapping = TextWrapping.Wrap,
-                    Text = "合集批量下载需要 Nexus API Key（设置 → 网络与集成）。\n" +
-                           "Nexus 的直链接口通常要求 Premium 账号；免费账号可以先「复制模组链接」再手动下载。",
+                    Text = Localization.T("合集批量下载需要 Nexus API Key（设置 → 网络与集成）。") + "\n" +
+                           Localization.T("Nexus 的直链接口通常要求 Premium 账号；免费账号可以先「复制模组链接」再手动下载。"),
                 },
-                PrimaryButtonText = "复制模组链接",
-                CloseButtonText = "关闭",
+                PrimaryButtonText = Localization.T("复制模组链接"),
+                CloseButtonText = Localization.T("关闭"),
             };
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             {
@@ -316,7 +316,7 @@ public sealed partial class CollectionsPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = hasErrors ? "合集安装完成（有失败）" : "合集安装完成",
+            Title = hasErrors ? Localization.T("合集安装完成（有失败）") : Localization.T("合集安装完成"),
             Content = new ScrollViewer
             {
                 MaxHeight = 360,
@@ -327,8 +327,8 @@ public sealed partial class CollectionsPage : Page
                     IsTextSelectionEnabled = true,
                 },
             },
-            PrimaryButtonText = "查看合集模组",
-            CloseButtonText = "关闭",
+            PrimaryButtonText = Localization.T("查看合集模组"),
+            CloseButtonText = Localization.T("关闭"),
         };
         var result = await dialog.ShowAsync();
         if (result == ContentDialogResult.Primary)
@@ -353,7 +353,7 @@ public sealed partial class CollectionsPage : Page
         }
         catch (Exception ex)
         {
-            StatusLine.Text = "复制失败: " + ex.Message;
+            StatusLine.Text = Localization.T("复制失败: ") + ex.Message;
         }
     }
 
@@ -382,7 +382,7 @@ public sealed partial class CollectionsPage : Page
         }
         catch (Exception ex)
         {
-            StatusLine.Text = "读取剪贴板失败: " + ex.Message;
+            StatusLine.Text = Localization.T("读取剪贴板失败: ") + ex.Message;
         }
     }
 
@@ -474,7 +474,7 @@ public sealed partial class CollectionsPage : Page
         catch (Exception ex)
         {
             Log.Error("启用合集失败", ex);
-            StatusLine.Text = "启用合集失败: " + ex.Message;
+            StatusLine.Text = Localization.T("启用合集失败: ") + ex.Message;
         }
         await Task.CompletedTask;
     }
@@ -493,7 +493,7 @@ public sealed partial class CollectionsPage : Page
         catch (Exception ex)
         {
             Log.Error("停用合集失败", ex);
-            StatusLine.Text = "停用合集失败: " + ex.Message;
+            StatusLine.Text = Localization.T("停用合集失败: ") + ex.Message;
         }
         await Task.CompletedTask;
     }

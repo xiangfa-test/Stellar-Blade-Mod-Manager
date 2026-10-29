@@ -155,8 +155,8 @@ public sealed partial class ModsPage
             XamlRoot = XamlRoot,
             Title = title,
             Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
-            PrimaryButtonText = "确定",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("确定"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Close,
         };
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
@@ -189,7 +189,7 @@ public sealed partial class ModsPage
         {
         if (ModList.SelectedItem is not ModItem item)
         {
-            ShowMessage(InfoBarSeverity.Warning, "未选择模组", "先在左侧选择一个模组。");
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("未选择模组"), Localization.T("先在左侧选择一个模组。"));
             return;
         }
 
@@ -374,10 +374,10 @@ public sealed partial class ModsPage
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "编辑标签 / 备注",
+            Title = Localization.T("编辑标签 / 备注"),
             Content = new ScrollViewer { MaxHeight = 480, Content = panel },
-            PrimaryButtonText = "保存",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("保存"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
@@ -395,7 +395,7 @@ public sealed partial class ModsPage
         item.Refresh();
         RebuildMods();
         UpdateDetails(item);
-        ShowMessage(InfoBarSeverity.Success, "已保存", $"「{item.Name}」的标签与备注已更新。");
+        ShowMessage(InfoBarSeverity.Success, Localization.T("已保存"), $"「{item.Name}」的标签与备注已更新。");
         }
         catch (Exception ex)
         {
@@ -450,9 +450,9 @@ public sealed partial class ModsPage
             XamlRoot = XamlRoot,
             Title = item.Name,
             Content = panel,
-            PrimaryButtonText = "下一张",
-            SecondaryButtonText = "上一张",
-            CloseButtonText = "关闭",
+            PrimaryButtonText = Localization.T("下一张"),
+            SecondaryButtonText = Localization.T("上一张"),
+            CloseButtonText = Localization.T("关闭"),
             DefaultButton = ContentDialogButton.Primary,
         };
         dialog.PrimaryButtonClick += (_, args) =>

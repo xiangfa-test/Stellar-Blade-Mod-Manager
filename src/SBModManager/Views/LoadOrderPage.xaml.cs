@@ -119,13 +119,13 @@ public sealed partial class LoadOrderPage : Page
             var dialog = new ContentDialog
             {
                 XamlRoot = XamlRoot,
-                Title = "部分模组部署失败",
+                Title = Localization.T("部分模组部署失败"),
                 Content = new TextBlock
                 {
                     TextWrapping = TextWrapping.Wrap,
                     Text = $"成功 {ok} 个，失败 {failed} 个。\n请查看日志或「模组管理 → 冲突链分析」了解冲突情况。",
                 },
-                CloseButtonText = "好",
+                CloseButtonText = Localization.T("好"),
             };
             await dialog.ShowAsync();
         }

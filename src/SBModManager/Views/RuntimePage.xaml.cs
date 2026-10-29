@@ -24,17 +24,17 @@ public sealed partial class RuntimePage : Page
         var gameDir = State.GameDir;
         if (gameDir is null)
         {
-            StatusLine.Text = "尚未设置游戏目录。";
+            StatusLine.Text = Localization.T("尚未设置游戏目录。");
             PathLine.Text = "请先在「设置」中指定游戏安装目录。";
         }
         else if (Deployer.IsUe4ssInstalled(gameDir))
         {
-            StatusLine.Text = "已检测到 UE4SS 运行库 ✓（ue4ss 文件夹 + dwmapi.dll）";
+            StatusLine.Text = Localization.T("已检测到 UE4SS 运行库 ✓（ue4ss 文件夹 + dwmapi.dll）");
             PathLine.Text = Deployer.BinariesDir(gameDir);
         }
         else
         {
-            StatusLine.Text = "未检测到 UE4SS 运行库。需要脚本模组时请先安装 UE4SS。";
+            StatusLine.Text = Localization.T("未检测到 UE4SS 运行库。需要脚本模组时请先安装 UE4SS。");
             PathLine.Text = "预期位置: " + Deployer.BinariesDir(gameDir);
         }
 
@@ -280,7 +280,7 @@ public sealed partial class RuntimePage : Page
             XamlRoot = XamlRoot,
             Title = title,
             Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
-            CloseButtonText = "好",
+            CloseButtonText = Localization.T("好"),
         };
         await dialog.ShowAsync();
     }

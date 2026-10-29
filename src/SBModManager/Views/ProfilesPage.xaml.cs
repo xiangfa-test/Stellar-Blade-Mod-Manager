@@ -53,10 +53,10 @@ public sealed partial class ProfilesPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "保存当前状态为方案",
+            Title = Localization.T("保存当前状态为方案"),
             Content = box,
-            PrimaryButtonText = "保存",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("保存"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
@@ -88,10 +88,10 @@ public sealed partial class ProfilesPage : Page
         var confirm = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "应用方案",
+            Title = Localization.T("应用方案"),
             Content = $"切换到「{profile.Name}」会停用不在该方案里的模组，并按方案顺序重新部署。",
-            PrimaryButtonText = "应用",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("应用"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
         if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
@@ -126,10 +126,10 @@ public sealed partial class ProfilesPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "重命名方案",
+            Title = Localization.T("重命名方案"),
             Content = box,
-            PrimaryButtonText = "保存",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("保存"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
@@ -157,10 +157,10 @@ public sealed partial class ProfilesPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "删除方案",
+            Title = Localization.T("删除方案"),
             Content = $"确定删除「{profile.Name}」吗？只删除方案记录，不会改动已安装的模组。",
-            PrimaryButtonText = "删除",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("删除"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Close,
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;

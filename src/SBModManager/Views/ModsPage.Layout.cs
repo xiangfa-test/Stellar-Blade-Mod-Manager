@@ -186,7 +186,7 @@ public sealed partial class ModsPage
     private void Refresh_Click(object sender, RoutedEventArgs e)
     {
         Reload();
-        ShowMessage(InfoBarSeverity.Informational, "已刷新", "模组库与游戏目录已重新扫描。");
+        ShowMessage(InfoBarSeverity.Informational, Localization.T("已刷新"), Localization.T("模组库与游戏目录已重新扫描。"));
     }
 
     private void Selector_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
@@ -200,7 +200,7 @@ public sealed partial class ModsPage
     {
         if (GameDir is null)
         {
-            ShowMessage(InfoBarSeverity.Warning, "未设置游戏目录", "请先在「设置」中指定游戏安装目录。");
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("未设置游戏目录"), Localization.T("请先在「设置」中指定游戏安装目录。"));
             return;
         }
         GameLocator.OpenFolder(Deployer.PaksModsDir(GameDir));
@@ -213,7 +213,7 @@ public sealed partial class ModsPage
     {
         if (GameDir is null)
         {
-            ShowMessage(InfoBarSeverity.Warning, "未设置游戏目录", "请先在「设置」中指定游戏安装目录。");
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("未设置游戏目录"), Localization.T("请先在「设置」中指定游戏安装目录。"));
             return;
         }
         GameLocator.OpenFolder(GameDir);
@@ -231,11 +231,11 @@ public sealed partial class ModsPage
         try
         {
             GameLocator.Launch(GameDir, State.Config.LaunchMode);
-            ShowMessage(InfoBarSeverity.Informational, "正在启动", "已发送启动请求，请稍候…");
+            ShowMessage(InfoBarSeverity.Informational, Localization.T("正在启动"), Localization.T("已发送启动请求，请稍候…"));
         }
         catch (Exception ex)
         {
-            ShowMessage(InfoBarSeverity.Error, "启动失败", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, Localization.T("启动失败"), ex.Message);
         }
     }
 }

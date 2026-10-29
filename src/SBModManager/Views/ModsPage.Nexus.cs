@@ -33,7 +33,7 @@ public sealed partial class ModsPage
     {
         if (!NxmHandler.TryParse(url, out var link))
         {
-            ShowMessage(InfoBarSeverity.Warning, "无法识别的 nxm 链接", url);
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("无法识别的 nxm 链接"), url);
             return;
         }
 
@@ -79,7 +79,7 @@ public sealed partial class ModsPage
             var result = ModImporter.ImportArchive(downloaded);
             if (result.Mod is null)
             {
-                ShowMessage(InfoBarSeverity.Error, "导入失败", result.Error ?? "未知错误");
+                ShowMessage(InfoBarSeverity.Error, Localization.T("导入失败"), result.Error ?? Localization.T("未知错误"));
                 return;
             }
 
@@ -142,15 +142,15 @@ public sealed partial class ModsPage
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "Nexus 下载链接",
+            Title = Localization.T("Nexus 下载链接"),
             Content = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
                 IsTextSelectionEnabled = true,
                 Text = message + "\n\n" + fallbackUrl,
             },
-            PrimaryButtonText = "打开 Nexus 页面",
-            CloseButtonText = "关闭",
+            PrimaryButtonText = Localization.T("打开 Nexus 页面"),
+            CloseButtonText = Localization.T("关闭"),
         };
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
@@ -183,10 +183,10 @@ public sealed partial class ModsPage
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "从 Nexus 合集导入",
+            Title = Localization.T("从 Nexus 合集导入"),
             Content = panel,
-            PrimaryButtonText = "解析合集",
-            CloseButtonText = "取消",
+            PrimaryButtonText = Localization.T("解析合集"),
+            CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
@@ -203,7 +203,7 @@ public sealed partial class ModsPage
         catch (Exception ex)
         {
             Log.Error("解析 Nexus 合集失败", ex);
-            ShowMessage(InfoBarSeverity.Error, "合集解析失败", ex.Message);
+            ShowMessage(InfoBarSeverity.Error, Localization.T("合集解析失败"), ex.Message);
             return;
         }
         finally
@@ -285,11 +285,11 @@ public sealed partial class ModsPage
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "合集信息",
+            Title = Localization.T("合集信息"),
             Content = new ScrollViewer { MaxHeight = 380, Content = info },
-            PrimaryButtonText = "下载并导入",
-            SecondaryButtonText = "复制模组链接",
-            CloseButtonText = "关闭",
+            PrimaryButtonText = Localization.T("下载并导入"),
+            SecondaryButtonText = Localization.T("复制模组链接"),
+            CloseButtonText = Localization.T("关闭"),
             DefaultButton = ContentDialogButton.Primary,
         };
         var choice = await dialog.ShowAsync();
@@ -312,12 +312,12 @@ public sealed partial class ModsPage
             var package = new DataPackage();
             package.SetText(text);
             Clipboard.SetContent(package);
-            ShowMessage(InfoBarSeverity.Success, "已复制模组链接",
+            ShowMessage(InfoBarSeverity.Success, Localization.T("已复制模组链接"),
                 $"已复制 {collection.Mods.Count} 个模组页面链接到剪贴板，可以逐个手动下载后拖回本工具导入。");
         }
         catch (Exception ex)
         {
-            ShowMessage(InfoBarSeverity.Warning, "复制失败", ex.Message);
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("复制失败"), ex.Message);
         }
     }
 
@@ -329,17 +329,17 @@ public sealed partial class ModsPage
             var fallback = new ContentDialog
             {
                 XamlRoot = XamlRoot,
-                Title = "需要 Nexus API Key",
+                Title = Localization.T("需要 Nexus API Key"),
                 Content = new TextBlock
                 {
                     TextWrapping = TextWrapping.Wrap,
-                    Text = "合集批量下载需要 Nexus API Key（在「设置 → 网络与集成」填写），" +
-                           "且 Nexus 的直链接口通常要求 Premium 账号。\n\n" +
-                           "免费账号可以使用「复制模组链接」，逐个下载后拖回本工具导入。",
+                    Text = Localization.T("合集批量下载需要 Nexus API Key（在「设置 → 网络与集成」填写），") +
+                           Localization.T("且 Nexus 的直链接口通常要求 Premium 账号。") + "\n\n" +
+                           Localization.T("免费账号可以使用「复制模组链接」，逐个下载后拖回本工具导入。"),
                 },
-                PrimaryButtonText = "复制模组链接",
-                SecondaryButtonText = "打开合集页面",
-                CloseButtonText = "关闭",
+                PrimaryButtonText = Localization.T("复制模组链接"),
+                SecondaryButtonText = Localization.T("打开合集页面"),
+                CloseButtonText = Localization.T("关闭"),
             };
             var result = await fallback.ShowAsync();
             if (result == ContentDialogResult.Primary)
@@ -359,7 +359,7 @@ public sealed partial class ModsPage
         var selected = collection.Mods.Where(m => includeOptional || !m.Optional).ToList();
         if (selected.Count == 0)
         {
-            ShowMessage(InfoBarSeverity.Warning, "没有可下载的模组", "该合集没有匹配当前筛选条件的模组。");
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("没有可下载的模组"), Localization.T("该合集没有匹配当前筛选条件的模组。"));
             return;
         }
 
@@ -382,7 +382,7 @@ public sealed partial class ModsPage
             XamlRoot = XamlRoot,
             Title = $"下载合集：{collection.Name}",
             Content = stack,
-            CloseButtonText = "取消",
+            CloseButtonText = Localization.T("取消"),
         };
         progressDialog.CloseButtonClick += (_, _) => cts.Cancel();
         var dialogTask = progressDialog.ShowAsync().AsTask();
@@ -511,12 +511,12 @@ public sealed partial class ModsPage
             var hint = noLink > 0 || failed.Any(f => f.Contains("403") || f.Contains("Premium", StringComparison.OrdinalIgnoreCase))
                 ? "\n\n提示：Nexus 直链下载通常需要 Premium；没有 Premium 时可用「复制模组链接」手动下载。"
                 : "";
-            ShowMessage(InfoBarSeverity.Warning, "合集下载完成（有失败）",
+            ShowMessage(InfoBarSeverity.Warning, Localization.T("合集下载完成（有失败）"),
                 summary + "\n\n" + string.Join(Environment.NewLine, lines) + hint);
         }
         else
         {
-            ShowMessage(InfoBarSeverity.Success, "合集下载完成",
+            ShowMessage(InfoBarSeverity.Success, Localization.T("合集下载完成"),
                 summary + "\n\n已导入的模组带有「合集:" + collection.Name + "」标签，可按标签筛选。");
         }
     }
