@@ -445,6 +445,42 @@ public static class SelfTest
             Check("Markdown 渲染分段", markdownPanel is Microsoft.UI.Xaml.Controls.StackPanel panel &&
                 panel.Children.Count >= 3, $"blocks={(markdownPanel as Microsoft.UI.Xaml.Controls.StackPanel)?.Children.Count}");
 
+            // 1l2) Nexus file selection: a later optional upload must not win over the main file
+            var nexusFiles = new List<NexusFileInfo>
+            {
+                new() { FileId = 1, Name = "Main", Category = "MAIN", UploadedTimestamp = 100 },
+                new() { FileId = 2, Name = "Hotfix", Category = "OPTIONAL", UploadedTimestamp = 300 },
+                new() { FileId = 3, Name = "OldBuild", Category = "OLD_VERSION", UploadedTimestamp = 200 },
+            };
+            Check("Nexus 取文件优先 MAIN 类",
+                NexusService.SelectLatestFile(nexusFiles)?.FileId == 1,
+                NexusService.SelectLatestFile(nexusFiles)?.Name);
+            var withoutMain = nexusFiles.Where(f => f.FileId != 1).ToList();
+            Check("Nexus 无 MAIN 时回退到最新文件",
+                NexusService.SelectLatestFile(withoutMain)?.FileId == 2,
+                NexusService.SelectLatestFile(withoutMain)?.Name);
+
+            // 1l3) translation table: every Chinese key must have an English entry
+            var tableOk = false;
+            var tableDetail = "";
+            try
+            {
+                using var stringsDoc = JsonDocument.Parse(File.ReadAllText(Localization.StringsPath));
+                var zhKeys = stringsDoc.RootElement.GetProperty("zh-CN").EnumerateObject()
+                    .Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+                var enKeys = stringsDoc.RootElement.GetProperty("en-US").EnumerateObject()
+                    .Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+                var missing = zhKeys.Count(k => !enKeys.Contains(k));
+                var extra = enKeys.Count(k => !zhKeys.Contains(k));
+                tableOk = zhKeys.Count > 0 && missing == 0 && extra == 0;
+                tableDetail = $"zh={zhKeys.Count} en={enKeys.Count} 缺={missing} 多={extra}";
+            }
+            catch (Exception ex)
+            {
+                tableDetail = ex.Message;
+            }
+            Check("翻译表 zh/en 键集合一致", tableOk, tableDetail);
+
             // 1m) robustness: bad data must not crash the app
             var configBackup = File.Exists(AppPaths.ConfigFile) ? File.ReadAllText(AppPaths.ConfigFile) : null;
             var configThrew = false;
