@@ -1,7 +1,7 @@
 # AGENTS.md — 剑星 MOD 管理器 开发交接
 
 > 本文件是给后续会话/开发者的工作提示词：项目状态、构建、测试、架构、坑、发布流程。
-> 会话归档时版本：**v1.14.1**（源码 `cf34436`，工作树干净）。
+> 会话归档时版本：**v1.14.1**（含尚未发版的 P0/P1/P2 修复，工作树干净）。
 
 ## 1. 项目概览
 
@@ -61,7 +61,7 @@ src\SBModManager\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\SBModManager
 `--page <tag>`、`--collection <slug>`、`--select-first`、`--data-dir <path>`、`--self-update`、
 `--nexus-detail <id>`（打开 N 网详情页，用于截图/调试）。
 
-自检（121 项，必须全 PASS）：
+自检（必须全 PASS）：
 
 ```powershell
 $env:SBMM_DATA_DIR="$pwd\_scratch\appdata"
@@ -69,6 +69,12 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 ...\SBModManager.exe --selftest "$pwd\_scratch\st.txt"
 # 报告在 _scratch\st.txt，grep "FAIL|RESULT"
 ```
+
+**项数随功能增长，不要记死数字**：基线 121 项，`SBMM_TEST_UE4SS_ZIP` 打开时 +7，另有原子写 4 项、
+停用日志 3 项、同组版本 4 项等。实测 139 项（含 fixture）。判断标准是 `RESULT: ALL PASS` 且
+`FAIL=0`，不是某个具体数字。
+
+一键验收入口（本机脚本，`_scratch` 已 gitignore）：`pwsh -File _scratch\verify.ps1`（含构建 + 自检）。
 
 可选环境变量：
 
@@ -85,8 +91,23 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 
 - `AppState.Instance` 是唯一状态对象，实现 `IAppState`
 - 服务通过 `AppServices.State` 取状态（组合根），**不要在服务里直接引用 `AppState.Instance`**
-- 测试可用 `AppServices.WithState(fake, () => ...)` 临时替换
-- 视图页面统一 `private static IAppState State => AppServices.State;`
+- 服务里的写法固定为 `private static IAppState State => AppServices.State;`（属性**实时读取**）。
+  不要写成 `= AppServices.State` 的字段初始化 —— 那是初始化时抓快照，`AppServices.WithState`
+  换掉的状态对服务不生效，测试会悄悄操作真实状态。
+- 测试用 `AppServices.WithState(fake, () => ...)` 临时替换；视图页面统一
+  `private static IAppState State => AppServices.State;`
+
+### 状态文件写入（Services/FileSafe.cs）
+
+- **所有用户可见的状态 JSON/文本都必须用 `FileSafe.WriteAllText`**，不要用 `File.WriteAllText`：
+  后者先截断再写，进程被杀会留下半截 JSON，而读取端是严格反序列化 + 静默降级，
+  表现就是「设置重置 / 方案消失 / 模组元数据被跳过」。
+- `FileSafe` 的做法：同目录写 `*.tmp-xxxx` → `Flush(flushToDisk: true)` → `File.Replace`
+  （不支持时回退 `File.Move(overwrite: true)`），并对杀软/索引器占用做退避重试。
+- 覆盖范围：`config.json`、`deployed.json`、`.sbmm.json`、`profiles/*.json`、`deploy-journal.json`、
+  `ue4ss/Mods/mods.json` 与 `mods.txt`、断点续传 `.meta`。
+- 启动时 `FileSafe.CleanupStale(AppPaths.Root)` 清理被杀进程遗留的 `*.tmp-*`（只删超过 1 小时的）。
+- 自检有 4 项守着这条约定（覆盖写入 / 不残留临时文件 / 清理陈旧 / 不误删在途文件）。
 
 ### 部署管线（Services/Deployer.cs）
 
@@ -96,8 +117,18 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 - PAK 顺序前缀：`AppConfig.PakOrderPrefixEnabled` 时文件名加 `0001_`
 - 同盘优先硬链接，失败回退复制；覆盖他人文件先备份，停用时还原
 - 所有部署/停用/重建走同一把 `FileLock`；`Deployer.DeploymentChanged` 事件通知缓存失效
-- `DeployJournal`：部署前写日志，启动时回放，恢复/清理半套文件
+- `DeployJournal`：**部署和停用都写日志**（`Entry.Kind` = `deploy` / `undeploy`），启动时回放。
+  - deploy 回放：目标还在 + 库里有该 Id → 接管进 `Deployed`；库记录没了 → 删残留
+  - undeploy 回放：删残留文件 → 还原备份 → 修正 `deployed.json`（并把文件还给原主人）
+  - 新增任何「先动文件后存状态」的操作，都必须套进 journal，否则崩溃后无法收尾
+- 冲突预检：`Deployer.CheckConflicts(mod, gameDir, ignoreModIds?)` 只读、不改状态。同组版本之间
+  的覆盖是预期行为，用 `ignoreModIds` 传入即将被替换的兄弟版本 id 予以忽略。
 - 部署前校验游戏目录存在（不存在直接失败）
+
+### 启用/停用状态机（Services/ModActions.cs）
+
+- `Enable` 顺序：依赖检查 → **冲突预检（先于停用兄弟版本）** → 停用同 `GroupKey` 的其他版本 →
+  部署。部署失败时按优先级把刚停用的旧版本重新部署回去，不会出现「新版本没装上、旧版本也没了」。
 
 ### 模组库 / 分组
 
@@ -137,7 +168,11 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 - 时机很重要：`ContentFrame.Navigated` 后要 `page.Loaded` + `DispatcherQueue.TryEnqueue` 各应用一次；
   标题栏/导航要 `Apply(RootGrid)`（只 Apply NavView 会漏标题栏）
 - ComboBox 选项、ToggleSwitch 的「开/关」需要单独处理（已实现）
-- **动态拼接的字符串不会被翻译**；需要时用 `Localization.T("…")` 包一下
+- **代码里拼出来的 UI 文案不会自动翻译**：对话框标题/正文、`ShowMessage`、状态栏等要用
+  `Localization.T("中文原文")` 包一层，并把该原文同时补进 `zh-CN`（identity）与 `en-US`。
+  `Log.*` 的字符串**不要**包（日志保持中文，便于排障）。
+- `strings.json` 的 `zh-CN` 与 `en-US` 键集合必须**完全一致**（自检有一项专门守着）；
+  只加 `zh-CN` 不加 `en-US` 会让英文界面回退显示中文。
 - 新增文案：直接改 XAML/代码后，把中文原文加入 `zh-CN`（identity），需要英文时补 `en-US`
 
 ## 6. 常见开发任务
@@ -172,6 +207,12 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
    返回按钮只在“非根页面且 CanGoBack”时显示。
 9. `File.Move` 前必须释放写入流（否则“文件被占用”），并保留重试给杀软/索引器。
 10. 不要在仓库提交任何 API Key / token；测试配置在 `_scratch/appdata*`，已 gitignore。
+11. **写状态文件一律走 `FileSafe.WriteAllText`**，别用 `File.WriteAllText`：截断式写入 + 严格反序列化
+    的组合会让一次崩溃变成「设置/方案/元数据消失」。新加的持久化文件也要遵守。
+12. **服务里别用 `= AppServices.State` 初始化字段**：那是快照，`WithState` 换状态对它无效，
+    自检会静默操作真实数据。统一写成 `=> AppServices.State` 表达式属性。
+13. 动文件之前先写 journal（`DeployJournal.Begin` / `BeginUndeploy`），改完再 `Complete`；
+    不要新增「改了文件但崩溃后无法回放」的路径。
 
 ## 8. 发布流程（每次都要走完）
 
@@ -180,7 +221,7 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 3. `.\build.ps1`（或上面的 dotnet build）→ 0 warning / 0 error
 4. 暂存：把 `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\*` 复制到
    `_scratch/distXYZ/SBModManager`，排除 `SBMM-Data`、`navcol.png`
-5. 对暂存目录跑自检（必须 ALL PASS，121 项）
+5. 对暂存目录跑自检（必须 `RESULT: ALL PASS`、`FAIL=0`；项数会随功能增长，别卡死数字）
 6. 打包 zip：顶层目录必须是 `SBModManager/`；生成 `SHA256SUMS.txt`
 7. 提交版本号与说明（`chore(vX.Y.Z): 版本号与发布说明`）
 8. 推送：`_scratch/release/GitAuth.ps1` 提供 `$global:GitAuthUrl`（token 内嵌 URL），
@@ -208,10 +249,14 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 ## 10. 已知限制 / 待办
 
 - 未做代码签名：SmartScreen 会提示；Release 提供 SHA256，可考虑 SignPath Foundation（GPL 免费）
-- 没有单元测试框架，只有端到端自检；核心服务仍以 static 为主（`AppServices` 已收口状态）
-- 仍有个别 `async void` 处理器转发给已 catch 的方法（安全但可继续收敛）
-- 翻译表覆盖全部 XAML 文案；**代码里动态拼接的消息**尚未全部本地化
+- 没有单元测试框架，只有端到端自检；核心服务仍以 static 为主（`AppServices` 已收口状态，仍无 DI/接口）
+- `FileLock` 只是进程内锁：便携版（`SBMM-INSTANCE_SUFFIX` 不同）与安装版可以同时跑，并同时写同一
+  游戏目录 —— 需要跨进程锁时再处理（当前靠单实例 + 用户不要同时开两份来规避）
+- 仍有多处 `async void` 事件处理器（53 处），统一 try/catch 已做，但可继续收敛为 `UiTask.Safe`
+- 代码内 UI 文案正在接入 `Localization.T`；`$"…{x}…"` 插值串仍未覆盖（需要改成 `string.Format` + 占位符键）
 - FOMOD 不执行脚本安装器；资源冲突分析是近似（只读 `.utoc` 明文）
+- 合集/批量下载逻辑在 `Views/ModsPage.Nexus.cs` 与 `Services/CollectionInstaller.cs` 各有一份且已分叉，
+  改其中一处时**必须同步另一处**（待合并为单一实现）
 - 下载免费账号限制依赖网页兜底，不做 key 抓取
 - 更新检查串行；模组很多时较慢
 - 无 CI（每次本地构建 + 手工发布）
