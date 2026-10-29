@@ -353,7 +353,7 @@ public sealed partial class ModsPage
             return;
         }
 
-        var hasGame = EnsureGame(out var gameDir);
+        var hasGame = EnsureGame(out _);
         if (!hasGame) enableAfter = false;
 
         var selected = collection.Mods.Where(m => includeOptional || !m.Optional).ToList();
@@ -368,7 +368,7 @@ public sealed partial class ModsPage
         var bar = new ProgressBar { Maximum = selected.Count, Value = 0, Height = 4 };
         var detail = new TextBlock
         {
-            Text = "准备中…",
+            Text = Localization.T("准备中…"),
             TextWrapping = TextWrapping.Wrap,
             Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
         };
@@ -387,137 +387,82 @@ public sealed partial class ModsPage
         progressDialog.CloseButtonClick += (_, _) => cts.Cancel();
         var dialogTask = progressDialog.ShowAsync().AsTask();
 
-        var ok = 0;
-        var failed = new List<string>();
-        var noLink = 0;
-        for (var i = 0; i < selected.Count; i++)
+        // Progress<T> is built on the UI thread, so its callbacks already run on the dispatcher.
+        var progress = new Progress<CollectionInstallProgress>(p =>
         {
-            if (cts.IsCancellationRequested) break;
-            var mod = selected[i];
-            var index = i;
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                bar.Value = index;
-                line.Text = $"{index} / {selected.Count}";
-                detail.Text = "正在处理: " + mod.DisplayName;
-            });
-
-            string? temp = null;
-            try
-            {
-                var uri = await NexusService.GetDownloadLinkAsync(collection.GameDomain, mod.ModId, mod.FileId, apiKey);
-                if (string.IsNullOrWhiteSpace(uri))
-                {
-                    noLink++;
-                    failed.Add($"{mod.DisplayName}: Nexus 没有返回直链");
-                    continue;
-                }
-
-                Directory.CreateDirectory(AppPaths.TempRoot);
-                temp = Path.Combine(AppPaths.TempRoot, $"collection-{mod.ModId}-{mod.FileId}.zip");
-                await GitHubService.DownloadAsync(uri, temp);
-                var imported = ModImporter.ImportArchive(temp);
-                if (imported.Mod is null)
-                {
-                    failed.Add($"{mod.DisplayName}: {imported.Error}");
-                    continue;
-                }
-
-                var record = imported.Mod;
-                record.NexusModId = mod.ModId;
-                record.NexusFileId = mod.FileId;
-                record.NexusDomain = collection.GameDomain;
-                if (!string.IsNullOrWhiteSpace(mod.Version)) record.Version = mod.Version;
-                var tag = "合集:" + collection.Name;
-                if (!record.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
-                {
-                    record.Tags.Add(tag);
-                }
-                record.Notes = $"来自 Nexus 合集「{collection.Name}」(rev {collection.RevisionNumber})" +
-                               Environment.NewLine + collection.PageUrl;
-                ModStore.Save(record);
-
-                if (enableAfter)
-                {
-                    var deployed = Deployer.Deploy(record, gameDir, force: false);
-                    if (!deployed.Success)
-                    {
-                        failed.Add($"{mod.DisplayName}: 已导入，但启用失败（{deployed.Error}）");
-                    }
-                }
-                ok++;
-            }
-            catch (Exception ex)
-            {
-                failed.Add($"{mod.DisplayName}: {ex.Message}");
-            }
-            finally
-            {
-                try
-                {
-                    if (temp is not null && File.Exists(temp)) File.Delete(temp);
-                }
-                catch
-                {
-                    // ignore
-                }
-            }
-
-            try
-            {
-                await Task.Delay(150, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
-
-        DispatcherQueue.TryEnqueue(() =>
-        {
-            bar.Value = ok;
-            line.Text = $"完成 {ok} / {selected.Count}";
-            detail.Text = "正在整理结果…";
+            bar.Value = p.Done;
+            line.Text = $"{p.Done} / {p.Total}";
+            detail.Text = string.IsNullOrWhiteSpace(p.Current) ? p.Status : p.Current + " · " + p.Status;
         });
 
+        CollectionInstallReport report;
         try
         {
-            progressDialog.Hide();
+            // The download/import loop lives in CollectionInstaller so this page and the
+            // Collections page cannot drift apart again.
+            report = await CollectionInstaller.InstallAsync(
+                collection,
+                new CollectionInstallOptions(includeOptional, enableAfter, SkipInstalled: false),
+                progress,
+                cts.Token);
         }
-        catch
+        finally
         {
-            // already closed
-        }
-        try
-        {
-            await dialogTask;
-        }
-        catch
-        {
-            // ignore
+            try
+            {
+                progressDialog.Hide();
+            }
+            catch
+            {
+                // already closed
+            }
+            try
+            {
+                await dialogTask;
+            }
+            catch
+            {
+                // ignore
+            }
         }
 
         Reload();
+        ShowCollectionResult(collection, report);
+    }
 
-        var summary = $"合集「{collection.Name}」：成功 {ok} / {selected.Count}";
-
-        if (failed.Count > 0 || noLink > 0)
+    /// <summary>InfoBar summary for a finished batch collection import.</summary>
+    private void ShowCollectionResult(NexusCollection collection, CollectionInstallReport report)
+    {
+        var total = report.Imported + report.Skipped + report.Failed;
+        var summary = $"合集「{collection.Name}」：成功 {report.Imported} / {total}";
+        if (report.Skipped > 0)
         {
-            var lines = failed.Take(8).ToList();
-            if (failed.Count > 8)
+            summary += $"，跳过 {report.Skipped} 个已安装";
+        }
+        if (report.Cancelled)
+        {
+            summary += "（已取消）";
+        }
+
+        if (report.Errors.Count > 0)
+        {
+            var lines = report.Errors.Take(8).ToList();
+            if (report.Errors.Count > 8)
             {
-                lines.Add($"…以及另外 {failed.Count - 8} 个失败");
+                lines.Add($"…以及另外 {report.Errors.Count - 8} 个失败");
             }
-            var hint = noLink > 0 || failed.Any(f => f.Contains("403") || f.Contains("Premium", StringComparison.OrdinalIgnoreCase))
+            var needsPremium = report.Errors.Any(e =>
+                e.Contains("没有返回直链") || e.Contains("403") ||
+                e.Contains("Premium", StringComparison.OrdinalIgnoreCase));
+            var hint = needsPremium
                 ? "\n\n提示：Nexus 直链下载通常需要 Premium；没有 Premium 时可用「复制模组链接」手动下载。"
                 : "";
             ShowMessage(InfoBarSeverity.Warning, Localization.T("合集下载完成（有失败）"),
                 summary + "\n\n" + string.Join(Environment.NewLine, lines) + hint);
+            return;
         }
-        else
-        {
-            ShowMessage(InfoBarSeverity.Success, Localization.T("合集下载完成"),
-                summary + "\n\n已导入的模组带有「合集:" + collection.Name + "」标签，可按标签筛选。");
-        }
+
+        ShowMessage(InfoBarSeverity.Success, Localization.T("合集下载完成"),
+            summary + "\n\n已导入的模组带有「合集:" + collection.Name + "」标签，可按标签筛选。");
     }
 }

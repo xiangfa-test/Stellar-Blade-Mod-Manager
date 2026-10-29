@@ -148,19 +148,8 @@ public sealed partial class ModsPage
         }
     }
 
-    private async Task<bool> ConfirmAsync(string title, string message)
-    {
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = title,
-            Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
-            PrimaryButtonText = Localization.T("确定"),
-            CloseButtonText = Localization.T("取消"),
-            DefaultButton = ContentDialogButton.Close,
-        };
-        return await dialog.ShowAsync() == ContentDialogResult.Primary;
-    }
+    private Task<bool> ConfirmAsync(string title, string message)
+        => Ui.Dialogs.ConfirmAsync(XamlRoot, title, message);
 
     private async void VersionBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {

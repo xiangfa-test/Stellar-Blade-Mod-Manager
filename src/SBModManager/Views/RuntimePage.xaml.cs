@@ -273,15 +273,6 @@ public sealed partial class RuntimePage : Page
         }
     }
 
-    private async Task ShowInfoAsync(string title, string message)
-    {
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = title,
-            Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
-            CloseButtonText = Localization.T("好"),
-        };
-        await dialog.ShowAsync();
-    }
+    private Task ShowInfoAsync(string title, string message)
+        => Ui.Dialogs.InfoAsync(XamlRoot, title, message);
 }

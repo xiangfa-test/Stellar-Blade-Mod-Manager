@@ -173,16 +173,7 @@ public sealed partial class SettingsPage : Page
     private void OpenLogs_Click(object sender, RoutedEventArgs e) => Log.OpenLogFolder();
 
     private void ShowInfo(string title, string message)
-    {
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = title,
-            Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
-            CloseButtonText = Localization.T("好"),
-        };
-        UiTask.Safe(dialog.ShowAsync());
-    }
+        => Ui.Dialogs.ShowInfo(XamlRoot, title, message);
 
     private void ShowError(string message) => ShowInfo("提示", message);
 

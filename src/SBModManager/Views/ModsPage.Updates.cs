@@ -282,21 +282,8 @@ public sealed partial class ModsPage
         public string WinnerText { get; init; } = "";
     }
 
-    private async Task ShowInfoDialogAsync(string title, string message)
-    {
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = title,
-            Content = new ScrollViewer
-            {
-                MaxHeight = 460,
-                Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
-            },
-            CloseButtonText = Localization.T("好"),
-        };
-        await dialog.ShowAsync();
-    }
+    private Task ShowInfoDialogAsync(string title, string message)
+        => Ui.Dialogs.InfoAsync(XamlRoot, title, message);
 
     private async void UpdateMod_Click(object sender, RoutedEventArgs e)
     {
