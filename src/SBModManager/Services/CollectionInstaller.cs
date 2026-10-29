@@ -23,8 +23,8 @@ public sealed class CollectionInstallReport
 public static class CollectionInstaller
 {
 
-    /// <summary>State used by this service; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = AppServices.State;
+    /// <summary>Resolved live from the composition root, so tests can swap it via AppServices.WithState.</summary>
+    private static IAppState State => AppServices.State;
 
     /// <summary>Tag given to mods the user imported manually, so they can be switched back to.</summary>
     public const string LocalTag = "合集:本地安装";

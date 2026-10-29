@@ -16,7 +16,7 @@ public sealed class EnableResult
 /// </summary>
 public static class ModActions
 {
-    public static IAppState State { get; set; } = AppServices.State;
+    private static IAppState State => AppServices.State;
 
     public static ImportResult Import(string path)
     {
@@ -56,23 +56,64 @@ public static class ModActions
             return new EnableResult { Success = false, Dependencies = dependencies, Error = "缺少必要依赖。" };
         }
 
-        if (!string.IsNullOrWhiteSpace(record.GroupKey))
+        // Versions of the same mod are meant to replace each other, so their files never count as
+        // conflicts; conflicts against *other* mods or the game itself block the enable before any
+        // sibling is touched. That way a rejected enable never leaves the library with no version.
+        var siblings = string.IsNullOrWhiteSpace(record.GroupKey)
+            ? new List<ModRecord>()
+            : State.Library.Where(m =>
+                m.Id != record.Id && State.IsEnabled(m.Id) &&
+                string.Equals(m.GroupKey, record.GroupKey, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (!force)
         {
-            foreach (var sibling in State.Library.Where(m =>
-                         m.Id != record.Id && State.IsEnabled(m.Id) &&
-                         string.Equals(m.GroupKey, record.GroupKey, StringComparison.OrdinalIgnoreCase)))
+            var conflicts = Deployer.CheckConflicts(record, gameDir, siblings.Select(m => m.Id));
+            if (conflicts.Count > 0)
             {
-                Deployer.Undeploy(sibling.Id);
+                return new EnableResult { Success = false, Conflicts = conflicts, Error = "存在文件冲突。" };
             }
         }
 
-        var result = Deployer.Deploy(record, gameDir, force: force);
-        if (!result.Success && result.Conflicts.Count > 0)
+        var disabledSiblings = new List<ModRecord>();
+        foreach (var sibling in siblings)
         {
-            return new EnableResult { Success = false, Conflicts = result.Conflicts, Error = "存在文件冲突。" };
+            Deployer.Undeploy(sibling.Id);
+            disabledSiblings.Add(sibling);
         }
 
-        return new EnableResult { Success = result.Success, Error = result.Error, Dependencies = dependencies };
+        var result = Deployer.Deploy(record, gameDir, force: force);
+        if (!result.Success)
+        {
+            RestoreSiblings(disabledSiblings, gameDir);
+            return new EnableResult
+            {
+                Success = false,
+                Conflicts = result.Conflicts,
+                Error = result.Error,
+                Dependencies = dependencies,
+            };
+        }
+
+        return new EnableResult { Success = true, Dependencies = dependencies };
+    }
+
+    /// <summary>Put back the sibling versions that were disabled for a hand-over that then failed.</summary>
+    private static void RestoreSiblings(List<ModRecord> siblings, string gameDir)
+    {
+        foreach (var sibling in siblings
+                     .OrderBy(m => m.Priority)
+                     .ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var restored = Deployer.Deploy(sibling, gameDir, force: true);
+            if (restored.Success)
+            {
+                Log.Info($"启用新版本失败，已恢复原版本: {sibling.Name}");
+            }
+            else
+            {
+                Log.Warn($"启用新版本失败，且原版本恢复失败: {sibling.Name} — {restored.Error}");
+            }
+        }
     }
 
     public static void Disable(ModRecord record) => Deployer.Undeploy(record.Id);

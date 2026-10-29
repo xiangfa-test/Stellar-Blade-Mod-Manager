@@ -130,11 +130,49 @@ public static class Deployer
     /// <summary>Serializes all file operations on the game folder (deploy/undeploy/redeploy).</summary>
     private static readonly object FileLock = new();
 
-    /// <summary>State used by the deployer; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = AppServices.State;
+    /// <summary>Resolved live from the composition root, so tests can swap it via AppServices.WithState.</summary>
+    private static IAppState State => AppServices.State;
 
     /// <summary>Raised after deploy/undeploy/redeploy so caches (conflict stats) can be dropped.</summary>
     public static event Action? DeploymentChanged;
+
+    /// <summary>
+    /// Files this mod would overwrite that belong to another mod or to the game itself.
+    /// Exposed separately so a caller can reject a conflicting enable *before* it changes any
+    /// state (for example disabling the currently active version of the same mod).
+    /// </summary>
+    /// <param name="ignoreModIds">
+    /// Mods whose files do not count as conflicts because the caller is about to replace them,
+    /// e.g. the other versions of the same mod that are being handed over.
+    /// </param>
+    public static List<ModConflict> CheckConflicts(ModRecord mod, string gameDir,
+        IEnumerable<string>? ignoreModIds = null)
+    {
+        var conflicts = new List<ModConflict>();
+        if (string.IsNullOrWhiteSpace(gameDir) || !Directory.Exists(gameDir)) return conflicts;
+
+        HashSet<string>? ignored = ignoreModIds is null
+            ? null
+            : new HashSet<string>(ignoreModIds, StringComparer.OrdinalIgnoreCase);
+        var state = State;
+        foreach (var (_, target) in ComputeTargets(mod, gameDir))
+        {
+            if (!File.Exists(target)) continue;
+            var owner = DeployingModOf(target);
+            if (owner == mod.Id) continue; // already ours
+            if (owner is not null && ignored is not null && ignored.Contains(owner)) continue;
+            var other = owner is null
+                ? "外部文件"
+                : (state.Library.FirstOrDefault(m => m.Id == owner)?.Name ?? owner);
+            conflicts.Add(new ModConflict
+            {
+                TargetPath = target,
+                ModName = mod.Name,
+                OtherModName = other,
+            });
+        }
+        return conflicts;
+    }
 
     public static DeployResult Deploy(ModRecord mod, string gameDir, bool force, IProgress<string>? progress = null)
     {
@@ -158,23 +196,10 @@ public static class Deployer
         }
 
         var state = State.Deployed;
-        var conflicts = new List<ModConflict>();
-        foreach (var (_, target) in targets)
-        {
-            if (!File.Exists(target)) continue;
-            var owner = DeployingModOf(target);
-            if (owner == mod.Id) continue; // already ours
-            var other = owner is null ? "外部文件" : (State.Library.FirstOrDefault(m => m.Id == owner)?.Name ?? owner);
-            if (!force)
-            {
-                conflicts.Add(new ModConflict
-                {
-                    TargetPath = target,
-                    ModName = mod.Name,
-                    OtherModName = other,
-                });
-            }
-        }
+        // Only compute the conflict list when the caller did not force the deploy; the check
+        // itself is shared with ModActions so it can reject a conflicting enable before it
+        // disables the currently active version.
+        var conflicts = force ? new List<ModConflict>() : CheckConflicts(mod, gameDir);
         if (conflicts.Count > 0)
         {
             return new DeployResult { Success = false, Conflicts = conflicts, Error = "存在文件冲突。" };
@@ -320,11 +345,21 @@ public static class Deployer
     private static void UndeployCore(string modId)
     {
         var state = State.Deployed;
-        if (!state.Mods.Remove(modId, out var deployed)) return;
+        if (!state.Mods.TryGetValue(modId, out var deployed)) return;
+
+        // Record what is about to be removed. A crash between "files deleted" and "deployed.json
+        // saved" would otherwise leave the game without the mod files *and* without the original
+        // files still sitting in the backup store, with nothing to finish the job on next start.
+        var record = State.Library.FirstOrDefault(m => m.Id == modId);
+        if (State.GameDir is { } journalGameDir)
+        {
+            DeployJournal.BeginUndeploy(record, modId, journalGameDir, deployed);
+        }
+
+        state.Mods.Remove(modId);
 
         if (State.GameDir is { } gameDir)
         {
-            var record = State.Library.FirstOrDefault(m => m.Id == modId);
             if (record is not null)
             {
                 Ue4ssConfig.Apply(record, gameDir, enabled: false);
@@ -343,6 +378,7 @@ public static class Deployer
         RestoreBackups(modId, deployed, State.GameDir);
         RestoreDisplaced(deployed);
         State.SaveDeployed();
+        DeployJournal.Complete();
         DeploymentChanged?.Invoke();
         Log.Info($"已停用模组 {modId}，移除 {deployed.Files.Count} 个文件");
     }

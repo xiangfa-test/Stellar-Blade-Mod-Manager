@@ -334,6 +334,81 @@ public static class SelfTest
             ModActions.Delete(actionRecord);
             Check("ModActions 删除", AppServices.State.Library.All(m => m.Id != actionRecord.Id));
 
+            // 1h3) undeploy journal: a crash halfway through "disable" is finished on the next start
+            var undMod = new ModRecord { Name = "UndeployJournal", Type = ModType.Pak, Priority = 41 };
+            var undDir = AppPaths.ModDir(undMod.Id);
+            Directory.CreateDirectory(undDir);
+            File.WriteAllText(Path.Combine(undDir, "Und_P.pak"), "U");
+            undMod.Files = new List<string> { "Und_P.pak" };
+            ModStore.Save(undMod);
+            AppServices.State.ReloadLibrary();
+            var undTarget = Path.Combine(Deployer.PaksModsDir(gameDir), Deployer.PakFileName(undMod, "Und_P.pak"));
+            Directory.CreateDirectory(Path.GetDirectoryName(undTarget)!);
+            File.WriteAllText(undTarget, "ORIGINAL");
+            var undDeploy = Deployer.Deploy(undMod, gameDir, force: true);
+            var undBackupOk = AppServices.State.Deployed.Mods.TryGetValue(undMod.Id, out var undDeployed) &&
+                              undDeployed.Backups.TryGetValue(undTarget, out var undBackupPath) &&
+                              File.Exists(undBackupPath);
+            Check("停用日志：部署时备份了游戏原文件", undDeploy.Success && undBackupOk, undDeploy.Error);
+
+            if (undDeploy.Success && AppServices.State.Deployed.Mods.TryGetValue(undMod.Id, out var undSnapshot))
+            {
+                // Journal written, nothing removed yet: exactly the state a kill leaves behind.
+                DeployJournal.BeginUndeploy(undMod, undMod.Id, gameDir, undSnapshot);
+                DeployJournal.Recover();
+            }
+            Check("未完成的停用被完成：原文件已还原",
+                File.Exists(undTarget) && File.ReadAllText(undTarget) == "ORIGINAL");
+            Check("未完成的停用被完成：状态里已不再启用", !AppServices.State.IsEnabled(undMod.Id));
+            try { Directory.Delete(undDir, recursive: true); } catch { }
+            try { if (File.Exists(undTarget)) File.Delete(undTarget); } catch { }
+
+            // 1h4) a rejected enable must not cost the user their currently active version
+            var sibA = new ModRecord
+            {
+                Name = "SiblingA", Type = ModType.Pak, Priority = 40, GroupKey = "selftest-handover",
+            };
+            var sibB = new ModRecord
+            {
+                Name = "SiblingB", Type = ModType.Pak, Priority = 40, GroupKey = "selftest-handover",
+            };
+            var dirA = AppPaths.ModDir(sibA.Id);
+            var dirB = AppPaths.ModDir(sibB.Id);
+            Directory.CreateDirectory(dirA);
+            Directory.CreateDirectory(dirB);
+            File.WriteAllText(Path.Combine(dirA, "SibShared_P.pak"), "A");
+            File.WriteAllText(Path.Combine(dirB, "SibShared_P.pak"), "B");
+            File.WriteAllText(Path.Combine(dirB, "SibExtra_P.pak"), "B2");
+            sibA.Files = new List<string> { "SibShared_P.pak" };
+            sibB.Files = new List<string> { "SibShared_P.pak", "SibExtra_P.pak" };
+            ModStore.Save(sibA);
+            ModStore.Save(sibB);
+            AppServices.State.ReloadLibrary();
+
+            Check("同组版本：旧版本启用成功", ModActions.Enable(sibA).Success);
+            var extraTarget = Path.Combine(Deployer.PaksModsDir(gameDir), Deployer.PakFileName(sibB, "SibExtra_P.pak"));
+            Directory.CreateDirectory(Path.GetDirectoryName(extraTarget)!);
+            File.WriteAllText(extraTarget, "GAME-FILE");
+
+            var blockedEnable = ModActions.Enable(sibB);
+            Check("与外部文件冲突的启用被拒绝",
+                !blockedEnable.Success && blockedEnable.Conflicts.Count > 0, blockedEnable.Error);
+            Check("启用被拒绝时原版本仍然启用", AppServices.State.IsEnabled(sibA.Id));
+
+            // Without the external file the hand-over must still replace the old version.
+            try { File.Delete(extraTarget); } catch { }
+            sibB.Files = new List<string> { "SibShared_P.pak" };
+            ModStore.Save(sibB);
+            AppServices.State.ReloadLibrary();
+            var handover = ModActions.Enable(sibB);
+            Check("同组版本切换不被自身文件冲突挡住",
+                handover.Success && AppServices.State.IsEnabled(sibB.Id) &&
+                !AppServices.State.IsEnabled(sibA.Id), handover.Error);
+
+            try { ModActions.Delete(sibA); } catch { }
+            try { ModActions.Delete(sibB); } catch { }
+            try { if (File.Exists(extraTarget)) File.Delete(extraTarget); } catch { }
+
             // 1j) translation language detection
             Check("翻译方向识别",
                 TranslationService.LooksChinese("这是一段中文说明") &&

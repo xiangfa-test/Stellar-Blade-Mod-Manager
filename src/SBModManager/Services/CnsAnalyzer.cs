@@ -11,8 +11,8 @@ namespace SBModManager.Services;
 public static class CnsAnalyzer
 {
 
-    /// <summary>State used by this service; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = AppServices.State;
+    /// <summary>Resolved live from the composition root, so tests can swap it via AppServices.WithState.</summary>
+    private static IAppState State => AppServices.State;
 
     // CNS json files often contain trailing commas and comments.
     private static readonly JsonDocumentOptions JsonOptions = new()

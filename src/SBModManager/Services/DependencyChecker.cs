@@ -19,8 +19,8 @@ public sealed class DependencyIssue
 public static class DependencyChecker
 {
 
-    /// <summary>State used by this service; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = AppServices.State;
+    /// <summary>Resolved live from the composition root, so tests can swap it via AppServices.WithState.</summary>
+    private static IAppState State => AppServices.State;
 
     public static List<DependencyIssue> Check(ModRecord record)
     {

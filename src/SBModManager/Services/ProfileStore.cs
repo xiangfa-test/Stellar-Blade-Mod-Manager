@@ -22,8 +22,8 @@ public sealed class ModProfile
 public static class ProfileStore
 {
 
-    /// <summary>State used by this service; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = AppServices.State;
+    /// <summary>Resolved live from the composition root, so tests can swap it via AppServices.WithState.</summary>
+    private static IAppState State => AppServices.State;
 
     private static string DirectoryPath => Path.Combine(AppPaths.Root, "profiles");
 
