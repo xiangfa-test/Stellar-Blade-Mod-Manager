@@ -1,7 +1,7 @@
 # AGENTS.md — 剑星 MOD 管理器 开发交接
 
 > 本文件是给后续会话/开发者的工作提示词：项目状态、构建、测试、架构、坑、发布流程。
-> 会话归档时版本：**v1.14.2**（发版改动仍在工作树，未提交；上一次提交为 `662e345`）。
+> 会话归档时版本：**v1.14.2**（已发布；源码 `0f60186`，tag `v1.14.2`）。
 
 ## 1. 项目概览
 
@@ -241,7 +241,13 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 ## 8. 发布流程（每次都要走完）
 
 1. 升版本：`SBModManager.csproj` 的 `<Version>`、`AboutPage.xaml`、`README.md`
-2. 写 `_scratch/release/notes-vX.Y.Z.md`：**只写本版新增/修复**，不带作者、不带历史
+2. 写 `_scratch/release/notes-vX.Y.Z.md`：**只写本版改动**，不带作者、不带历史
+   - 体例：`## 剑星 MOD 管理器 vX.Y.Z` → `### 新增` / `### 修复` / `### 说明`
+     （个别版本可加 `### 改进`、`### 内部改进`）
+   - **总长 10～20 行**，一条一行；写「用户看到的现象 → 现在怎样」，
+     不写实现细节（`Entry.Kind`、`ApplyDeferred`、`SelectionBoxItem` 这类留给自己看）
+   - 只有主干功能加 `**粗体**`，其余不加
+   - 可直接参考 `notes-v1.13.1.md`（6 行）、`notes-v1.13.3.md`（12 行）、`notes-v1.14.0.md`（18 行）
 3. `.\build.ps1`（或上面的 dotnet build）→ 0 warning / 0 error
 4. 暂存：把 `bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\*` 复制到
    `_scratch/distXYZ/SBModManager`，排除 `SBMM-Data`、`navcol.png`
