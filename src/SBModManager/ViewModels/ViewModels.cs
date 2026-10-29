@@ -163,23 +163,3 @@ public sealed class ExternalItem : ObservableObject
     public string Subtitle => $"{TypeLabel}  ·  {SizeText}  ·  {FilesText}";
     public IReadOnlyList<string> Files => Mod.Files;
 }
-
-public sealed class LogItem
-{
-    public string Text { get; init; } = "";
-    public DateTime Time { get; init; } = DateTime.Now;
-}
-
-public sealed class LogFeed
-{
-    public ObservableCollection<LogItem> Items { get; } = new();
-
-    public LogFeed()
-    {
-        Log.LineWritten += line =>
-        {
-            Items.Add(new LogItem { Text = line });
-            while (Items.Count > 400) Items.RemoveAt(0);
-        };
-    }
-}
