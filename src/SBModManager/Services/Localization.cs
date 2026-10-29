@@ -67,28 +67,77 @@ public static class Localization
         return result;
     }
 
-    /// <summary>Translate every known string below <paramref name="root"/>.</summary>
+    /// <summary>
+    /// Translate now and again after the next layout pass. Controls created by a DataTemplate,
+    /// rebuilt in code, or living inside a collapsed ScrollViewer do not exist yet during the
+    /// one-time pass that runs on navigation, so they would keep their Chinese text.
+    /// </summary>
+    public static void ApplyDeferred(DependencyObject? root)
+    {
+        if (root is null) return;
+        Apply(root);
+        if (root is FrameworkElement element && element.DispatcherQueue is { } queue)
+        {
+            queue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => Apply(root));
+        }
+    }
+
+    /// <summary>
+    /// Translate every known string below <paramref name="root"/>. Failures are isolated per node:
+    /// WinUI throws for some elements (for example inside a collapsed ScrollViewer), and a single
+    /// throw used to abort the whole subtree, silently leaving later controls in Chinese.
+    /// </summary>
     public static void Apply(DependencyObject? root)
     {
         if (root is null) return;
+
         try
         {
             ApplyElement(root);
-            var count = VisualTreeHelper.GetChildrenCount(root);
-            for (var i = 0; i < count; i++)
-            {
-                Apply(VisualTreeHelper.GetChild(root, i));
-            }
         }
         catch (Exception ex)
         {
-            Log.Warn("应用翻译失败: " + ex.Message);
+            Log.Warn($"应用翻译失败（{root.GetType().Name}）: {ex.GetType().Name} {ex.Message}");
+        }
+
+        int count;
+        try
+        {
+            count = VisualTreeHelper.GetChildrenCount(root);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"读取子元素失败（{root.GetType().Name}）: {ex.GetType().Name} {ex.Message}");
+            return;
+        }
+
+        for (var i = 0; i < count; i++)
+        {
+            DependencyObject? child;
+            try
+            {
+                child = VisualTreeHelper.GetChild(root, i);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"读取子元素失败（{root.GetType().Name}[{i}]）: {ex.GetType().Name} {ex.Message}");
+                continue;
+            }
+            Apply(child);
         }
     }
 
     private static string Original(DependencyObject element, string current, string fallbackKey)
     {
-        if (Originals.TryGetValue(element, out var stored)) return stored;
+        if (Originals.TryGetValue(element, out var stored))
+        {
+            // The cache only helps for text that can actually be translated. A page that
+            // re-populated this element after a language switch stores a composed string
+            // (e.g. "Current: D:\..."), which is not a table key; keeping it would make the
+            // next Apply write the previous language back.
+            if (_table.ContainsKey(stored)) return stored;
+            Originals.Remove(element);
+        }
         var value = !string.IsNullOrWhiteSpace(current) ? current : fallbackKey;
         Originals.Add(element, value);
         return value;
@@ -126,16 +175,57 @@ public static class Localization
                 break;
 
             case ComboBox combo:
+            {
+                // Snapshot first: replacing an item while enumerating a WinRT ItemCollection
+                // throws a COMException, which aborted this ComboBox entirely (and, before the
+                // per-node isolation, every control after it in the tree).
+                var items = new List<object>();
                 foreach (var item in combo.Items)
                 {
-                    if (item is ComboBoxItem comboItem) ApplyElement(comboItem);
-                    else if (item is string text && _table.ContainsKey(text))
+                    items.Add(item);
+                }
+
+                var selectedIndex = combo.SelectedIndex;
+                var selectedTextChanged = false;
+                for (var index = 0; index < items.Count; index++)
+                {
+                    var item = items[index];
+                    if (item is ComboBoxItem comboItem)
                     {
-                        var index = combo.Items.IndexOf(item);
-                        if (index >= 0) combo.Items[index] = T(text);
+                        // Keep the item object: pages read its Tag / SelectedItem.
+                        var before = comboItem.Content as string;
+                        ApplyElement(comboItem);
+                        if (index == selectedIndex &&
+                            !string.Equals(before, comboItem.Content as string, StringComparison.Ordinal))
+                        {
+                            selectedTextChanged = true;
+                        }
+                    }
+                    else if (combo.ItemsSource is null &&
+                             item is string text &&
+                             _table.TryGetValue(text, out var translated) &&
+                             !string.IsNullOrEmpty(translated) &&
+                             translated != text)
+                    {
+                        combo.Items[index] = translated;
+                        if (index == selectedIndex)
+                        {
+                            selectedTextChanged = true;
+                        }
                     }
                 }
+
+                // The closed ComboBox is painted from a cached SelectionBoxItem, so translating
+                // the items alone leaves the old text on screen. Re-selecting the same index
+                // refreshes it; page handlers ignore the transient empty selection (see the
+                // "_loading / SelectedItem is null" guards in the settings page).
+                if (selectedTextChanged && selectedIndex >= 0)
+                {
+                    combo.SelectedIndex = -1;
+                    combo.SelectedIndex = selectedIndex;
+                }
                 break;
+            }
 
             case TextBox box when !string.IsNullOrWhiteSpace(box.PlaceholderText):
                 box.PlaceholderText = T(Original(box, box.PlaceholderText, ""));
