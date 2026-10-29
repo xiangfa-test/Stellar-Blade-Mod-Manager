@@ -10,8 +10,8 @@ namespace SBModManager.Services;
 public static class ModUpdater
 {
 
-    /// <summary>State used by this service; replaceable for tests.</summary>
-    public static IAppState State { get; set; } = AppServices.State;
+    /// <summary>Resolved live from the composition root, so tests can swap it via AppServices.WithState.</summary>
+    private static IAppState State => AppServices.State;
 
     private static readonly Regex GenericName = new(@"^(nxm-\d+-\d+|file \d+|未命名模组|\d+)$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -94,16 +94,13 @@ public static class ModUpdater
         return filled;
     }
 
-    /// <summary>Returns the newest main-category file, or null when unchanged/unavailable.</summary>
+    /// <summary>Returns the newest MAIN-category file (falls back to the newest file), or null when unavailable.</summary>
     public static async Task<NexusFileInfo?> GetLatestFileAsync(ModRecord record, string apiKey,
         string domain, CancellationToken ct = default)
     {
         var files = await NexusService.GetFilesAsync(domain, record.NexusModId!.Value, apiKey, ct);
-        return files
-            .Where(f => f.FileId > 0 && !string.IsNullOrWhiteSpace(f.Name))
-            .OrderByDescending(f => f.UploadedTimestamp)
-            .ThenByDescending(f => f.FileId)
-            .FirstOrDefault();
+        // MAIN 类优先，避免把可选补丁/旧版本当成最新版本装进去。
+        return NexusService.SelectLatestFile(files, record.Name);
     }
 
     /// <summary>Download and replace the record's files. Returns the updated record or throws.</summary>

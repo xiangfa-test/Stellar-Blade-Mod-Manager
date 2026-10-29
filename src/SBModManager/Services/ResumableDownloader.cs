@@ -135,9 +135,23 @@ public static class ResumableDownloader
                 }
 
                 // The part file must be closed before it can be moved onto the target.
-                if (total > 0 && done != total)
+                // 空响应（0 字节）永远算失败，否则被截断的传输会被当成下载成功。
+                if (done == 0)
+                {
+                    throw new IOException("下载到的内容为空（0 字节）");
+                }
+
+                // 服务器给了长度（Content-Length / Content-Range，含 0）就必须严格匹配；
+                // 没给长度（chunked）时只能做非空校验，由调用方再验证文件格式。
+                if (total >= 0 && done != total)
                 {
                     throw new IOException($"下载不完整：{done}/{total} 字节");
+                }
+
+                if (total < 0)
+                {
+                    Log.Warn($"服务器未提供文件长度（chunked），无法按长度校验完整性: " +
+                             $"{Path.GetFileName(targetPath)}（{done} 字节）");
                 }
 
                 MoveWithRetry(partPath, targetPath);

@@ -14,10 +14,8 @@ public static class NexusInstaller
             var files = detail?.Files is { Count: > 0 } known
                 ? known
                 : await NexusService.GetFilesAsync(domain, modId, apiKey, ct).ConfigureAwait(false);
-            var main = files
-                .Where(f => f.FileId > 0)
-                .OrderByDescending(f => f.UploadedTimestamp)
-                .FirstOrDefault();
+            // MAIN 类优先：可选补丁/旧版本的时间戳更新，不能直接当主文件下载。
+            var main = NexusService.SelectLatestFile(files, $"mods/{modId}");
             if (main is null) return (null, "该模组没有可下载的主文件。");
 
             progress?.Report("获取下载地址…");

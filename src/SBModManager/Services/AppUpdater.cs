@@ -150,6 +150,7 @@ public static class AppUpdater
 
         await GitHubService.DownloadAsync(info.Package.DownloadUrl, zipPath, progress, ct).ConfigureAwait(false);
 
+        // 有校验清单就必须匹配：校验不过的文件直接删除，绝不进入解压/替换流程。
         if (info.Checksums is not null)
         {
             var sumsPath = Path.Combine(root, "SHA256SUMS.txt");
@@ -157,15 +158,24 @@ public static class AppUpdater
             var expected = ParseChecksum(await File.ReadAllTextAsync(sumsPath, ct).ConfigureAwait(false), info.Package.Name);
             if (expected is null)
             {
-                throw new InvalidOperationException("SHA256SUMS.txt 里没有这个压缩包的校验值。");
+                TryDeleteFile(zipPath);
+                throw new InvalidOperationException("SHA256SUMS.txt 里没有这个压缩包的校验值，已删除下载文件并取消更新。");
             }
 
             var actual = await ComputeSha256Async(zipPath, ct).ConfigureAwait(false);
             if (!string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException($"下载的安装包校验失败（期望 {expected[..12]}…，实际 {actual[..12]}…）。");
+                TryDeleteFile(zipPath);
+                throw new InvalidOperationException(
+                    $"下载的安装包校验失败（期望 {Preview(expected)}…，实际 {Preview(actual)}…），已删除文件。");
             }
             Log.Info("更新包 SHA256 校验通过: " + actual);
+        }
+        else
+        {
+            // 没有校验清单时不能静默放过：明确记录，并至少确认下载物是完整可读的 zip。
+            Log.Warn("该 Release 没有 SHA256SUMS.txt，跳过 SHA256 校验，改为校验 zip 可读性: " + info.Version);
+            EnsureReadableZip(zipPath);
         }
 
         var stage = Path.Combine(root, "stage");
@@ -257,6 +267,43 @@ Remove-Item -Path $PSCommandPath -Force
             if (x != y) return x.CompareTo(y);
         }
         return 0;
+    }
+
+    /// <summary>First 12 characters of a hash, for log/error messages (tolerates short values).</summary>
+    private static string Preview(string value) => value.Length <= 12 ? value : value[..12];
+
+    /// <summary>No manifest available: at least prove the download is a readable, non-empty zip.</summary>
+    private static void EnsureReadableZip(string zipPath)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(zipPath);
+            if (archive.Entries.Count > 0) return;
+
+            TryDeleteFile(zipPath);
+            throw new InvalidOperationException("下载的更新包是空的，已取消更新。");
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            TryDeleteFile(zipPath);
+            throw new InvalidOperationException("下载的更新包不是可读的 zip（可能被截断），已删除文件。", ex);
+        }
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("删除更新缓存失败 " + path + ": " + ex.Message);
+        }
     }
 
     private static string? ParseChecksum(string text, string fileName)

@@ -310,6 +310,38 @@ public static class NexusService
         return result;
     }
 
+    /// <summary>
+    /// Nexus category that marks a mod's primary download.
+    /// v1 返回 "MAIN"；v3 的 category 可能是 "main_file" 之类的变体，用前缀匹配容错。
+    /// </summary>
+    private static bool IsMainCategory(NexusFileInfo file)
+        => file.Category.Trim().StartsWith("MAIN", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Pick the newest file, preferring the MAIN category: optional patches and archived builds are
+    /// uploaded later than the main file, so ordering by timestamp alone would install them as an update.
+    /// Falls back to the newest file of any category (with a warning) when the mod has no MAIN file.
+    /// </summary>
+    public static NexusFileInfo? SelectLatestFile(IEnumerable<NexusFileInfo> files, string context = "")
+    {
+        var usable = files.Where(f => f.FileId > 0).ToList();
+        var named = usable.Where(f => !string.IsNullOrWhiteSpace(f.Name)).ToList();
+        if (named.Count > 0) usable = named; // 没名字的条目无法下载/展示，能排除就排除
+
+        var ordered = usable
+            .OrderByDescending(f => f.UploadedTimestamp)
+            .ThenByDescending(f => f.FileId)
+            .ToList();
+        if (ordered.Count == 0) return null;
+
+        var main = ordered.Where(IsMainCategory).ToList();
+        if (main.Count > 0) return main[0];
+
+        Log.Warn("Nexus 上没有 MAIN 类文件，回退到最新文件: " +
+                 (string.IsNullOrWhiteSpace(context) ? ordered[0].Name : context) + " → " + ordered[0].Name);
+        return ordered[0];
+    }
+
     public static async Task<UpdateInfo> CheckAsync(ModRecord mod, string apiKey, string domain,
         CancellationToken ct = default)
     {
@@ -348,7 +380,9 @@ public static class NexusService
                 };
             }
 
-            var latest = files.OrderByDescending(f => f.UploadedTimestamp).First();
+            // MAIN 优先：可选补丁/旧版本的时间戳更新，不能直接当成「最新版本」。
+            var latest = SelectLatestFile(files, mod.Name)
+                         ?? files.OrderByDescending(f => f.UploadedTimestamp).First();
             var page = await GetModInfoAsync(domain, mod.NexusModId.Value, apiKey, ct).ConfigureAwait(false);
             var latestVersion = page is { Version.Length: > 0 } ? page.Value.Version : latest.Version;
             var hasUpdate = latest.FileId != mod.NexusFileId &&
