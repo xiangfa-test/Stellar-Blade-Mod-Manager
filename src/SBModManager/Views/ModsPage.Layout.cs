@@ -8,6 +8,9 @@ namespace SBModManager.Views;
 
 public sealed partial class ModsPage
 {
+    /// <summary>Single-shot timer used to debounce search-box rebuilds.</summary>
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _searchRebuildTimer;
+
     private void DetailSplitter_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
         _splitterDragging = true;
@@ -83,8 +86,44 @@ public sealed partial class ModsPage
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
         {
-            RebuildMods();
+            ScheduleModsRebuild();
         }
+    }
+
+    /// <summary>
+    /// Typing used to rebuild the whole list (including the full conflict analysis) on every
+    /// keystroke, which made the search box laggy. Restart a single-shot 250 ms timer instead so
+    /// only the last keystroke triggers a rebuild. The timer runs on the UI thread and does not
+    /// block input while pending.
+    /// </summary>
+    private void ScheduleModsRebuild()
+    {
+        if (DispatcherQueue is null)
+        {
+            RebuildMods();
+            return;
+        }
+
+        var timer = _searchRebuildTimer;
+        if (timer is null)
+        {
+            timer = DispatcherQueue.CreateTimer();
+            timer.Interval = TimeSpan.FromMilliseconds(250);
+            timer.IsRepeating = false;
+            timer.Tick += (_, _) =>
+            {
+                _searchRebuildTimer?.Stop();
+                RebuildMods();
+            };
+            _searchRebuildTimer = timer;
+        }
+        else
+        {
+            // A newer keystroke supersedes the pending rebuild window.
+            timer.Stop();
+        }
+
+        timer.Start();
     }
 
     private void OnPageSizeChanged(object sender, SizeChangedEventArgs e)

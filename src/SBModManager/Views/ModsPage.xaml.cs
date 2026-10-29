@@ -120,23 +120,62 @@ public sealed partial class ModsPage : Page
     private static ConflictReport? _conflictCache;
     private static DateTimeOffset _conflictCacheAt;
     private static string _conflictCacheGameDir = "";
+    private static int _conflictCacheModsHash;
 
-    /// <summary>Conflict stats are expensive; reuse them until the deployment state changes.</summary>
+    /// <summary>Conflict stats are expensive; reuse them until the game dir or the enabled mod set changes.</summary>
     private static ConflictReport GetConflictReport(string gameDir)
     {
         lock (ConflictCacheLock)
         {
-            var deployedVersion = AppServices.State.Deployed.Mods.Count;
+            var state = AppServices.State;
+            var enabledIds = state.Library
+                .Where(m => state.IsEnabled(m.Id))
+                .Select(m => m.Id)
+                .OrderBy(id => id, StringComparer.Ordinal)
+                .ToList();
+
+            // Fewer than two enabled mods cannot share a target file, so skip the whole
+            // target/overlap computation (it walks every file of every mod).
+            if (enabledIds.Count < 2)
+            {
+                _conflictCache = null;
+                _conflictCacheGameDir = "";
+                _conflictCacheModsHash = 0;
+                return new ConflictReport();
+            }
+
+            // Key on the enabled id set, not just the deployed count: enabling/disabling a mod
+            // changes who conflicts without changing how many mods are deployed.
+            var modsHash = HashModIds(enabledIds);
             var fresh = _conflictCache is not null &&
                         _conflictCacheGameDir == gameDir &&
-                        _conflictCache.DeployedCount == deployedVersion;
+                        _conflictCacheModsHash == modsHash;
             if (fresh) return _conflictCache!;
 
             var report = Deployer.BuildConflictReport(gameDir);
             _conflictCache = report;
             _conflictCacheAt = DateTimeOffset.Now;
             _conflictCacheGameDir = gameDir;
+            _conflictCacheModsHash = modsHash;
             return report;
+        }
+    }
+
+    /// <summary>Deterministic hash of the ordered mod ids (unlike string.GetHashCode it is not randomized).</summary>
+    private static int HashModIds(IReadOnlyList<string> ids)
+    {
+        unchecked
+        {
+            var hash = 17;
+            foreach (var id in ids)
+            {
+                foreach (var ch in id)
+                {
+                    hash = (hash * 31) + ch;
+                }
+                hash = (hash * 31) + '|';
+            }
+            return hash;
         }
     }
 
