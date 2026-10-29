@@ -14,7 +14,7 @@ using SBModManager.Ui;
 
 namespace SBModManager.Views;
 
-public sealed partial class ModsPage : Page
+public sealed partial class ModsPage : Page, ILanguageAwarePage
 {
     private bool _initialized;
     private static bool _shownDataDirNotice;
@@ -87,6 +87,9 @@ public sealed partial class ModsPage : Page
 
     // ---------------------------------------------------------------- reload
 
+    /// <summary>Re-render text this page built in code after a live language switch.</summary>
+    public void OnLanguageChanged() => Reload();
+
     private void Reload()
     {
         State.ReloadLibrary();
@@ -105,7 +108,7 @@ public sealed partial class ModsPage : Page
         {
             _shownDataDirNotice = true;
             ShowMessage(InfoBarSeverity.Informational, Localization.T("数据目录已回退"),
-                $"默认数据目录不可写，已改用: {AppPaths.Root}");
+                string.Format(Localization.T("默认数据目录不可写，已改用: {0}"), AppPaths.Root));
         }
     }
 
@@ -269,8 +272,8 @@ public sealed partial class ModsPage : Page
     private void UpdateHeader()
     {
         GamePathText.Text = GameDir is null
-            ? "尚未设置游戏目录 — 请到「设置」中选择 StellarBlade 安装位置"
-            : "游戏目录: " + GameDir;
+            ? Localization.T("尚未设置游戏目录 — 请到「设置」中选择 StellarBlade 安装位置")
+            : string.Format(Localization.T("游戏目录: {0}"), GameDir);
     }
 
     private void UpdateStatus()
@@ -278,9 +281,14 @@ public sealed partial class ModsPage : Page
         var enabled = State.Library.Count(m => State.IsEnabled(m.Id));
         var total = State.Library.Count;
         var running = GameDir is not null && GameLocator.IsGameRunning();
-        StatusLineText.Text = $"已启用 {enabled}/{total}" + (running ? " · 游戏运行中" : " · 游戏未运行");
+        StatusLineText.Text = string.Format(Localization.T("已启用 {0}/{1}"), enabled, total) +
+                              (running ? Localization.T(" · 游戏运行中") : Localization.T(" · 游戏未运行"));
         Ui.InfoBarAnimation.FadeIn(StatusLineText, 4, 160);
-        CountText.Text = GameDir is null ? "" : (Directory.Exists(Deployer.PaksModsDir(GameDir)) ? "~mods 目录已就绪" : "~mods 目录尚未创建");
+        CountText.Text = GameDir is null
+            ? ""
+            : (Directory.Exists(Deployer.PaksModsDir(GameDir))
+                ? Localization.T("~mods 目录已就绪")
+                : Localization.T("~mods 目录尚未创建"));
     }
 
     private void SetBusy(bool busy)
@@ -317,9 +325,9 @@ public sealed partial class ModsPage : Page
         {
             var paths = FileDialogService.PickFiles(
                 OwnerHandle(),
-                "选择模组压缩包",
-                new FileDialogService.DialogFilter("压缩包", "*.zip;*.7z;*.rar"),
-                new FileDialogService.DialogFilter("所有文件", "*.*"));
+                Localization.T("选择模组压缩包"),
+                new FileDialogService.DialogFilter(Localization.T("压缩包"), "*.zip;*.7z;*.rar"),
+                new FileDialogService.DialogFilter(Localization.T("所有文件"), "*.*"));
             if (paths.Count == 0) return;
             await ImportFilesAsync(paths.ToList());
         }
@@ -336,9 +344,9 @@ public sealed partial class ModsPage : Page
         {
             var paths = FileDialogService.PickFiles(
                 OwnerHandle(),
-                "选择 .pak / .ucas / .utoc",
-                new FileDialogService.DialogFilter("Unreal 包", "*.pak;*.ucas;*.utoc"),
-                new FileDialogService.DialogFilter("所有文件", "*.*"));
+                Localization.T("选择 .pak / .ucas / .utoc"),
+                new FileDialogService.DialogFilter(Localization.T("Unreal 包"), "*.pak;*.ucas;*.utoc"),
+                new FileDialogService.DialogFilter(Localization.T("所有文件"), "*.*"));
             if (paths.Count == 0) return;
 
             SetBusy(true);
@@ -358,7 +366,7 @@ public sealed partial class ModsPage : Page
     {
         try
         {
-            var folder = FileDialogService.PickFolder(OwnerHandle(), "选择模组文件夹");
+            var folder = FileDialogService.PickFolder(OwnerHandle(), Localization.T("选择模组文件夹"));
             if (string.IsNullOrWhiteSpace(folder)) return;
 
             SetBusy(true);
@@ -417,7 +425,7 @@ public sealed partial class ModsPage : Page
         {
             panel.Children.Add(new TextBlock
             {
-                Text = string.IsNullOrWhiteSpace(step.Name) ? "安装选项" : step.Name,
+                Text = string.IsNullOrWhiteSpace(step.Name) ? Localization.T("安装选项") : step.Name,
                 Style = ResourceStyle("BodyStrongTextBlockStyle"),
             });
 
@@ -627,8 +635,13 @@ public sealed partial class ModsPage : Page
     private async Task<bool> AskForceDeployAsync(ModItem item, List<ModConflict> conflicts)
     {
         var text = string.Join(Environment.NewLine, conflicts.Take(12).Select(c =>
-            $"• {Path.GetFileName(c.TargetPath)}  （已被 {c.OtherModName} 占用）"));
-        if (conflicts.Count > 12) text += Environment.NewLine + $"… 以及另外 {conflicts.Count - 12} 个文件";
+            string.Format(Localization.T("• {0}  （已被 {1} 占用）"),
+                Path.GetFileName(c.TargetPath), c.OtherModName)));
+        if (conflicts.Count > 12)
+        {
+            text += Environment.NewLine +
+                    string.Format(Localization.T("… 以及另外 {0} 个文件"), conflicts.Count - 12);
+        }
 
         var dialog = new ContentDialog
         {
@@ -639,7 +652,11 @@ public sealed partial class ModsPage : Page
                 MaxHeight = 320,
                 Content = new TextBlock
                 {
-                    Text = $"「{item.Name}」要写入以下文件，但目标位置已有其他模组/文件：\n\n{text}\n\n强制启用会覆盖这些文件。",
+                    Text = string.Format(
+                        Localization.T("「{0}」要写入以下文件，但目标位置已有其他模组/文件：") +
+                        "\n\n" + text + "\n\n" +
+                        Localization.T("强制启用会覆盖这些文件。"),
+                        item.Name),
                     TextWrapping = TextWrapping.Wrap,
                 },
             },
@@ -668,7 +685,9 @@ public sealed partial class ModsPage : Page
                 }
                 else
                 {
-                    failed.Add(item.Name + (result.Conflicts.Count > 0 ? "（冲突）" : "（" + result.Error + "）"));
+                    failed.Add(item.Name + (result.Conflicts.Count > 0
+                        ? Localization.T("（冲突）")
+                        : string.Format(Localization.T("（{0}）"), result.Error)));
                 }
             }
         }
@@ -706,24 +725,49 @@ public sealed partial class ModsPage : Page
     private void ModList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         => UpdateDetails(ModList.SelectedItem as ModItem);
 
+    // ---------------------------------------------------------------- automation names
+
+    /// <summary>
+    /// Give each row a real automation name. A ListViewItem derives its name from the item's
+    /// ToString(), which for a view model is just the type name — screen readers and UI automation
+    /// then announce "SBModManager.ViewModels.ModItem" for every row instead of the mod name.
+    /// </summary>
+    private void ModList_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.ItemContainer is ListViewItem container && args.Item is ModItem item)
+        {
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(container, item.Name);
+        }
+    }
+
+    private void ExternalList_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.ItemContainer is ListViewItem container && args.Item is ExternalItem item)
+        {
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(container, item.Name);
+        }
+    }
+
 
 
     private async void DeleteMod_Click(object sender, RoutedEventArgs e)
     {
         if (ModList.SelectedItem is not ModItem item) return;
-        var deleteMessage = $"确定要从库中删除「{item.Name}」吗？\n如果它已启用，游戏中的文件也会一并移除。";
+        var deleteMessage = string.Format(Localization.T("确定要从库中删除「{0}」吗？"), item.Name) +
+                            "\n" + Localization.T("如果它已启用，游戏中的文件也会一并移除。");
         if (item.Record.Type == ModType.Ue4ssRuntime)
         {
             deleteMessage += "\n\n注意：这是 UE4SS 运行库，删除会把 ue4ss 文件夹和 dwmapi.dll 从 SB\\Binaries\\Win64 移除，" +
                              "所有脚本类模组都会停止工作。";
         }
-        if (!await ConfirmAsync("删除模组", deleteMessage)) return;
+        if (!await ConfirmAsync(Localization.T("删除模组"), deleteMessage)) return;
 
         try
         {
             ModActions.Delete(item.Record);
             Reload();
-            ShowMessage(InfoBarSeverity.Success, Localization.T("已删除"), $"「{item.Name}」已从模组库删除。");
+            ShowMessage(InfoBarSeverity.Success, Localization.T("已删除"),
+                string.Format(Localization.T("「{0}」已从模组库删除。"), item.Name));
         }
         catch (Exception ex)
         {
@@ -738,16 +782,19 @@ public sealed partial class ModsPage : Page
     {
         if ((e.OriginalSource as FrameworkElement)?.DataContext is not ModItem item) return;
         var flyout = new MenuFlyout();
-        var open = new MenuFlyoutItem { Text = "打开模组目录" };
+        var open = new MenuFlyoutItem { Text = Localization.T("打开模组目录") };
         open.Click += (_, _) => GameLocator.OpenFolder(item.Record.ModDir);
         flyout.Items.Add(open);
 
-        var toggle = new MenuFlyoutItem { Text = item.Enabled ? "停用" : "启用" };
+        var toggle = new MenuFlyoutItem
+        {
+            Text = item.Enabled ? Localization.T("停用") : Localization.T("启用"),
+        };
         toggle.Click += async (_, _) => await SetModEnabledAsync(item, !item.Enabled);
         flyout.Items.Add(toggle);
 
         flyout.Items.Add(new MenuFlyoutSeparator());
-        var delete = new MenuFlyoutItem { Text = "删除模组…" };
+        var delete = new MenuFlyoutItem { Text = Localization.T("删除模组…") };
         delete.Click += async (_, _) =>
         {
             ModList.SelectedItem = item;
@@ -765,7 +812,7 @@ public sealed partial class ModsPage : Page
         {
         if ((e.OriginalSource as FrameworkElement)?.DataContext is not ExternalItem item) return;
         var flyout = new MenuFlyout();
-        var open = new MenuFlyoutItem { Text = "在资源管理器中显示" };
+        var open = new MenuFlyoutItem { Text = Localization.T("在资源管理器中显示") };
         open.Click += (_, _) =>
         {
             var first = item.Files.FirstOrDefault();
@@ -776,13 +823,16 @@ public sealed partial class ModsPage : Page
         };
         flyout.Items.Add(open);
 
-        var delete = new MenuFlyoutItem { Text = "删除这些文件…" };
+        var delete = new MenuFlyoutItem { Text = Localization.T("删除这些文件…") };
         delete.Click += async (_, _) =>
         {
-            if (!await ConfirmAsync("删除外部文件", $"确定删除「{item.Name}」下的 {item.Mod.Files.Count} 个文件吗？此操作不可撤销。")) return;
+            if (!await ConfirmAsync(Localization.T("删除外部文件"),
+                string.Format(Localization.T("确定删除「{0}」下的 {1} 个文件吗？此操作不可撤销。"),
+                    item.Name, item.Mod.Files.Count))) return;
             Deployer.DeleteExternal(item.Mod);
             RebuildExternals();
-            ShowMessage(InfoBarSeverity.Success, Localization.T("已删除"), $"「{item.Name}」的外部文件已删除。");
+            ShowMessage(InfoBarSeverity.Success, Localization.T("已删除"),
+                string.Format(Localization.T("「{0}」的外部文件已删除。"), item.Name));
         };
         flyout.Items.Add(delete);
 
@@ -820,7 +870,7 @@ public sealed partial class ModsPage : Page
             e.AcceptedOperation = DataPackageOperation.Copy;
             if (e.DragUIOverride is not null)
             {
-                e.DragUIOverride.Caption = "导入到模组库";
+                e.DragUIOverride.Caption = Localization.T("导入到模组库");
                 e.DragUIOverride.IsCaptionVisible = true;
             }
         }

@@ -75,14 +75,14 @@ public sealed partial class ModsPage
 
         var updated = candidates
             .Where(r => r.UpdateAvailable && !r.IgnoreUpdate)
-            .Select(r => $"「{r.Name}」{r.VersionLabel} → {r.LatestVersion}")
+            .Select(r => string.Format(Localization.T("「{0}」{1} → {2}"), r.Name, r.VersionLabel, r.LatestVersion))
             .Take(8)
             .ToList();
         var detailText = updates > 0
-            ? "可更新的模组：\n" + string.Join("\n", updated) +
-              (updates > updated.Count ? $"\n…共 {updates} 个" : "")
-            : $"已检查 {candidates.Count} 个模组，没有发现更新。";
-        if (errors > 0) detailText += $"\n{errors} 个检查失败（见日志）。";
+            ? Localization.T("可更新的模组：") + "\n" + string.Join("\n", updated) +
+              (updates > updated.Count ? "\n" + string.Format(Localization.T("…共 {0} 个"), updates) : "")
+            : string.Format(Localization.T("已检查 {0} 个模组，没有发现更新。"), candidates.Count);
+        if (errors > 0) detailText += "\n" + string.Format(Localization.T("{0} 个检查失败（见日志）。"), errors);
 
         ShowMessage(updates > 0 ? InfoBarSeverity.Success : InfoBarSeverity.Informational,
             Localization.T("更新检查完成"), detailText);
@@ -107,12 +107,12 @@ public sealed partial class ModsPage
             else if (info.HasUpdate)
             {
                 ShowMessage(InfoBarSeverity.Success, Localization.T("发现新版本"),
-                    $"「{item.Name}」: {info.CurrentVersion} → {info.LatestVersion}" +
+                    string.Format(Localization.T("「{0}」: {1} → {2}"), item.Name, info.CurrentVersion, info.LatestVersion) +
                     (string.IsNullOrWhiteSpace(info.PageUrl) ? "" : "\n" + info.PageUrl));
             }
             else
             {
-                ShowMessage(InfoBarSeverity.Informational, Localization.T("已是最新"), $"「{item.Name}」没有检测到更新。");
+                ShowMessage(InfoBarSeverity.Informational, Localization.T("已是最新"), string.Format(Localization.T("「{0}」没有检测到更新。"), item.Name));
             }
         }
         finally
@@ -129,12 +129,12 @@ public sealed partial class ModsPage
 
         var report = Deployer.BuildConflictReport(gameDir);
         var sb = new StringBuilder();
-        sb.AppendLine($"共 {report.ConflictFileCount} 个文件被多个已启用模组同时写入。");
+        sb.AppendLine(string.Format(Localization.T("共 {0} 个文件被多个已启用模组同时写入。"), report.ConflictFileCount));
 
         if (report.HighConflictMods.Count > 0)
         {
             sb.AppendLine();
-            sb.AppendLine("按冲突数量排序的模组（高冲突 = 更容易被覆盖）：");
+            sb.AppendLine(Localization.T("按冲突数量排序的模组（高冲突 = 更容易被覆盖）："));
             foreach (var stat in report.HighConflictMods.Take(12))
             {
                 sb.AppendLine($"  {(stat.IsHigh ? "⚠" : "·")} {stat.ModName}  ×{stat.ConflictCount}");
@@ -144,12 +144,12 @@ public sealed partial class ModsPage
         if (report.Chains.Count == 0)
         {
             sb.AppendLine();
-            sb.AppendLine("当前已启用的模组之间没有文件级冲突。");
+            sb.AppendLine(Localization.T("当前已启用的模组之间没有文件级冲突。"));
         }
         else
         {
             sb.AppendLine();
-            sb.AppendLine("冲突链（左侧先加载，右侧覆盖左侧）：");
+            sb.AppendLine(Localization.T("冲突链（左侧先加载，右侧覆盖左侧）："));
             foreach (var chain in report.Chains.Take(30))
             {
                 sb.AppendLine();
@@ -159,7 +159,7 @@ public sealed partial class ModsPage
             if (report.Chains.Count > 30)
             {
                 sb.AppendLine();
-                sb.AppendLine($"…以及另外 {report.Chains.Count - 30} 个冲突文件");
+                sb.AppendLine(string.Format(Localization.T("…以及另外 {0} 个冲突文件"), report.Chains.Count - 30));
             }
         }
 
@@ -208,9 +208,9 @@ public sealed partial class ModsPage
 
         if (conflicts.Count == 0)
         {
-            await ShowInfoDialogAsync("资源级冲突分析",
-                "没有发现同名资源。\n\n注意：这是近似分析，只读取 .utoc 中明文存在的资源名；" +
-                "加密或压缩的 TOC 无法解析。");
+            await ShowInfoDialogAsync(Localization.T("资源级冲突分析"),
+                Localization.T("没有发现同名资源。") + "\n\n" +
+                Localization.T("注意：这是近似分析，只读取 .utoc 中明文存在的资源名；加密或压缩的 TOC 无法解析。"));
             return;
         }
 
@@ -221,7 +221,7 @@ public sealed partial class ModsPage
             {
                 Asset = c.Asset,
                 OrderText = string.Join(" → ", c.Owners),
-                WinnerText = "生效: " + c.Winner,
+                WinnerText = Localization.T("生效") + ": " + c.Winner,
             }).ToList(),
         };
         list.ItemTemplate = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load("""
@@ -237,14 +237,14 @@ public sealed partial class ModsPage
         var panel = new StackPanel { Spacing = 8 };
         panel.Children.Add(new TextBlock
         {
-            Text = $"发现 {conflicts.Count} 个资源被多个模组包含（显示前 200 个）：",
+            Text = string.Format(Localization.T("发现 {0} 个资源被多个模组包含（显示前 200 个）："), conflicts.Count),
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(list);
         panel.Children.Add(new TextBlock
         {
-            Text = "「生效」是当前加载顺序下最终胜出的模组；调整「加载顺序」页或 PAK 前缀即可改变。\n" +
-                   "注意：这是基于 .utoc 明文资源名的近似分析，加密/压缩的 TOC 无法读取。",
+            Text = Localization.T("「生效」是当前加载顺序下最终胜出的模组；调整「加载顺序」页或 PAK 前缀即可改变。") + "\n" +
+                   Localization.T("注意：这是基于 .utoc 明文资源名的近似分析，加密/压缩的 TOC 无法读取。"),
             TextWrapping = TextWrapping.Wrap,
             Opacity = 0.7,
         });
@@ -261,7 +261,8 @@ public sealed partial class ModsPage
         dialog.PrimaryButtonClick += (_, args) =>
         {
             var text = string.Join(Environment.NewLine, conflicts
-                .Select(c => $"{c.Asset} | {string.Join(" -> ", c.Owners)} | 生效: {c.Winner}"));
+                .Select(c => string.Format(Localization.T("{0} | {1} | 生效: {2}"),
+                    c.Asset, string.Join(" -> ", c.Owners), c.Winner)));
             var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
             package.SetText(text);
             Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
@@ -299,7 +300,8 @@ public sealed partial class ModsPage
         {
             XamlRoot = XamlRoot,
             Title = Localization.T("下载并更新"),
-            Content = $"将从 Nexus 下载最新主文件并替换「{record.Name}」。\n标签、备注、加载顺序和启用状态会保留。",
+            Content = string.Format(Localization.T("将从 Nexus 下载最新主文件并替换「{0}」。"), record.Name) + "\n" +
+                      Localization.T("标签、备注、加载顺序和启用状态会保留。"),
             PrimaryButtonText = Localization.T("更新"),
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
@@ -314,7 +316,7 @@ public sealed partial class ModsPage
                 State.Config.NexusApiKey, progress);
             Reload();
             ShowMessage(InfoBarSeverity.Success, Localization.T("更新完成"),
-                $"「{updated.Name}」已更新到 {updated.VersionLabel}。");
+                string.Format(Localization.T("「{0}」已更新到 {1}。"), updated.Name, updated.VersionLabel));
         }
         catch (Exception ex)
         {
@@ -342,7 +344,7 @@ public sealed partial class ModsPage
             var filled = await ModUpdater.FillVersionsAsync();
             Reload();
             ShowMessage(filled > 0 ? InfoBarSeverity.Success : InfoBarSeverity.Informational,
-                Localization.T("补全版本号"), filled > 0 ? $"已补全 {filled} 个模组的版本号。" : Localization.T("没有需要补全的版本号。"));
+                Localization.T("补全版本号"), filled > 0 ? string.Format(Localization.T("已补全 {0} 个模组的版本号。"), filled) : Localization.T("没有需要补全的版本号。"));
         }
         catch (Exception ex)
         {
@@ -369,7 +371,7 @@ public sealed partial class ModsPage
             var renamed = await ModUpdater.RenameGenericAsync();
             Reload();
             ShowMessage(renamed > 0 ? InfoBarSeverity.Success : InfoBarSeverity.Informational,
-                Localization.T("补全名称"), renamed > 0 ? $"已从 N 网补全 {renamed} 个模组的名称。" : Localization.T("没有需要补全的模组。"));
+                Localization.T("补全名称"), renamed > 0 ? string.Format(Localization.T("已从 N 网补全 {0} 个模组的名称。"), renamed) : Localization.T("没有需要补全的模组。"));
         }
         catch (Exception ex)
         {
@@ -389,6 +391,6 @@ public sealed partial class ModsPage
         ModStore.Save(item.Record);
         UpdateDetails(item);
         ShowMessage(InfoBarSeverity.Informational, Localization.T("更新提示"),
-            item.Record.IgnoreUpdate ? $"已忽略「{item.Name}」的更新提示。" : Localization.T("已恢复更新提示。"));
+            item.Record.IgnoreUpdate ? string.Format(Localization.T("已忽略「{0}」的更新提示。"), item.Name) : Localization.T("已恢复更新提示。"));
     }
 }

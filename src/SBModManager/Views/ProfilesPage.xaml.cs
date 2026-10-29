@@ -12,7 +12,7 @@ public sealed class ProfileItem
     public string Summary { get; set; } = "";
 }
 
-public sealed partial class ProfilesPage : Page
+public sealed partial class ProfilesPage : Page, ILanguageAwarePage
 {
     public ObservableCollection<ProfileItem> Profiles { get; } = new();
 
@@ -22,6 +22,9 @@ public sealed partial class ProfilesPage : Page
         ProfileList.ItemsSource = Profiles;
         Loaded += (_, _) => Reload();
     }
+
+    /// <summary>Re-render text this page built in code after a live language switch.</summary>
+    public void OnLanguageChanged() => Reload();
 
     private void Reload()
     {
@@ -33,10 +36,11 @@ public sealed partial class ProfilesPage : Page
             {
                 Id = profile.Id,
                 Name = profile.Name,
-                Summary = $"{enabled} 个启用 · 共 {profile.Entries.Count} 个模组 · {profile.CreatedAt.LocalDateTime:yyyy-MM-dd HH:mm}",
+                Summary = string.Format(Localization.T("{0} 个启用 · 共 {1} 个模组 · {2}"), enabled, profile.Entries.Count,
+                profile.CreatedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm")),
             });
         }
-        StatusText.Text = Profiles.Count == 0 ? "还没有方案，先点「保存当前为方案」。" : $"共 {Profiles.Count} 个方案。";
+        StatusText.Text = Profiles.Count == 0 ? Localization.T("还没有方案，先点「保存当前为方案」。") : string.Format(Localization.T("共 {0} 个方案。"), Profiles.Count);
     }
 
     private void Refresh_Click(object sender, RoutedEventArgs e) => Reload();
@@ -47,7 +51,7 @@ public sealed partial class ProfilesPage : Page
         {
         var box = new TextBox
         {
-            Text = "方案 " + DateTime.Now.ToString("MM-dd HH:mm"),
+            Text = Localization.T("方案 ") + DateTime.Now.ToString("MM-dd HH:mm"),
             SelectionStart = 1000,
         };
         var dialog = new ContentDialog
@@ -67,7 +71,8 @@ public sealed partial class ProfilesPage : Page
         var profile = ProfileStore.Capture(name);
         ProfileStore.Save(profile);
         Reload();
-        StatusText.Text = $"已保存方案「{name}」（{profile.Entries.Count(e => e.Enabled)} 个启用）。";
+        StatusText.Text = string.Format(Localization.T("已保存方案「{0}」（{1} 个启用）。"), name,
+                profile.Entries.Count(e => e.Enabled));
         }
         catch (Exception ex)
         {
@@ -89,23 +94,23 @@ public sealed partial class ProfilesPage : Page
         {
             XamlRoot = XamlRoot,
             Title = Localization.T("应用方案"),
-            Content = $"切换到「{profile.Name}」会停用不在该方案里的模组，并按方案顺序重新部署。",
+            Content = string.Format(Localization.T("切换到「{0}」会停用不在该方案里的模组，并按方案顺序重新部署。"), profile.Name),
             PrimaryButtonText = Localization.T("应用"),
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
         if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
 
-        StatusText.Text = "正在应用方案…";
+        StatusText.Text = Localization.T("正在应用方案…");
         var progress = new Progress<string>(text => StatusText.Text = text);
         var result = await Task.Run(() => ProfileStore.Apply(profile, progress));
         if (result.Enabled < 0)
         {
-            StatusText.Text = "请先在设置里选择游戏目录。";
+            StatusText.Text = Localization.T("请先在设置里选择游戏目录。");
             return;
         }
 
-        StatusText.Text = $"方案「{profile.Name}」已应用：启用 {result.Enabled} 个，失败 {result.Failed} 个。";
+        StatusText.Text = string.Format(Localization.T("方案「{0}」已应用：启用 {1} 个，失败 {2} 个。"), profile.Name, result.Enabled, result.Failed);
         Reload();
         }
         catch (Exception ex)
@@ -158,7 +163,7 @@ public sealed partial class ProfilesPage : Page
         {
             XamlRoot = XamlRoot,
             Title = Localization.T("删除方案"),
-            Content = $"确定删除「{profile.Name}」吗？只删除方案记录，不会改动已安装的模组。",
+            Content = string.Format(Localization.T("确定删除「{0}」吗？只删除方案记录，不会改动已安装的模组。"), profile.Name),
             PrimaryButtonText = Localization.T("删除"),
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Close,

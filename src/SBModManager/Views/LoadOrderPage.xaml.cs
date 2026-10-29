@@ -16,7 +16,7 @@ public sealed class LoadOrderItem
     public bool Enabled { get; set; }
 }
 
-public sealed partial class LoadOrderPage : Page
+public sealed partial class LoadOrderPage : Page, ILanguageAwarePage
 {
     public ObservableCollection<LoadOrderItem> Items { get; } = new();
 
@@ -28,6 +28,9 @@ public sealed partial class LoadOrderPage : Page
         OrderList.ItemsSource = Items;
         Loaded += (_, _) => Reload();
     }
+
+    /// <summary>Re-render text this page built in code after a live language switch.</summary>
+    public void OnLanguageChanged() => Reload();
 
     private void Reload()
     {
@@ -47,7 +50,7 @@ public sealed partial class LoadOrderPage : Page
                 Id = record.Id,
                 Name = record.Name,
                 Subtitle = record.DisplayType + (string.IsNullOrWhiteSpace(record.Version) ? "" : "  ·  v" + record.Version.TrimStart('v', 'V')),
-                EnabledText = State.IsEnabled(record.Id) ? "已启用" : "未启用",
+                EnabledText = State.IsEnabled(record.Id) ? Localization.T("已启用") : Localization.T("未启用"),
                 Enabled = State.IsEnabled(record.Id),
                 PriorityText = i.ToString(),
             });
@@ -58,7 +61,7 @@ public sealed partial class LoadOrderPage : Page
             OrderList.SelectedItem = Items.FirstOrDefault(i => i.Id == selectedId);
         }
 
-        StatusText.Text = $"{Items.Count} 个模组，拖动排序后点「应用顺序」。";
+        StatusText.Text = string.Format(Localization.T("{0} 个模组，拖动排序后点「应用顺序」。"), Items.Count);
     }
 
     private void Refresh_Click(object sender, RoutedEventArgs e) => Reload();
@@ -95,7 +98,7 @@ public sealed partial class LoadOrderPage : Page
         }
 
         State.ReloadLibrary();
-        StatusText.Text = "顺序已保存（尚未应用到游戏目录）。";
+        StatusText.Text = Localization.T("顺序已保存（尚未应用到游戏目录）。");
     }
 
     private async void Apply_Click(object sender, RoutedEventArgs e)
@@ -104,7 +107,7 @@ public sealed partial class LoadOrderPage : Page
         {
         if (State.GameDir is not { } gameDir)
         {
-            StatusText.Text = "请先在设置里选择游戏目录。";
+            StatusText.Text = Localization.T("请先在设置里选择游戏目录。");
             return;
         }
 
@@ -112,7 +115,7 @@ public sealed partial class LoadOrderPage : Page
         var (ok, failed) = Deployer.RedeployAll(gameDir);
         State.ReloadLibrary();
         Reload();
-        StatusText.Text = $"已按加载顺序重建部署：成功 {ok}，失败 {failed}。";
+        StatusText.Text = string.Format(Localization.T("已按加载顺序重建部署：成功 {0}，失败 {1}。"), ok, failed);
 
         if (failed > 0)
         {
@@ -123,7 +126,8 @@ public sealed partial class LoadOrderPage : Page
                 Content = new TextBlock
                 {
                     TextWrapping = TextWrapping.Wrap,
-                    Text = $"成功 {ok} 个，失败 {failed} 个。\n请查看日志或「模组管理 → 冲突链分析」了解冲突情况。",
+                    Text = string.Format(Localization.T("成功 {0} 个，失败 {1} 个。"), ok, failed) + "\n" +
+                           Localization.T("请查看日志或「模组管理 → 冲突链分析」了解冲突情况。"),
                 },
                 CloseButtonText = Localization.T("好"),
             };

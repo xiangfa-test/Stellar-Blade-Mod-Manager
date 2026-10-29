@@ -18,10 +18,10 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Title = "剑星 MOD 管理器";
 
         Services.GameCrashWatcher.CrashDetected += OnGameCrashDetected;
         Services.Localization.Initialize(Services.AppServices.State.Config.Language);
+        Title = Services.Localization.T("剑星 MOD 管理器");
 
         // Merge the caption area into the app content: the custom title bar uses the
         // Mica backdrop and WinUI-typed caption buttons instead of the system frame.
@@ -365,8 +365,20 @@ public sealed partial class MainWindow : Window
     public void ApplyLanguage()
     {
         Services.Localization.Initialize(Services.AppServices.State.Config.Language);
+
+        // The window title is plain text, not part of the visual tree Apply walks.
+        Title = Services.Localization.T("剑星 MOD 管理器");
+
         Services.Localization.Apply(NavView);
-        Services.Localization.Apply(ContentFrame.Content as DependencyObject);
+
+        // Pages that format text in code cannot be repaired by re-applying the table (the
+        // original Chinese is no longer present), so let them rebuild themselves first.
+        if (ContentFrame.Content is ILanguageAwarePage page)
+        {
+            page.OnLanguageChanged();
+        }
+        // RootGrid (not just NavView) so the custom title bar and the caption text are covered.
+        Services.Localization.Apply(RootGrid);
     }
 
     /// <summary>Show the debug page only when enabled in settings.</summary>

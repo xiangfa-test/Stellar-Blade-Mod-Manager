@@ -7,7 +7,7 @@ using SBModManager.ViewModels;
 
 namespace SBModManager.Views;
 
-public sealed partial class RuntimePage : Page
+public sealed partial class RuntimePage : Page, ILanguageAwarePage
 {
     public RuntimePage()
     {
@@ -18,6 +18,9 @@ public sealed partial class RuntimePage : Page
     public ObservableCollection<ModItem> Ue4ssMods { get; } = new();
 
     private IAppState State => AppServices.State;
+
+    /// <summary>Re-render text this page built in code after a live language switch.</summary>
+    public void OnLanguageChanged() => Refresh();
 
     private void Refresh()
     {
@@ -35,7 +38,7 @@ public sealed partial class RuntimePage : Page
         else
         {
             StatusLine.Text = Localization.T("未检测到 UE4SS 运行库。需要脚本模组时请先安装 UE4SS。");
-            PathLine.Text = "预期位置: " + Deployer.BinariesDir(gameDir);
+            PathLine.Text = string.Format(Localization.T("预期位置: {0}"), Deployer.BinariesDir(gameDir));
         }
 
         Ue4ssMods.Clear();

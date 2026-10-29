@@ -5,7 +5,7 @@ using SBModManager.Services;
 namespace SBModManager.Views;
 
 /// <summary>Diagnostics for the current build: environment info and the self-test suite.</summary>
-public sealed partial class DebugPage : Page
+public sealed partial class DebugPage : Page, ILanguageAwarePage
 {
     public DebugPage()
     {
@@ -15,14 +15,17 @@ public sealed partial class DebugPage : Page
 
     private static IAppState State => AppServices.State;
 
+    /// <summary>Re-render text this page built in code after a live language switch.</summary>
+    public void OnLanguageChanged() => Refresh();
+
     private void Refresh()
     {
-        VersionText.Text = "版本: " + AppUpdater.CurrentVersion;
-        DataDirText.Text = "数据目录: " + AppPaths.Root;
-        LibraryText.Text = "模组库: " + AppPaths.ModsRoot;
-        GameDirText.Text = "游戏目录: " + (State.GameDir ?? "（未设置）");
-        LogText.Text = "日志目录: " + AppPaths.LogsRoot;
-        TempText.Text = "临时目录: " + AppPaths.TempRoot;
+        VersionText.Text = Localization.T("版本:") + " " + AppUpdater.CurrentVersion;
+        DataDirText.Text = Localization.T("数据目录:") + " " + AppPaths.Root;
+        LibraryText.Text = Localization.T("模组库:") + " " + AppPaths.ModsRoot;
+        GameDirText.Text = Localization.T("游戏目录:") + " " + (State.GameDir ?? Localization.T("（未设置）"));
+        LogText.Text = Localization.T("日志目录:") + " " + AppPaths.LogsRoot;
+        TempText.Text = Localization.T("临时目录:") + " " + AppPaths.TempRoot;
         ResultText.Text = "";
     }
 
@@ -41,7 +44,7 @@ public sealed partial class DebugPage : Page
         {
             if (!Directory.Exists(AppPaths.TempRoot))
             {
-                ResultText.Text = "临时目录不存在。";
+                ResultText.Text = Localization.T("临时目录不存在。");
                 return;
             }
 
@@ -71,18 +74,18 @@ public sealed partial class DebugPage : Page
                 }
             }
 
-            ResultText.Text = $"已清理 {removed} 个临时项。";
+            ResultText.Text = string.Format(Localization.T("已清理 {0} 个临时项。"), removed);
         }
         catch (Exception ex)
         {
-            ResultText.Text = "清理失败: " + ex.Message;
+            ResultText.Text = Localization.T("清理失败:") + " " + ex.Message;
         }
     }
 
     private async void RunSelfTest_Click(object sender, RoutedEventArgs e)
     {
         RunButton.IsEnabled = false;
-        ResultText.Text = "正在运行自检…";
+        ResultText.Text = Localization.T("正在运行自检…");
         try
         {
             var report = Path.Combine(AppPaths.TempRoot, "selftest-ui.txt");
@@ -91,13 +94,13 @@ public sealed partial class DebugPage : Page
             var lines = File.Exists(report) ? File.ReadAllLines(report) : Array.Empty<string>();
             var failed = lines.Count(l => l.StartsWith("[FAIL]", StringComparison.Ordinal));
             var passed = lines.Count(l => l.StartsWith("[PASS]", StringComparison.Ordinal));
-            ResultText.Text = $"自检完成：通过 {passed}，失败 {failed}。\n" +
+            ResultText.Text = string.Format(Localization.T("自检完成：通过 {0}，失败 {1}。"), passed, failed) + "\n" +
                               string.Join("\n", lines.Where(l => l.StartsWith("[FAIL]", StringComparison.Ordinal)).Take(10));
         }
         catch (Exception ex)
         {
             Log.Error("界面自检失败", ex);
-            ResultText.Text = "自检失败: " + ex.Message;
+            ResultText.Text = Localization.T("自检失败:") + " " + ex.Message;
         }
         finally
         {
@@ -109,17 +112,17 @@ public sealed partial class DebugPage : Page
     {
         var text = string.Join(Environment.NewLine, new[]
         {
-            "版本: " + AppUpdater.CurrentVersion,
-            "数据目录: " + AppPaths.Root,
-            "模组库: " + AppPaths.ModsRoot,
-            "游戏目录: " + (State.GameDir ?? "（未设置）"),
-            "日志目录: " + AppPaths.LogsRoot,
-            "模组数量: " + State.Library.Count,
-            "已启用: " + State.Library.Count(r => State.IsEnabled(r.Id)),
+            Localization.T("版本:") + " " + AppUpdater.CurrentVersion,
+            Localization.T("数据目录:") + " " + AppPaths.Root,
+            Localization.T("模组库:") + " " + AppPaths.ModsRoot,
+            Localization.T("游戏目录:") + " " + (State.GameDir ?? Localization.T("（未设置）")),
+            Localization.T("日志目录:") + " " + AppPaths.LogsRoot,
+            Localization.T("模组数量:") + " " + State.Library.Count,
+            Localization.T("已启用:") + " " + State.Library.Count(r => State.IsEnabled(r.Id)),
         });
         var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
         package.SetText(text);
         Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-        ResultText.Text = "诊断信息已复制到剪贴板。";
+        ResultText.Text = Localization.T("诊断信息已复制到剪贴板。");
     }
 }

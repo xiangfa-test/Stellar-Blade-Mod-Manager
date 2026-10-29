@@ -38,14 +38,17 @@ public sealed class ModItem : ObservableObject
 
     public string Name => Record.Name;
     public string TypeLabel => Record.DisplayType;
-    public string AuthorText => string.IsNullOrWhiteSpace(Record.Author) ? "" : $"作者: {Record.Author}";
+    public string AuthorText => string.IsNullOrWhiteSpace(Record.Author)
+        ? ""
+        : string.Format(Localization.T("作者: {0}"), Record.Author);
     public string VersionText => string.IsNullOrWhiteSpace(Record.Version) ? "" : $"v{Record.Version}";
     public string SizeText => FormatSize(Record.SizeBytes);
     public string Subtitle => string.Join("  ·  ", new[] { TypeLabel, Record.CnsSummary, SizeText, VersionText }
         .Where(s => !string.IsNullOrEmpty(s)));
 
-    public string ImportedText => $"导入时间 {Record.ImportedAt.LocalDateTime:yyyy-MM-dd HH:mm}";
-    public string FileCountText => $"{Record.Files.Count} 个文件";
+    public string ImportedText => string.Format(Localization.T("导入时间 {0}"),
+        Record.ImportedAt.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
+    public string FileCountText => string.Format(Localization.T("{0} 个文件"), Record.Files.Count);
 
     public bool Enabled
     {
@@ -66,7 +69,7 @@ public sealed class ModItem : ObservableObject
         set => Set(ref _busy, value);
     }
 
-    public string StatusText => _enabled ? "已启用" : "未启用";
+    public string StatusText => _enabled ? Localization.T("已启用") : Localization.T("未启用");
 
     public string StatusBrushKey => _enabled ? "AccentTextFillColorPrimaryBrush" : "TextFillColorSecondaryBrush";
 
@@ -114,7 +117,9 @@ public sealed class ModItem : ObservableObject
     public string TagsText => Record.Tags.Count == 0 ? "" : string.Join(" · ", Record.Tags);
     public string NotesText => Record.Notes;
     public string UpdateText => Record.UpdateAvailable
-        ? $"有更新{(string.IsNullOrWhiteSpace(Record.LatestVersion) ? "" : " → " + Record.LatestVersion)}"
+        ? (string.IsNullOrWhiteSpace(Record.LatestVersion)
+            ? Localization.T("有更新")
+            : string.Format(Localization.T("有更新 → {0}"), Record.LatestVersion))
         : "";
     public Visibility UpdateVisibility => Record.UpdateAvailable ? Visibility.Visible : Visibility.Collapsed;
 
@@ -124,7 +129,9 @@ public sealed class ModItem : ObservableObject
     /// <summary>Filled by the mods page from the conflict report.</summary>
     public int ConflictCount { get; set; }
     public bool IsHighConflict { get; set; }
-    public string ConflictText => ConflictCount <= 0 ? "" : (IsHighConflict ? $"高冲突 ×{ConflictCount}" : $"冲突 ×{ConflictCount}");
+    public string ConflictText => ConflictCount <= 0
+        ? ""
+        : string.Format(Localization.T(IsHighConflict ? "高冲突 ×{0}" : "冲突 ×{0}"), ConflictCount);
     public Visibility ConflictVisibility => ConflictCount > 0 ? Visibility.Visible : Visibility.Collapsed;
     public string ConflictBadgeBackground => IsHighConflict ? "#33C42B1C" : "#22FFB900";
     public string ConflictBadgeForeground => IsHighConflict ? "#FFC42B1C" : "#FF9D5D00";
@@ -159,7 +166,7 @@ public sealed class ExternalItem : ObservableObject
     public string Name => Mod.Name;
     public string TypeLabel => Mod.Type;
     public string SizeText => ModItem.FormatSize(Mod.SizeBytes);
-    public string FilesText => $"{Mod.Files.Count} 个文件";
+    public string FilesText => string.Format(Localization.T("{0} 个文件"), Mod.Files.Count);
     public string Subtitle => $"{TypeLabel}  ·  {SizeText}  ·  {FilesText}";
     public IReadOnlyList<string> Files => Mod.Files;
 }

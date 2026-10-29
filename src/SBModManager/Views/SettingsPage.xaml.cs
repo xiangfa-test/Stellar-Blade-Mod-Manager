@@ -6,7 +6,7 @@ using SBModManager.Ui;
 
 namespace SBModManager.Views;
 
-public sealed partial class SettingsPage : Page
+public sealed partial class SettingsPage : Page, ILanguageAwarePage
 {
     private bool _loading;
 
@@ -18,29 +18,32 @@ public sealed partial class SettingsPage : Page
 
     private IAppState State => AppServices.State;
 
+    /// <summary>Re-render text this page built in code after a live language switch.</summary>
+    public void OnLanguageChanged() => LoadSettings();
+
     private void LoadSettings()
     {
         _loading = true;
         try
         {
             GameDirText.Text = State.GameDir is { } dir
-                ? "当前: " + dir
-                : "尚未设置。点击「自动检测」或「浏览…」选择 StellarBlade 安装目录（包含 SB.exe 的目录）。";
+                ? Localization.T("当前:") + " " + dir
+                : Localization.T("尚未设置。点击「自动检测」或「浏览…」选择 StellarBlade 安装目录（包含 SB.exe 的目录）。");
 
             HardLinkToggle.IsOn = State.Config.UseHardLinks;
             NexusKeyBox.Password = State.Config.NexusApiKey ?? "";
             ElevateToggle.IsOn = State.Config.ElevateOnStartup;
             NxmToggle.IsOn = State.Config.HandleNxmLinks;
             LaunchModeBox.SelectedIndex = State.Config.LaunchMode == "direct" ? 1 : 0;
-            UpdateStatusText.Text = "当前版本 " + AppUpdater.CurrentVersion;
+            UpdateStatusText.Text = Localization.T("当前版本") + " " + AppUpdater.CurrentVersion;
             AutoUpdateToggle.IsOn = State.Config.AutoCheckUpdates;
             PakPrefixToggle.IsOn = State.Config.PakOrderPrefixEnabled;
             CrashCaptureToggle.IsOn = State.Config.CaptureGameCrashes;
             StartMenuToggle.IsOn = StartMenuShortcut.Exists();
             LanguageBox.SelectedIndex = (State.Config.Language == "en-US") ? 1 : 0;
             DebugToggle.IsOn = State.Config.ShowDebugPage;
-            LibraryPathText.Text = "模组库: " + AppPaths.ModsRoot;
-            DataPathText.Text = "数据目录: " + AppPaths.Root;
+            LibraryPathText.Text = Localization.T("模组库:") + " " + AppPaths.ModsRoot;
+            DataPathText.Text = Localization.T("数据目录:") + " " + AppPaths.Root;
             ThemeBox.SelectedIndex = State.Config.Theme switch
             {
                 "light" => 1,
@@ -61,11 +64,11 @@ public sealed partial class SettingsPage : Page
             var hwnd = App.MainWindow is null
                 ? IntPtr.Zero
                 : WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-            var folder = FileDialogService.PickFolder(hwnd, "选择《剑星》安装目录（包含 SB.exe）");
+            var folder = FileDialogService.PickFolder(hwnd, Localization.T("选择《剑星》安装目录（包含 SB.exe）"));
             if (string.IsNullOrWhiteSpace(folder)) return;
             if (!GameLocator.IsValidGameDir(folder))
             {
-                ShowError("该目录不是有效的《剑星》安装目录（需要包含 SB.exe 与 SB/Content/Paks）。");
+                ShowError(Localization.T("该目录不是有效的《剑星》安装目录（需要包含 SB.exe 与 SB/Content/Paks）。"));
                 return;
             }
             SetGameDir(folder);
@@ -74,7 +77,7 @@ public sealed partial class SettingsPage : Page
         catch (Exception ex)
         {
             Log.Error("选择游戏目录失败", ex);
-            ShowError("打开目录选择框失败: " + ex.Message);
+            ShowError(Localization.T("打开目录选择框失败:") + " " + ex.Message);
         }
     }
 
@@ -83,7 +86,7 @@ public sealed partial class SettingsPage : Page
         var dir = GameLocator.AutoDetect();
         if (dir is null)
         {
-            ShowError("未找到游戏目录。请手动选择 StellarBlade 安装位置。");
+            ShowError(Localization.T("未找到游戏目录。请手动选择 StellarBlade 安装位置。"));
             return;
         }
         SetGameDir(dir);
@@ -102,7 +105,7 @@ public sealed partial class SettingsPage : Page
     {
         if (State.GameDir is null)
         {
-            ShowError("尚未设置有效的游戏目录。");
+            ShowError(Localization.T("尚未设置有效的游戏目录。"));
             return;
         }
         var build = GameLocator.ReadSteamBuildId(State.GameDir);
@@ -110,12 +113,12 @@ public sealed partial class SettingsPage : Page
         var ue4ss = Deployer.IsUe4ssInstalled(State.GameDir);
         var lines = new List<string>
         {
-            "游戏目录有效 ✓",
-            "~mods 目录: " + (Directory.Exists(mods) ? "存在" : "不存在（首次启用模组时会自动创建）"),
-            "UE4SS 运行库: " + (ue4ss ? "已安装" : "未安装"),
+            Localization.T("游戏目录有效 ✓"),
+            Localization.T("~mods 目录:") + " " + (Directory.Exists(mods) ? Localization.T("存在") : Localization.T("不存在（首次启用模组时会自动创建）")),
+            Localization.T("UE4SS 运行库:") + " " + (ue4ss ? Localization.T("已安装") : Localization.T("未安装")),
         };
         if (!string.IsNullOrEmpty(build)) lines.Add("Steam buildid: " + build);
-        ShowInfo("安装检查", string.Join(Environment.NewLine, lines));
+        ShowInfo(Localization.T("安装检查"), string.Join(Environment.NewLine, lines));
     }
 
     private void HardLink_Toggled(object sender, RoutedEventArgs e)
@@ -128,7 +131,10 @@ public sealed partial class SettingsPage : Page
     private void LaunchMode_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_loading) return;
-        var tag = (LaunchModeBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "steam";
+        // Ignore the transient empty selection used to refresh the closed ComboBox after a
+        // language switch (see Localization.Apply), otherwise it would overwrite the value.
+        if (LaunchModeBox.SelectedItem is not ComboBoxItem selected) return;
+        var tag = selected.Tag as string ?? "steam";
         State.Config.LaunchMode = tag;
         State.SaveConfig();
     }
@@ -136,6 +142,9 @@ public sealed partial class SettingsPage : Page
     private void Theme_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_loading) return;
+        // Same guard: an empty selection must not be treated as "follow system", which would
+        // flash the theme while the ComboBox refreshes itself.
+        if (ThemeBox.SelectedIndex < 0) return;
         State.Config.Theme = ThemeBox.SelectedIndex switch
         {
             1 => "light",
@@ -156,7 +165,7 @@ public sealed partial class SettingsPage : Page
 
     private void OpenGameDir_Click(object sender, RoutedEventArgs e)
     {
-        if (State.GameDir is null) { ShowError("尚未设置游戏目录。"); return; }
+        if (State.GameDir is null) { ShowError(Localization.T("尚未设置游戏目录。")); return; }
         GameLocator.OpenFolder(State.GameDir);
     }
 
@@ -164,7 +173,7 @@ public sealed partial class SettingsPage : Page
 
     private void OpenModsFolder_Click(object sender, RoutedEventArgs e)
     {
-        if (State.GameDir is null) { ShowError("尚未设置游戏目录。"); return; }
+        if (State.GameDir is null) { ShowError(Localization.T("尚未设置游戏目录。")); return; }
         GameLocator.OpenFolder(Deployer.PaksModsDir(State.GameDir));
     }
 
@@ -175,7 +184,7 @@ public sealed partial class SettingsPage : Page
     private void ShowInfo(string title, string message)
         => Ui.Dialogs.ShowInfo(XamlRoot, title, message);
 
-    private void ShowError(string message) => ShowInfo("提示", message);
+    private void ShowError(string message) => ShowInfo(Localization.T("提示"), message);
 
     private void SaveNexusKey_Click(object sender, RoutedEventArgs e)
     {
@@ -183,9 +192,9 @@ public sealed partial class SettingsPage : Page
             ? null
             : NexusKeyBox.Password.Trim();
         State.SaveConfig();
-        ShowInfo("已保存", State.Config.NexusApiKey is null
-            ? "已清除 Nexus API Key。"
-            : "Nexus API Key 已保存在本机配置中。");
+        ShowInfo(Localization.T("已保存"), State.Config.NexusApiKey is null
+            ? Localization.T("已清除 Nexus API Key。")
+            : Localization.T("Nexus API Key 已保存在本机配置中。"));
     }
 
     private void Elevate_Toggled(object sender, RoutedEventArgs e)
@@ -205,7 +214,7 @@ public sealed partial class SettingsPage : Page
             {
                 if (string.IsNullOrWhiteSpace(exe))
                 {
-                    throw new InvalidOperationException("无法确定当前程序路径。");
+                    throw new InvalidOperationException(Localization.T("无法确定当前程序路径。"));
                 }
                 var previous = NxmHandler.Register(exe);
                 if (!string.IsNullOrWhiteSpace(previous))
@@ -214,9 +223,9 @@ public sealed partial class SettingsPage : Page
                 }
                 State.Config.HandleNxmLinks = true;
                 State.SaveConfig();
-                ShowInfo("已接管 nxm:// 链接",
-                    "现在 Nexus 的「Mod Manager Download」会交给本工具。\n" +
-                    "关闭此开关可恢复原来的处理程序（例如 Vortex）。");
+                ShowInfo(Localization.T("已接管 nxm:// 链接"),
+                    Localization.T("现在 Nexus 的「Mod Manager Download」会交给本工具。") + "\n" +
+                    Localization.T("关闭此开关可恢复原来的处理程序（例如 Vortex）。"));
             }
             else
             {
@@ -224,7 +233,7 @@ public sealed partial class SettingsPage : Page
                 State.Config.HandleNxmLinks = false;
                 State.Config.PreviousNxmHandler = null;
                 State.SaveConfig();
-                ShowInfo("已恢复 nxm:// 链接", "已把 nxm:// 处理程序恢复为之前的程序。");
+                ShowInfo(Localization.T("已恢复 nxm:// 链接"), Localization.T("已把 nxm:// 处理程序恢复为之前的程序。"));
             }
         }
         catch (Exception ex)
@@ -233,7 +242,7 @@ public sealed partial class SettingsPage : Page
             _loading = true;
             NxmToggle.IsOn = !NxmToggle.IsOn;
             _loading = false;
-            ShowError("切换失败: " + ex.Message);
+            ShowError(Localization.T("切换失败:") + " " + ex.Message);
         }
     }
 
@@ -244,7 +253,7 @@ public sealed partial class SettingsPage : Page
     {
         CheckUpdateButton.IsEnabled = false;
         ApplyUpdateButton.IsEnabled = false;
-        UpdateStatusText.Text = "正在检查最新版本…";
+        UpdateStatusText.Text = Localization.T("正在检查最新版本…");
         UpdateProgress.Visibility = Visibility.Visible;
         UpdateProgress.IsIndeterminate = true;
         try
@@ -253,18 +262,18 @@ public sealed partial class SettingsPage : Page
             _pendingUpdate = info;
             if (info.IsNewer)
             {
-                UpdateStatusText.Text = $"发现新版本 {info.Tag}（当前 {AppUpdater.CurrentVersion}）";
+                UpdateStatusText.Text = string.Format(Localization.T("发现新版本 {0}（当前 {1}）"), info.Tag, AppUpdater.CurrentVersion);
                 ApplyUpdateButton.IsEnabled = info.Package is not null;
             }
             else
             {
-                UpdateStatusText.Text = $"已是最新版本（{AppUpdater.CurrentVersion}）";
+                UpdateStatusText.Text = string.Format(Localization.T("已是最新版本（{0}）"), AppUpdater.CurrentVersion);
             }
         }
         catch (Exception ex)
         {
             Log.Error("检查应用更新失败", ex);
-            UpdateStatusText.Text = "检查失败: " + ex.Message;
+            UpdateStatusText.Text = Localization.T("检查失败:") + " " + ex.Message;
         }
         finally
         {
@@ -288,7 +297,7 @@ public sealed partial class SettingsPage : Page
             Content = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Text = $"将下载 {update.Package.Name}，校验 SHA256 后关闭管理器、覆盖程序文件并自动重启。\n" +
+                Text = string.Format(Localization.T("将下载 {0}，校验 SHA256 后关闭管理器、覆盖程序文件并自动重启。"), update.Package.Name) + "\n" +
                        Localization.T("模组库、设置和游戏目录都不会受影响；更新期间请不要强制结束进程。"),
             },
             PrimaryButtonText = Localization.T("下载并更新"),
@@ -309,11 +318,11 @@ public sealed partial class SettingsPage : Page
         {
             var progress = new Progress<double>(percent =>
             {
-                UpdateStatusText.Text = $"下载中 {percent:0}%…";
+                UpdateStatusText.Text = string.Format(Localization.T("下载中 {0}%…"), percent.ToString("0"));
                 UpdateProgress.Value = percent;
             });
             var staged = await AppUpdater.PrepareAsync(update, progress);
-            UpdateStatusText.Text = "更新已下载，正在重启应用…";
+            UpdateStatusText.Text = Localization.T("更新已下载，正在重启应用…");
             UpdateProgress.IsIndeterminate = true;
             AppUpdater.StartUpdater(staged);
             await Task.Delay(600);
@@ -322,7 +331,7 @@ public sealed partial class SettingsPage : Page
         catch (Exception ex)
         {
             Log.Error("应用更新失败", ex);
-            UpdateStatusText.Text = "更新失败: " + ex.Message;
+            UpdateStatusText.Text = Localization.T("更新失败:") + " " + ex.Message;
             UpdateProgress.IsIndeterminate = false;
             UpdateProgress.Visibility = Visibility.Collapsed;
             ApplyUpdateButton.IsEnabled = true;
@@ -371,16 +380,16 @@ public sealed partial class SettingsPage : Page
             _loading = true;
             StartMenuToggle.IsOn = !want;
             _loading = false;
-            ShowInfo("操作失败", want
-                ? "无法创建开始菜单快捷方式（需要管理员权限，请允许 UAC 提示）。"
-                : "无法删除开始菜单快捷方式。");
+            ShowInfo(Localization.T("操作失败"), want
+                ? Localization.T("无法创建开始菜单快捷方式（需要管理员权限，请允许 UAC 提示）。")
+                : Localization.T("无法删除开始菜单快捷方式。"));
             return;
         }
 
         State.Config.StartMenuShortcutEnabled = want;
         State.SaveConfig();
-        ShowInfo(want ? "已添加" : "已移除",
-            want ? "已创建开始菜单快捷方式。" : "已移除开始菜单快捷方式。");
+        ShowInfo(want ? Localization.T("已添加") : Localization.T("已移除"),
+            want ? Localization.T("已创建开始菜单快捷方式。") : Localization.T("已移除开始菜单快捷方式。"));
     }
 
     private void CrashCapture_Toggled(object sender, RoutedEventArgs e)

@@ -161,6 +161,7 @@
                     x:Name="ModList"
                     Grid.Column="0"
                     HorizontalAlignment="Stretch"
+                    ContainerContentChanging="ModList_ContainerContentChanging"
                     ItemsSource="{x:Bind Mods}"
                     RightTapped="ModList_RightTapped"
                     SelectionChanged="ModList_SelectionChanged"
@@ -432,6 +433,7 @@
                     x:Name="ExternalList"
                     Grid.Row="1"
                     HorizontalAlignment="Stretch"
+                    ContainerContentChanging="ExternalList_ContainerContentChanging"
                     ItemsSource="{x:Bind Externals}"
                     RightTapped="ExternalList_RightTapped"
                     SelectionMode="Single">

@@ -27,7 +27,7 @@ public sealed class InstalledCollectionRow
     public string CountText { get; set; } = "";
 }
 
-public sealed partial class CollectionsPage : Page
+public sealed partial class CollectionsPage : Page, ILanguageAwarePage
 {
     private NexusCollection? _collection;
     private bool _suppressRevision;
@@ -118,7 +118,7 @@ public sealed partial class CollectionsPage : Page
             _collection = collection;
             ShowCollection(collection);
             RememberCollection(input);
-            StatusLine.Text = $"已解析「{collection.Name}」：{collection.Mods.Count} 个模组（rev {collection.RevisionNumber}）。";
+            StatusLine.Text = string.Format(Localization.T("已解析「{0}」：{1} 个模组（rev {2}）。"), collection.Name, collection.Mods.Count, collection.RevisionNumber);
         }
         catch (Exception ex)
         {
@@ -137,8 +137,8 @@ public sealed partial class CollectionsPage : Page
         ModsCard.Visibility = Visibility.Visible;
 
         CollectionName.Text = collection.Name;
-        CollectionMeta.Text = $"作者: {collection.Author}  ·  版本 {collection.RevisionNumber}  ·  " +
-                              $"{collection.ModCount} 个模组  ·  {collection.SizeText}";
+        CollectionMeta.Text = string.Format(Localization.T("作者: {0}  ·  版本 {1}  ·  "), collection.Author, collection.RevisionNumber) +
+                              string.Format(Localization.T("{0} 个模组  ·  {1}"), collection.ModCount, collection.SizeText);
         CollectionSummary.Text = collection.Summary;
         CollectionSummary.Visibility = string.IsNullOrWhiteSpace(collection.Summary)
             ? Visibility.Collapsed
@@ -158,7 +158,7 @@ public sealed partial class CollectionsPage : Page
             _suppressRevision = false;
         }
 
-        IncludeOptionalBox.Content = $"包含可选模组（{collection.OptionalCount} 个）";
+        IncludeOptionalBox.Content = string.Format(Localization.T("包含可选模组（{0} 个）"), collection.OptionalCount);
         if (collection.OptionalCount == 0)
         {
             IncludeOptionalBox.IsChecked = false;
@@ -180,13 +180,13 @@ public sealed partial class CollectionsPage : Page
             var installed = State.Library.Any(r =>
                 r.NexusModId == mod.ModId && r.NexusFileId == mod.FileId);
             var subtitle = string.IsNullOrWhiteSpace(mod.Version) ? mod.FileName : mod.Version;
-            if (mod.Optional) subtitle += "  ·  可选";
+            if (mod.Optional) subtitle += Localization.T("  ·  可选");
             Mods.Add(new CollectionModRow
             {
                 Name = mod.DisplayName,
                 Subtitle = subtitle,
                 SizeText = mod.SizeText,
-                InstalledText = installed ? "已安装" : "",
+                InstalledText = installed ? Localization.T("已安装") : "",
                 ModId = mod.ModId,
                 FileId = mod.FileId,
             });
@@ -244,7 +244,7 @@ public sealed partial class CollectionsPage : Page
         InstallProgress.Visibility = Visibility.Visible;
         InstallProgress.Value = 0;
         InstallProgress.Maximum = 1;
-        ProgressText.Text = "准备下载…";
+        ProgressText.Text = Localization.T("准备下载…");
 
         var progress = new Progress<CollectionInstallProgress>(p =>
         {
@@ -263,7 +263,7 @@ public sealed partial class CollectionsPage : Page
         catch (Exception ex)
         {
             Log.Error("安装合集失败", ex);
-            ProgressText.Text = "安装失败: " + ex.Message;
+            ProgressText.Text = Localization.T("安装失败: ") + ex.Message;
         }
         finally
         {
@@ -278,7 +278,7 @@ public sealed partial class CollectionsPage : Page
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
         _cts?.Cancel();
-        ProgressText.Text = "正在停止…";
+        ProgressText.Text = Localization.T("正在停止…");
     }
 
     private void SetRunning(bool running)
@@ -295,12 +295,12 @@ public sealed partial class CollectionsPage : Page
     {
         var lines = new List<string>
         {
-            $"合集「{collection.Name}」",
-            $"导入 {report.Imported} 个，跳过 {report.Skipped} 个，失败 {report.Failed} 个。",
+            string.Format(Localization.T("合集「{0}」"), collection.Name),
+            string.Format(Localization.T("导入 {0} 个，跳过 {1} 个，失败 {2} 个。"), report.Imported, report.Skipped, report.Failed),
         };
         if (report.Cancelled)
         {
-            lines.Add("（已按请求停止）");
+            lines.Add(Localization.T("（已按请求停止）"));
         }
         if (report.Errors.Count > 0)
         {
@@ -308,7 +308,7 @@ public sealed partial class CollectionsPage : Page
             lines.AddRange(report.Errors.Take(10));
             if (report.Errors.Count > 10)
             {
-                lines.Add($"…以及另外 {report.Errors.Count - 10} 条失败");
+                lines.Add(string.Format(Localization.T("…以及另外 {0} 条失败"), report.Errors.Count - 10));
             }
         }
 
@@ -349,7 +349,7 @@ public sealed partial class CollectionsPage : Page
             var package = new DataPackage();
             package.SetText(text);
             Clipboard.SetContent(package);
-            StatusLine.Text = $"已复制 {_collection.Mods.Count} 个模组页面链接。";
+            StatusLine.Text = string.Format(Localization.T("已复制 {0} 个模组页面链接。"), _collection.Mods.Count);
         }
         catch (Exception ex)
         {
@@ -386,6 +386,9 @@ public sealed partial class CollectionsPage : Page
         }
     }
 
+    /// <summary>Re-render text this page built in code after a live language switch.</summary>
+    public void OnLanguageChanged() => RefreshInstalled();
+
     private void RefreshInstalled()
     {
         Installed.Clear();
@@ -402,8 +405,8 @@ public sealed partial class CollectionsPage : Page
         Installed.Add(new InstalledCollectionRow
         {
             Tag = CollectionInstaller.LocalTag,
-            Name = "本地安装（自己导入的模组）",
-            CountText = $"{localCount} 个模组" + (localCount > 0 ? $"，已启用 {localEnabled}" : ""),
+            Name = Localization.T("本地安装（自己导入的模组）"),
+            CountText = string.Format(Localization.T("{0} 个模组"), localCount) + (localCount > 0 ? string.Format(Localization.T("，已启用 {0}"), localEnabled) : ""),
         });
         foreach (var (tag, name, count) in groups
                      .Where(g => !string.Equals(g.Tag, CollectionInstaller.LocalTag, StringComparison.OrdinalIgnoreCase)))
@@ -412,11 +415,14 @@ public sealed partial class CollectionsPage : Page
             {
                 Tag = tag,
                 Name = name,
-                CountText = $"{count} 个模组",
+                CountText = string.Format(Localization.T("{0} 个模组"), count),
             });
         }
         InstalledEmpty.Visibility = Visibility.Collapsed;
         InstalledList.Visibility = Visibility.Visible;
+        // The rows (and the buttons inside their DataTemplate) are created after the page's
+        // one-time translation pass, so translate the list once its containers exist.
+        Localization.ApplyDeferred(InstalledList);
 
         Recent.Clear();
         foreach (var item in State.Config.RecentCollections)

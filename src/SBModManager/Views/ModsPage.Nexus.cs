@@ -53,8 +53,8 @@ public sealed partial class ModsPage
         if (!hasKey && string.IsNullOrWhiteSpace(apiKey))
         {
             await ShowNxmFallbackAsync(link,
-                "这个链接没有携带 Nexus 的下载授权 key（通常来自手动拼的 nxm 链接）。\n" +
-                "请到 Nexus 文件页点「Mod Manager Download」重新获取链接（会带 key），或手动下载后导入。",
+                Localization.T("这个链接没有携带 Nexus 的下载授权 key（通常来自手动拼的 nxm 链接）。") + "\n" +
+                Localization.T("请到 Nexus 文件页点「Mod Manager Download」重新获取链接（会带 key），或手动下载后导入。"),
                 fallbackUrl);
             return;
         }
@@ -69,8 +69,8 @@ public sealed partial class ModsPage
             if (string.IsNullOrWhiteSpace(uri))
             {
                 await ShowNxmFallbackAsync(link,
-                    "Nexus 没有返回下载地址。\n免费账号需要带授权 key 的 nxm 链接（网页「Mod Manager Download」生成）；" +
-                    "不带 key 的链接只有 Premium 能取直链。",
+                    Localization.T("Nexus 没有返回下载地址。") + "\n" +
+                    Localization.T("免费账号需要带授权 key 的 nxm 链接（网页「Mod Manager Download」生成）；不带 key 的链接只有 Premium 能取直链。"),
                     fallbackUrl);
                 return;
             }
@@ -113,7 +113,7 @@ public sealed partial class ModsPage
             ModStore.Save(record);
             Reload();
 
-            var ask = await ConfirmAsync("下载完成", $"已下载并导入「{record.Name}」。是否立即启用？");
+            var ask = await ConfirmAsync(Localization.T("下载完成"), string.Format(Localization.T("已下载并导入「{0}」。是否立即启用？"), record.Name));
             if (ask)
             {
                 var item = Mods.FirstOrDefault(m => m.Record.Id == record.Id);
@@ -125,9 +125,9 @@ public sealed partial class ModsPage
             Log.Error("nxm 下载失败", ex);
             var message = ex.Message +
                           (string.IsNullOrWhiteSpace(apiKey)
-                              ? "\n\n提示：请先在「设置 → 网络与集成」填写 Nexus API Key。"
+                              ? "\n\n" + Localization.T("提示：请先在「设置 → 网络与集成」填写 Nexus API Key。")
                               : "") +
-                          (hasKey ? "" : "\n\n提示：不带 key 的链接只有 Premium 账号能直接取直链。");
+                          (hasKey ? "" : "\n\n" + Localization.T("提示：不带 key 的链接只有 Premium 账号能直接取直链。"));
             await ShowNxmFallbackAsync(link, message, fallbackUrl);
         }
         finally
@@ -168,13 +168,13 @@ public sealed partial class ModsPage
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "粘贴 Nexus 合集链接（或只填 slug）。解析只读取公开信息，不会下载任何文件。",
+            Text = Localization.T("粘贴 Nexus 合集链接（或只填 slug）。解析只读取公开信息，不会下载任何文件。"),
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(urlBox);
         panel.Children.Add(new TextBlock
         {
-            Text = "下载模组需要 Nexus API Key；批量直链通常需要 Premium 账号，免费账号建议用「复制模组链接」逐个下载。",
+            Text = Localization.T("下载模组需要 Nexus API Key；批量直链通常需要 Premium 账号，免费账号建议用「复制模组链接」逐个下载。"),
             TextWrapping = TextWrapping.Wrap,
             Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
             Style = ResourceStyle("CaptionTextBlockStyle"),
@@ -247,8 +247,8 @@ public sealed partial class ModsPage
         });
         info.Children.Add(new TextBlock
         {
-            Text = $"作者: {collection.Author}  ·  版本 {collection.RevisionNumber}  ·  " +
-                   $"{collection.ModCount} 个模组  ·  {collection.SizeText}",
+            Text = string.Format(Localization.T("作者: {0}  ·  版本 {1}  ·  {2} 个模组  ·  {3}"),
+                   collection.Author, collection.RevisionNumber, collection.ModCount, collection.SizeText),
             Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
             TextWrapping = TextWrapping.Wrap,
         });
@@ -258,22 +258,22 @@ public sealed partial class ModsPage
         }
         info.Children.Add(new TextBlock
         {
-            Text = $"必需 {required} 个，可选 {collection.OptionalCount} 个。",
+            Text = string.Format(Localization.T("必需 {0} 个，可选 {1} 个。"), required, collection.OptionalCount),
             Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
         });
 
-        var includeOptional = new CheckBox { Content = $"包含可选模组（{collection.OptionalCount} 个）", IsChecked = false };
-        var enableAfter = new CheckBox { Content = "导入后自动启用（按合集顺序）", IsChecked = false };
+        var includeOptional = new CheckBox { Content = string.Format(Localization.T("包含可选模组（{0} 个）"), collection.OptionalCount), IsChecked = false };
+        var enableAfter = new CheckBox { Content = Localization.T("导入后自动启用（按合集顺序）"), IsChecked = false };
         info.Children.Add(includeOptional);
         info.Children.Add(enableAfter);
 
         var preview = collection.Mods.Take(8)
             .Select(m => "• " + m.DisplayName + (string.IsNullOrWhiteSpace(m.Version) ? "" : $" ({m.Version})") +
-                         (m.Optional ? " [可选]" : ""));
+                         (m.Optional ? " " + Localization.T("[可选]") : ""));
         var previewText = string.Join(Environment.NewLine, preview);
         if (collection.Mods.Count > 8)
         {
-            previewText += Environment.NewLine + $"… 其余 {collection.Mods.Count - 8} 个";
+            previewText += Environment.NewLine + string.Format(Localization.T("… 其余 {0} 个"), collection.Mods.Count - 8);
         }
         info.Children.Add(new TextBlock
         {
@@ -313,7 +313,7 @@ public sealed partial class ModsPage
             package.SetText(text);
             Clipboard.SetContent(package);
             ShowMessage(InfoBarSeverity.Success, Localization.T("已复制模组链接"),
-                $"已复制 {collection.Mods.Count} 个模组页面链接到剪贴板，可以逐个手动下载后拖回本工具导入。");
+                string.Format(Localization.T("已复制 {0} 个模组页面链接到剪贴板，可以逐个手动下载后拖回本工具导入。"), collection.Mods.Count));
         }
         catch (Exception ex)
         {
@@ -380,7 +380,7 @@ public sealed partial class ModsPage
         var progressDialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = $"下载合集：{collection.Name}",
+            Title = string.Format(Localization.T("下载合集：{0}"), collection.Name),
             Content = stack,
             CloseButtonText = Localization.T("取消"),
         };
@@ -434,14 +434,14 @@ public sealed partial class ModsPage
     private void ShowCollectionResult(NexusCollection collection, CollectionInstallReport report)
     {
         var total = report.Imported + report.Skipped + report.Failed;
-        var summary = $"合集「{collection.Name}」：成功 {report.Imported} / {total}";
+        var summary = string.Format(Localization.T("合集「{0}」：成功 {1} / {2}"), collection.Name, report.Imported, total);
         if (report.Skipped > 0)
         {
-            summary += $"，跳过 {report.Skipped} 个已安装";
+            summary += string.Format(Localization.T("，跳过 {0} 个已安装"), report.Skipped);
         }
         if (report.Cancelled)
         {
-            summary += "（已取消）";
+            summary += Localization.T("（已取消）");
         }
 
         if (report.Errors.Count > 0)
@@ -449,13 +449,13 @@ public sealed partial class ModsPage
             var lines = report.Errors.Take(8).ToList();
             if (report.Errors.Count > 8)
             {
-                lines.Add($"…以及另外 {report.Errors.Count - 8} 个失败");
+                lines.Add(string.Format(Localization.T("…以及另外 {0} 个失败"), report.Errors.Count - 8));
             }
             var needsPremium = report.Errors.Any(e =>
                 e.Contains("没有返回直链") || e.Contains("403") ||
                 e.Contains("Premium", StringComparison.OrdinalIgnoreCase));
             var hint = needsPremium
-                ? "\n\n提示：Nexus 直链下载通常需要 Premium；没有 Premium 时可用「复制模组链接」手动下载。"
+                ? "\n\n" + Localization.T("提示：Nexus 直链下载通常需要 Premium；没有 Premium 时可用「复制模组链接」手动下载。")
                 : "";
             ShowMessage(InfoBarSeverity.Warning, Localization.T("合集下载完成（有失败）"),
                 summary + "\n\n" + string.Join(Environment.NewLine, lines) + hint);
@@ -463,6 +463,6 @@ public sealed partial class ModsPage
         }
 
         ShowMessage(InfoBarSeverity.Success, Localization.T("合集下载完成"),
-            summary + "\n\n已导入的模组带有「合集:" + collection.Name + "」标签，可按标签筛选。");
+            summary + "\n\n" + string.Format(Localization.T("已导入的模组带有「{0}」标签，可按标签筛选。"), "合集:" + collection.Name));
     }
 }

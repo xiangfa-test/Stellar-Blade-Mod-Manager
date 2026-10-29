@@ -40,8 +40,10 @@ public sealed partial class ModsPage
         DetailName.Text = item.Name;
         DetailSubtitle.Text = item.Subtitle;
         DetailMeta.Text = item.ImportedText + "   ·   " + item.FileCountText +
-                          (State.IsEnabled(item.Record.Id) ? "   ·   当前已部署" : "");
-        DetailSource.Text = string.IsNullOrWhiteSpace(item.SourceText) ? "" : "来源: " + item.SourceText;
+                          (State.IsEnabled(item.Record.Id) ? "   ·   " + Localization.T("当前已部署") : "");
+        DetailSource.Text = string.IsNullOrWhiteSpace(item.SourceText)
+            ? ""
+            : string.Format(Localization.T("来源: {0}"), item.SourceText);
         DetailPreview.Source = null;
         DetailPreview.Visibility = Visibility.Collapsed;
         var previews = item.Record.PreviewImages.Count > 0
@@ -65,24 +67,26 @@ public sealed partial class ModsPage
             }
         }
         DetailTargetsText.Text = string.Join(Environment.NewLine, item.TargetPaths);
-        DetailTags.Text = item.Record.Tags.Count == 0 ? "标签: （未设置）" : "标签: " + string.Join(" · ", item.Record.Tags);
+        DetailTags.Text = item.Record.Tags.Count == 0
+            ? Localization.T("标签: （未设置）")
+            : string.Format(Localization.T("标签: {0}"), string.Join(" · ", item.Record.Tags));
         var cnsParts = new List<string>();
-        if (item.Record.CnsFits.Count > 0) cnsParts.Add("服装: " + string.Join(" / ", item.Record.CnsFits.Take(6)));
-        if (item.Record.CnsCharacters.Count > 0) cnsParts.Add("角色: " + string.Join(" / ", item.Record.CnsCharacters));
-        if (item.Record.CnsOutfitTypes.Count > 0) cnsParts.Add("类型: " + string.Join(" / ", item.Record.CnsOutfitTypes.Take(4)));
-        if (item.Record.CnsRequirements.Count > 0) cnsParts.Add("依赖: " + string.Join(" / ", item.Record.CnsRequirements.Take(4)));
+        if (item.Record.CnsFits.Count > 0) cnsParts.Add(Localization.T("服装") + ": " + string.Join(" / ", item.Record.CnsFits.Take(6)));
+        if (item.Record.CnsCharacters.Count > 0) cnsParts.Add(Localization.T("角色") + ": " + string.Join(" / ", item.Record.CnsCharacters));
+        if (item.Record.CnsOutfitTypes.Count > 0) cnsParts.Add(Localization.T("类型") + ": " + string.Join(" / ", item.Record.CnsOutfitTypes.Take(4)));
+        if (item.Record.CnsRequirements.Count > 0) cnsParts.Add(Localization.T("依赖") + ": " + string.Join(" / ", item.Record.CnsRequirements.Take(4)));
         DetailCns.Text = cnsParts.Count == 0 ? "" : "CNS  " + string.Join("   ·   ", cnsParts);
         DetailCns.Visibility = DetailCns.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         var deps = DependencyChecker.Check(item.Record);
         DetailDeps.Text = deps.Count == 0
             ? ""
-            : "缺少依赖: " + string.Join(" / ", deps.Select(d => d.Missing)) +
-              (deps.Any(d => d.Blocking) ? "（启用前需要先装）" : "");
+            : Localization.T("缺少依赖") + ": " + string.Join(" / ", deps.Select(d => d.Missing)) +
+              (deps.Any(d => d.Blocking) ? Localization.T("（启用前需要先装）") : "");
         DetailDeps.Visibility = DetailDeps.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        DetailNotes.Text = string.IsNullOrWhiteSpace(item.Record.Notes) ? "" : "备注: " + item.Record.Notes;
+        DetailNotes.Text = string.IsNullOrWhiteSpace(item.Record.Notes) ? "" : Localization.T("备注") + ": " + item.Record.Notes;
         var showUpdate = item.Record.UpdateAvailable && !item.Record.IgnoreUpdate;
         UpdateModButton.Visibility = showUpdate ? Visibility.Visible : Visibility.Collapsed;
-        IgnoreUpdateButton.Content = item.Record.IgnoreUpdate ? "恢复更新提示" : "忽略此更新";
+        IgnoreUpdateButton.Content = item.Record.IgnoreUpdate ? Localization.T("恢复更新提示") : Localization.T("忽略此更新");
         IgnoreUpdateButton.Visibility = item.Record.UpdateAvailable || item.Record.IgnoreUpdate
             ? Visibility.Visible
             : Visibility.Collapsed;
@@ -103,11 +107,13 @@ public sealed partial class ModsPage
             }
         }
         DetailUpdate.Text = item.Record.IgnoreUpdate
-            ? "已忽略此模组的更新提示"
+            ? Localization.T("已忽略此模组的更新提示")
             : item.Record.UpdateAvailable
-            ? $"可更新: {item.Record.VersionLabel} → {item.Record.LatestVersion}"
+            ? string.Format(Localization.T("可更新: {0} → {1}"),
+                item.Record.VersionLabel, item.Record.LatestVersion)
             : (item.Record.LastCheckedAt is { } checkedAt
-                ? $"已是最新（检查于 {checkedAt.LocalDateTime:MM-dd HH:mm}）"
+                ? string.Format(Localization.T("已是最新（检查于 {0}）"),
+                    checkedAt.LocalDateTime.ToString("MM-dd HH:mm"))
                 : "");
         DetailUpdate.Visibility = string.IsNullOrEmpty(DetailUpdate.Text) ? Visibility.Collapsed : Visibility.Visible;
 
@@ -138,6 +144,11 @@ public sealed partial class ModsPage
         {
             _suppressVersionChange = false;
         }
+
+        // This pane is rebuilt in code on every selection and starts out collapsed, so the
+        // one-time Apply that runs on navigation never sees its controls: translate it here,
+        // and again after layout has realised the ScrollViewer's content.
+        Localization.ApplyDeferred(DetailsScroll);
     }
 
     private void OpenModDir_Click(object sender, RoutedEventArgs e)
@@ -201,11 +212,11 @@ public sealed partial class ModsPage
         var suggestPanel = new StackPanel { Spacing = 6 };
         var tagInput = new TextBox
         {
-            PlaceholderText = "输入标签后按回车添加，例如：服装",
+            PlaceholderText = Localization.T("输入标签后按回车添加，例如：服装"),
         };
         var tagHint = new TextBlock
         {
-            Text = "「" + localTag + "」是默认合集标签，不可移除；其它标签点 × 删除。",
+            Text = string.Format(Localization.T("「{0}」是默认合集标签，不可移除；其它标签点 × 删除。"), localTag),
             TextWrapping = TextWrapping.Wrap,
             Style = ResourceStyle("CaptionTextBlockStyle"),
             Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
@@ -232,7 +243,7 @@ public sealed partial class ModsPage
             {
                 suggestPanel.Children.Add(new TextBlock
                 {
-                    Text = "（暂无其它可用标签）",
+                    Text = Localization.T("（暂无其它可用标签）"),
                     Style = ResourceStyle("CaptionTextBlockStyle"),
                     Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
                 });
@@ -269,7 +280,7 @@ public sealed partial class ModsPage
             {
                 tagPanel.Children.Add(new TextBlock
                 {
-                    Text = "（还没有标签，输入后按回车添加）",
+                    Text = Localization.T("（还没有标签，输入后按回车添加）"),
                     Style = ResourceStyle("CaptionTextBlockStyle"),
                     Foreground = ResourceBrush("TextFillColorSecondaryBrush"),
                 });
@@ -286,7 +297,7 @@ public sealed partial class ModsPage
                 {
                     chipRow.Children.Add(new TextBlock
                     {
-                        Text = "默认",
+                        Text = Localization.T("默认"),
                         VerticalAlignment = VerticalAlignment.Center,
                         Style = ResourceStyle("CaptionTextBlockStyle"),
                         Foreground = ResourceBrush("TextFillColorTertiaryBrush"),
@@ -302,7 +313,7 @@ public sealed partial class ModsPage
                         BorderThickness = new Thickness(0),
                         VerticalAlignment = VerticalAlignment.Center,
                     };
-                    ToolTipService.SetToolTip(remove, "移除标签");
+                    ToolTipService.SetToolTip(remove, Localization.T("移除标签"));
                     remove.Click += (_, _) =>
                     {
                         tags.Remove(tag);
@@ -347,17 +358,17 @@ public sealed partial class ModsPage
             AcceptsReturn = true,
             Height = 96,
             TextWrapping = TextWrapping.Wrap,
-            PlaceholderText = "自定义备注（仅本地保存）",
+            PlaceholderText = Localization.T("自定义备注（仅本地保存）"),
         };
 
         var panel = new StackPanel { Spacing = 10 };
-        panel.Children.Add(new TextBlock { Text = "标签" });
+        panel.Children.Add(new TextBlock { Text = Localization.T("标签") });
         panel.Children.Add(tagPanel);
         panel.Children.Add(tagInput);
         panel.Children.Add(tagHint);
-        panel.Children.Add(new TextBlock { Text = "快速添加已有标签" });
+        panel.Children.Add(new TextBlock { Text = Localization.T("快速添加已有标签") });
         panel.Children.Add(suggestPanel);
-        panel.Children.Add(new TextBlock { Text = "备注" });
+        panel.Children.Add(new TextBlock { Text = Localization.T("备注") });
         panel.Children.Add(notesBox);
 
         var dialog = new ContentDialog
@@ -384,7 +395,7 @@ public sealed partial class ModsPage
         item.Refresh();
         RebuildMods();
         UpdateDetails(item);
-        ShowMessage(InfoBarSeverity.Success, Localization.T("已保存"), $"「{item.Name}」的标签与备注已更新。");
+        ShowMessage(InfoBarSeverity.Success, Localization.T("已保存"), string.Format(Localization.T("「{0}」的标签与备注已更新。"), item.Name));
         }
         catch (Exception ex)
         {

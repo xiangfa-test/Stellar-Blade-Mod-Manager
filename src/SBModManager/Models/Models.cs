@@ -111,16 +111,16 @@ public sealed class ModRecord
     [JsonIgnore]
     public string DisplayType => Type switch
     {
-        ModType.Pak => "PAK 模组",
-        ModType.Loose => "资源模组",
-        ModType.Ue4ss => "UE4SS 模组",
-        ModType.Ue4ssRuntime => "UE4SS 运行库",
-        ModType.IniTweak => "INI 配置",
-        ModType.Cns => "CNS 外观",
-        ModType.GameRoot => "游戏根目录",
-        ModType.Video => "主页视频",
-        ModType.LogicMod => "逻辑模组",
-        _ => "未知",
+        ModType.Pak => Services.Localization.T("PAK 模组"),
+        ModType.Loose => Services.Localization.T("资源模组"),
+        ModType.Ue4ss => Services.Localization.T("UE4SS 模组"),
+        ModType.Ue4ssRuntime => Services.Localization.T("UE4SS 运行库"),
+        ModType.IniTweak => Services.Localization.T("INI 配置"),
+        ModType.Cns => Services.Localization.T("CNS 外观"),
+        ModType.GameRoot => Services.Localization.T("游戏根目录"),
+        ModType.Video => Services.Localization.T("主页视频"),
+        ModType.LogicMod => Services.Localization.T("逻辑模组"),
+        _ => Services.Localization.T("未知"),
     };
 
     [JsonIgnore]

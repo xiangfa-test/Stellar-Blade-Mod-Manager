@@ -50,7 +50,7 @@ public sealed partial class NexusDetailPage : Page
         }
 
         _domain = State.Config.NexusGameDomain;
-        TitleText.Text = "加载中…";
+        TitleText.Text = Localization.T("加载中…");
 
         if (e.NavigationMode == NavigationMode.New)
         {
@@ -85,8 +85,8 @@ public sealed partial class NexusDetailPage : Page
         var key = State.Config.NexusApiKey;
         if (string.IsNullOrWhiteSpace(key))
         {
-            TitleText.Text = "需要 Nexus API Key";
-            StatusText.Text = "请先在「设置」里填写 Nexus API Key。";
+            TitleText.Text = Localization.T("需要 Nexus API Key");
+            StatusText.Text = Localization.T("请先在「设置」里填写 Nexus API Key。");
             DownloadButton.IsEnabled = false;
             TranslateButton.IsEnabled = false;
             return;
@@ -98,8 +98,8 @@ public sealed partial class NexusDetailPage : Page
             _detail = await NexusDetailService.GetAsync(_domain, _modId, key);
             if (_detail is null)
             {
-                TitleText.Text = "模组 " + _modId;
-                StatusText.Text = "详情加载失败（检查网络或 API Key）。";
+                TitleText.Text = Localization.T("模组 ") + _modId;
+                StatusText.Text = Localization.T("详情加载失败（检查网络或 API Key）。");
                 return;
             }
 
@@ -133,7 +133,7 @@ public sealed partial class NexusDetailPage : Page
 
             var markdown = HtmlToMarkdown.Convert(_detail.Description);
             DescriptionHost.Content = MarkdownRenderer.Render(
-                string.IsNullOrWhiteSpace(markdown) ? "（该模组没有说明）" : markdown);
+                string.IsNullOrWhiteSpace(markdown) ? Localization.T("（该模组没有说明）") : markdown);
             TranslateButton.IsEnabled = !string.IsNullOrWhiteSpace(markdown);
             var files = _detail.Files;
             if (files.Count == 0)
@@ -143,7 +143,7 @@ public sealed partial class NexusDetailPage : Page
             }
 
             FilesText.Text = files.Count == 0
-                ? "（没有读取到文件信息，可点「打开网页」查看）"
+                ? Localization.T("（没有读取到文件信息，可点「打开网页」查看）")
                 : string.Join("\n", files
                     .OrderByDescending(f => f.UploadedTimestamp)
                     .Take(12)
@@ -155,7 +155,7 @@ public sealed partial class NexusDetailPage : Page
         catch (Exception ex)
         {
             Log.Error("加载 N 网详情失败", ex);
-            StatusText.Text = "详情加载失败: " + ex.Message;
+            StatusText.Text = Localization.T("详情加载失败: ") + ex.Message;
         }
         finally
         {
@@ -194,22 +194,22 @@ public sealed partial class NexusDetailPage : Page
             var (record, error) = await NexusInstaller.InstallAsync(_domain, _modId, _detail, key, progress);
             if (record is not null)
             {
-                StatusText.Text = $"已导入「{record.Name}」。";
+                StatusText.Text = string.Format(Localization.T("已导入「{0}」。"), record.Name);
             }
             else if (DownloadFallbackController.IsPremiumOnly(error))
             {
-                StatusText.Text = "免费账号需要通过网页下载。";
+                StatusText.Text = Localization.T("免费账号需要通过网页下载。");
                 OpenFallback($"https://www.nexusmods.com/{_domain}/mods/{_modId}?tab=files");
             }
             else
             {
-                StatusText.Text = "下载失败: " + (error ?? "未知错误");
+                StatusText.Text = Localization.T("下载失败: ") + (error ?? Localization.T("未知错误"));
             }
         }
         catch (Exception ex)
         {
             Log.Error("下载导入失败", ex);
-            StatusText.Text = "下载失败: " + ex.Message;
+            StatusText.Text = Localization.T("下载失败: ") + ex.Message;
         }
         finally
         {
@@ -220,12 +220,12 @@ public sealed partial class NexusDetailPage : Page
 
     private static string DescribeCategory(string category) => category.ToUpperInvariant() switch
     {
-        "MAIN" => "主文件",
-        "UPDATE" => "更新",
-        "OPTIONAL" => "可选",
-        "MISCELLANEOUS" => "其他",
-        "ARCHIVED" => "旧版",
-        "OLD_VERSION" => "旧版",
+        "MAIN" => Localization.T("主文件"),
+        "UPDATE" => Localization.T("更新"),
+        "OPTIONAL" => Localization.T("可选"),
+        "MISCELLANEOUS" => Localization.T("其他"),
+        "ARCHIVED" => Localization.T("旧版"),
+        "OLD_VERSION" => Localization.T("旧版"),
         _ => category,
     };
 
@@ -245,13 +245,13 @@ public sealed partial class NexusDetailPage : Page
             DescriptionHost.Content = MarkdownRenderer.Render(HtmlToMarkdown.Convert(_detail.Description));
             SummaryText.Text = _originalSummary;
             _translated = null;
-            TranslateButton.Content = "翻译";
+            TranslateButton.Content = Localization.T("翻译");
             return;
         }
 
         BusyRing.IsActive = true;
         TranslateButton.IsEnabled = false;
-        StatusText.Text = "正在翻译…";
+        StatusText.Text = Localization.T("正在翻译…");
         try
         {
             var markdown = HtmlToMarkdown.Convert(_detail.Description);
@@ -270,7 +270,7 @@ public sealed partial class NexusDetailPage : Page
                 : await TranslationService.TranslateAsync(summary, from, to) ?? summary;
             if (string.IsNullOrWhiteSpace(result) && string.IsNullOrWhiteSpace(translatedSummary))
             {
-                StatusText.Text = "翻译服务不可用（可能超限），已复制原文。";
+                StatusText.Text = Localization.T("翻译服务不可用（可能超限），已复制原文。");
                 var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
                 package.SetText(plain);
                 Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
@@ -293,13 +293,13 @@ public sealed partial class NexusDetailPage : Page
                 };
             }
 
-            TranslateButton.Content = "原文";
-            StatusText.Text = "已翻译（机器翻译，仅供参考）。";
+            TranslateButton.Content = Localization.T("原文");
+            StatusText.Text = Localization.T("已翻译（机器翻译，仅供参考）。");
         }
         catch (Exception ex)
         {
             Log.Error("翻译失败", ex);
-            StatusText.Text = "翻译失败: " + ex.Message;
+            StatusText.Text = Localization.T("翻译失败: ") + ex.Message;
         }
         finally
         {

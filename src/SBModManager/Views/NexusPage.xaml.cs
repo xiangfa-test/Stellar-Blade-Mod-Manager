@@ -78,7 +78,7 @@ public sealed partial class NexusPage : Page
         var text = SearchBox.Text?.Trim();
 
         SetBusy(true);
-        StatusText.Text = "加载中…";
+        StatusText.Text = Localization.T("加载中…");
         try
         {
             // Tag filtering and all-time rankings need GraphQL; the REST search cannot do them.
@@ -103,20 +103,20 @@ public sealed partial class NexusPage : Page
             AppendPage();
             if (_all.Count == 0 && (tag is not null || kind is "top_downloads" or "top_endorsed"))
             {
-                StatusText.Text = "没有匹配的模组" +
-                    (tag is null ? "" : $"（标签：{tag}；标签区分大小写，需与 Nexus 完全一致）");
+                StatusText.Text = Localization.T("没有匹配的模组") +
+                    (tag is null ? "" : string.Format(Localization.T("（标签：{0}；标签区分大小写，需与 Nexus 完全一致）"), tag));
             }
             else
             {
                 StatusText.Text = string.IsNullOrWhiteSpace(key)
-                    ? $"{_all.Count} 个模组（未配置 API Key：可浏览，详情与下载需要 Key）"
-                    : $"{_all.Count} 个模组";
+                    ? string.Format(Localization.T("{0} 个模组（未配置 API Key：可浏览，详情与下载需要 Key）"), _all.Count)
+                    : string.Format(Localization.T("{0} 个模组"), _all.Count);
             }
         }
         catch (Exception ex)
         {
             Log.Error("加载 N 网列表失败", ex);
-            StatusText.Text = "加载失败: " + ex.Message;
+            StatusText.Text = Localization.T("加载失败: ") + ex.Message;
         }
         finally
         {
@@ -309,22 +309,22 @@ public sealed partial class NexusPage : Page
                 State.Config.NexusGameDomain, modId, null, key, progress);
             if (record is not null)
             {
-                StatusText.Text = $"已导入「{record.Name}」";
+                StatusText.Text = string.Format(Localization.T("已导入「{0}」"), record.Name);
             }
             else if (DownloadFallbackController.IsPremiumOnly(error))
             {
-                StatusText.Text = "免费账号需要通过网页下载。";
+                StatusText.Text = Localization.T("免费账号需要通过网页下载。");
                 OpenFallback($"https://www.nexusmods.com/{State.Config.NexusGameDomain}/mods/{modId}?tab=files");
             }
             else
             {
-                StatusText.Text = "下载失败: " + (error ?? "未知错误");
+                StatusText.Text = Localization.T("下载失败: ") + (error ?? Localization.T("未知错误"));
             }
         }
         catch (Exception ex)
         {
             Log.Error("下载导入失败", ex);
-            StatusText.Text = "下载失败: " + ex.Message;
+            StatusText.Text = Localization.T("下载失败: ") + ex.Message;
         }
         finally
         {
