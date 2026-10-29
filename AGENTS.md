@@ -1,7 +1,7 @@
 # AGENTS.md — 剑星 MOD 管理器 开发交接
 
 > 本文件是给后续会话/开发者的工作提示词：项目状态、构建、测试、架构、坑、发布流程。
-> 会话归档时版本：**v1.14.1**（含尚未发版的 P0/P1/P2 修复，工作树干净）。
+> 会话归档时版本：**v1.14.2**（发版改动仍在工作树，未提交；上一次提交为 `662e345`）。
 
 ## 1. 项目概览
 
@@ -71,8 +71,8 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 ```
 
 **项数随功能增长，不要记死数字**：基线 121 项，`SBMM_TEST_UE4SS_ZIP` 打开时 +7，另有原子写 4 项、
-停用日志 3 项、同组版本 4 项等。实测 139 项（含 fixture）。判断标准是 `RESULT: ALL PASS` 且
-`FAIL=0`，不是某个具体数字。
+停用日志 3 项、同组版本 4 项、MAIN 优先 2 项、翻译表一致性 1 项等。实测 142 项（含 fixture）。
+判断标准是 `RESULT: ALL PASS` 且 `FAIL=0`，不是某个具体数字。
 
 一键验收入口（本机脚本，`_scratch` 已 gitignore）：`pwsh -File _scratch\verify.ps1`（含构建 + 自检）。
 
@@ -167,10 +167,34 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 - `Localization.Apply(root)` 遍历视觉树替换 `TextBlock/Button/InfoBar/ComboBoxItem/菜单/ToggleSwitch…`
 - 时机很重要：`ContentFrame.Navigated` 后要 `page.Loaded` + `DispatcherQueue.TryEnqueue` 各应用一次；
   标题栏/导航要 `Apply(RootGrid)`（只 Apply NavView 会漏标题栏）
+- **动态内容必须用 `Localization.ApplyDeferred(root)`**：DataTemplate 里的控件、代码重建的面板、
+  以及 `Collapsed` 的 ScrollViewer 内容，在导航时那一次 Apply 里**还不存在**。
+  `ApplyDeferred` = 立即 Apply + Low 优先级再 Apply 一次（等布局把子控件实例化）。
+  已接入：模组详情面板（`UpdateDetails`）、合集页「已安装合集」列表（`RefreshInstalled`）；
+  新增模板列表或代码重建 UI 时，填完数据要调一次，否则英文界面会残留中文。
+- **`Apply` 逐节点隔离异常**：WinUI 对个别元素会抛 `ComboBox` 的 `COMException`（消息为空），
+  早期用一个大 try/catch 包整棵子树，一处异常就让其后所有控件保持中文、日志只有一行空消息。
 - ComboBox 选项、ToggleSwitch 的「开/关」需要单独处理（已实现）
 - **代码里拼出来的 UI 文案不会自动翻译**：对话框标题/正文、`ShowMessage`、状态栏等要用
-  `Localization.T("中文原文")` 包一层，并把该原文同时补进 `zh-CN`（identity）与 `en-US`。
+  `Localization.T("中文原文")` 包一层；含变量的用 `string.Format(Localization.T("…{0}…"), v)`
+  （占位符按顺序编号）；原文同时补进 `zh-CN`（identity）与 `en-US`。
   `Log.*` 的字符串**不要**包（日志保持中文，便于排障）。
+- **不要翻译「数据」**：持久化标签（`合集:` 前缀、`CollectionInstaller.LocalTag`）、`GroupKey`、
+  文件路径、注册表键、URL、配置值，以及**用于比较的哨兵字符串**
+  （如筛选下拉里的 `"全部角色"`，代码用 `StartsWith("全部")` 判断「不过滤」——翻了筛选就失效）。
+- **ComboBox 的选中项要单独刷新**：收起状态的下拉框由缓存的 `SelectionBoxItem` 渲染，只改内部项
+  `Content` 不会刷新可见文字。`Apply` 在检测到「当前选中项的文本被翻译过」后会重设一次
+  `SelectedIndex`（-1 → 原值）来刷新；因此**下拉框的 `SelectionChanged` 处理器必须能容忍
+  `SelectedItem == null` / `SelectedIndex < 0` 这一次瞬时事件**（否则会被误当成「跟随系统」「默认值」写回配置）。
+- **运行时切换语言**：`MainWindow.ApplyLanguage` 会重新 `Initialize` 表 → 更新窗口标题 →
+  `Apply(NavView)` → 让当前页实现 `ILanguageAwarePage` 的 `OnLanguageChanged()` 重渲染代码文案 →
+  最后 `Apply(RootGrid)`（覆盖自绘标题栏）。
+  新增页面如果在代码里拼文案（`XxxText.Text = ...`），**实现 `ILanguageAwarePage`** 并在钩子里调用
+  该页自己的 `Refresh()/Reload()/LoadSettings()`，否则切语言后这些文字仍是旧语言。
+- **`Original` 缓存只保留可翻译的原文**：切语言时页面会先用新语言重设文案，紧随其后的 `Apply`
+  若沿用第一次缓存的旧字符串，会把旧语言写回去。现在缓存项不在表里时会被丢弃并重新采样。
+- 已知残留（v1.14.2）：筛选下拉的**哨兵项**（「全部角色/全部类型/全部标签」）保持中文——代码用
+  `StartsWith("全部")` 判断「不过滤」，翻译会破坏逻辑。
 - `strings.json` 的 `zh-CN` 与 `en-US` 键集合必须**完全一致**（自检有一项专门守着）；
   只加 `zh-CN` 不加 `en-US` 会让英文界面回退显示中文。
 - 新增文案：直接改 XAML/代码后，把中文原文加入 `zh-CN`（identity），需要英文时补 `en-US`
@@ -253,7 +277,7 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 - `FileLock` 只是进程内锁：便携版（`SBMM-INSTANCE_SUFFIX` 不同）与安装版可以同时跑，并同时写同一
   游戏目录 —— 需要跨进程锁时再处理（当前靠单实例 + 用户不要同时开两份来规避）
 - 仍有多处 `async void` 事件处理器（53 处），统一 try/catch 已做，但可继续收敛为 `UiTask.Safe`
-- 代码内 UI 文案正在接入 `Localization.T`；`$"…{x}…"` 插值串仍未覆盖（需要改成 `string.Format` + 占位符键）
+- 代码内 UI 文案（含插值串）已接入 `Localization.T`，运行时切换语言可整页刷新；仅剩筛选下拉的哨兵项保持中文（见「本地化」一节）
 - FOMOD 不执行脚本安装器；资源冲突分析是近似（只读 `.utoc` 明文）
 - 合集/批量下载逻辑在 `Views/ModsPage.Nexus.cs` 与 `Services/CollectionInstaller.cs` 各有一份且已分叉，
   改其中一处时**必须同步另一处**（待合并为单一实现）
