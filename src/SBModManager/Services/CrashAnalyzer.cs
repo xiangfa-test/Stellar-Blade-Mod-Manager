@@ -198,7 +198,9 @@ public static class CrashAnalyzer
                 ? Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2)
                 : bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF
                     ? Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2)
-                    : Encoding.UTF8.GetString(bytes);
+                    : LooksLikeBomlessUtf16Le(bytes)
+                        ? Encoding.Unicode.GetString(bytes)
+                        : Encoding.UTF8.GetString(bytes);
         }
         catch
         {
@@ -209,6 +211,28 @@ public static class CrashAnalyzer
         {
             yield return raw.TrimEnd('\r');
         }
+    }
+
+    /// <summary>
+    /// WER sometimes writes <c>Report.wer</c> as UTF-16LE <em>without</em> a BOM. Decoding that as
+    /// UTF-8 yields NUL-laced garbage, so "ExceptionCode=" / "FaultingModule=" no longer match and
+    /// the analysis loses the crash code. For ASCII-dominated UTF-16LE text every second byte is
+    /// 0x00, which UTF-8 text never looks like — use that as the heuristic.
+    /// </summary>
+    private static bool LooksLikeBomlessUtf16Le(byte[] bytes)
+    {
+        var pairs = Math.Min(bytes.Length / 2, 2048);
+        if (pairs < 8) return false;
+
+        var nullsOnEven = 0;
+        var nullsOnOdd = 0;
+        for (var i = 0; i < pairs; i++)
+        {
+            if (bytes[i * 2] == 0) nullsOnEven++;
+            if (bytes[i * 2 + 1] == 0) nullsOnOdd++;
+        }
+
+        return nullsOnOdd * 4 >= pairs * 3 && nullsOnEven * 8 <= pairs;
     }
 
     private static string? FindDump(DateTimeOffset since)

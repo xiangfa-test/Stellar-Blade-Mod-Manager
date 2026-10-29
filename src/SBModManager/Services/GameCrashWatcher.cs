@@ -29,6 +29,9 @@ public static class GameCrashWatcher
     private static DateTimeOffset? _startedAt;
     private static bool _enabled;
 
+    /// <summary>1 while a Poll is running; guards against overlapping timer callbacks.</summary>
+    private static int _polling;
+
     /// <summary>Set when the game vanished; late crash evidence is still collected for a while.</summary>
     private static DateTimeOffset? PendingSince { get; set; }
 
@@ -61,6 +64,12 @@ public static class GameCrashWatcher
     private static void Poll()
     {
         if (!_enabled) return;
+
+        // A single poll can outlive the 1 s timer period (WER scan + dump scan + log tail),
+        // which used to let two callbacks run concurrently and race on _game / PendingSince,
+        // reporting the same crash twice. The first caller wins; the overlapping tick bails out.
+        if (Interlocked.CompareExchange(ref _polling, 1, 0) != 0) return;
+
         try
         {
             if (!AppServices.State.Config.CaptureGameCrashes) return;
@@ -143,6 +152,12 @@ public static class GameCrashWatcher
         catch (Exception ex)
         {
             Log.Warn("崩溃监控异常: " + ex.Message);
+        }
+        finally
+        {
+            // Release the guard on every exit path (including the early returns above),
+            // otherwise one unexpected exception would permanently stop crash detection.
+            Interlocked.Exchange(ref _polling, 0);
         }
     }
 
