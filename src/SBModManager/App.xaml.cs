@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
+using SBModManager.Ui;
 
 namespace SBModManager;
 
@@ -90,7 +91,7 @@ public partial class App : Application
 
             if (Program.SelfUpdateRequested)
             {
-                _ = RunSelfUpdateAsync();
+                UiTask.Safe(RunSelfUpdateAsync);
             }
 
             if (Services.AppState.Instance.Config.HandleNxmLinks)
@@ -104,7 +105,7 @@ public partial class App : Application
 
             if (Program.ScreenshotPath is { } shotPath)
             {
-                _ = CaptureAsync(MainWindow, shotPath);
+                UiTask.Safe(() => CaptureAsync(MainWindow, shotPath));
             }
         }
         catch (Exception ex)

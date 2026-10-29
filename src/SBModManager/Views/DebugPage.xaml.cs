@@ -13,7 +13,7 @@ public sealed partial class DebugPage : Page
         Loaded += (_, _) => Refresh();
     }
 
-    private static AppState State => AppState.Instance;
+    private static IAppState State => AppServices.State;
 
     private void Refresh()
     {

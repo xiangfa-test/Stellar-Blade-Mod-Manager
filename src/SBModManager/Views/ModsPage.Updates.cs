@@ -8,6 +8,7 @@ using System.Text;
 using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
+using SBModManager.Ui;
 
 
 namespace SBModManager.Views;
@@ -16,14 +17,23 @@ public sealed partial class ModsPage
 {
     private async void CheckOneUpdate_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         if (ModList.SelectedItem is ModItem item)
         {
             await CheckUpdateAsync(item);
+        }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: CheckOneUpdate_Click", ex);
         }
     }
 
     private async void CheckAllUpdates_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         var key = State.Config.NexusApiKey;
         if (string.IsNullOrWhiteSpace(key))
         {
@@ -76,6 +86,11 @@ public sealed partial class ModsPage
 
         ShowMessage(updates > 0 ? InfoBarSeverity.Success : InfoBarSeverity.Informational,
             "更新检查完成", detailText);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: CheckAllUpdates_Click", ex);
+        }
     }
 
     private async Task CheckUpdateAsync(ModItem item)
@@ -165,11 +180,13 @@ public sealed partial class ModsPage
             },
             CloseButtonText = "关闭",
         };
-        _ = dialog.ShowAsync();
+        UiTask.Safe(dialog.ShowAsync());
     }
 
     private async void ShowAssetConflicts_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         var enabled = State.Library.Where(m => State.IsEnabled(m.Id)).ToList();
         if (enabled.Count == 0)
         {
@@ -184,7 +201,7 @@ public sealed partial class ModsPage
             Content = new TextBlock { Text = "正在读取 pak 的 .utoc 资源清单…", TextWrapping = TextWrapping.Wrap },
             CloseButtonText = "取消",
         };
-        _ = progressDialog.ShowAsync();
+        UiTask.Safe(progressDialog.ShowAsync());
 
         var conflicts = await Task.Run(() => PakInspector.FindAssetConflicts(enabled));
         progressDialog.Hide();
@@ -251,6 +268,11 @@ public sealed partial class ModsPage
             args.Cancel = true;
         };
         await dialog.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: ShowAssetConflicts_Click", ex);
+        }
     }
 
     private sealed class AssetConflictItem

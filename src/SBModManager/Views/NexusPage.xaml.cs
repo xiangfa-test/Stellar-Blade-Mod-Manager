@@ -25,7 +25,7 @@ public sealed partial class NexusPage : Page
     private int _shown;
     private DownloadFallbackController? _fallback;
 
-    private static AppState State => AppState.Instance;
+    private static IAppState State => AppServices.State;
 
     public NexusPage()
     {
@@ -126,16 +126,30 @@ public sealed partial class NexusPage : Page
 
     private async void Tag_Changed(object sender, SelectionChangedEventArgs e)
     {
+        try
+        {
         if (!IsLoaded) return;
         await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: Tag_Changed", ex);
+        }
     }
 
     private async void Tag_Submitted(ComboBox sender, ComboBoxTextSubmittedEventArgs args)
     {
+        try
+        {
         if (!IsLoaded) return;
         // Typed text wins over a previously selected tag.
         TagBox.SelectedItem = null;
         await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: Tag_Submitted", ex);
+        }
     }
 
     private void AppendPage()
@@ -230,7 +244,7 @@ public sealed partial class NexusPage : Page
     private void OpenFallback(string url)
     {
         _fallback ??= new DownloadFallbackController(DownloadFallbackBar,
-            target => _ = Windows.System.Launcher.LaunchUriAsync(new Uri(target)));
+            target => UiTask.Safe(Windows.System.Launcher.LaunchUriAsync(new Uri(target))));
         _fallback.Show(url);
     }
 

@@ -17,7 +17,7 @@ public sealed partial class RuntimePage : Page
 
     public ObservableCollection<ModItem> Ue4ssMods { get; } = new();
 
-    private AppState State => AppState.Instance;
+    private IAppState State => AppServices.State;
 
     private void Refresh()
     {

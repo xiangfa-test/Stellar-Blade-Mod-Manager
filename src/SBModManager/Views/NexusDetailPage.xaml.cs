@@ -27,7 +27,7 @@ public sealed partial class NexusDetailPage : Page
     private string _originalSummary = "";
     private DownloadFallbackController? _fallback;
 
-    private static AppState State => AppState.Instance;
+    private static IAppState State => AppServices.State;
 
     public NexusDetailPage()
     {
@@ -170,8 +170,15 @@ public sealed partial class NexusDetailPage : Page
 
     private async void OpenWeb_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         await Windows.System.Launcher.LaunchUriAsync(
             new Uri($"https://www.nexusmods.com/{_domain}/mods/{_modId}"));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: OpenWeb_Click", ex);
+        }
     }
 
     private async void Download_Click(object sender, RoutedEventArgs e)
@@ -225,7 +232,7 @@ public sealed partial class NexusDetailPage : Page
     private void OpenFallback(string url)
     {
         _fallback ??= new DownloadFallbackController(DownloadFallbackBar,
-            target => _ = Windows.System.Launcher.LaunchUriAsync(new Uri(target)));
+            target => UiTask.Safe(Windows.System.Launcher.LaunchUriAsync(new Uri(target))));
         _fallback.Show(url);
     }
 

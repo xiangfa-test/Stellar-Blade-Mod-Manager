@@ -37,7 +37,7 @@ public sealed partial class CollectionsPage : Page
     public ObservableCollection<InstalledCollectionRow> Installed { get; } = new();
     public ObservableCollection<string> Recent { get; } = new();
 
-    private static AppState State => AppState.Instance;
+    private static IAppState State => AppServices.State;
 
     private static readonly Queue<string> Pending = new();
     private static readonly object PendingLock = new();
@@ -458,6 +458,8 @@ public sealed partial class CollectionsPage : Page
     {
         if (sender is not Button { Tag: string tag } || string.IsNullOrWhiteSpace(tag)) return;
 
+        try
+        {
         var (enabled, failed, errors) = CollectionInstaller.Activate(tag, exclusive: true);
         RefreshInstalled();
         var message = $"已启用「{tag["合集:".Length..]}」：{enabled} 个模组" +
@@ -468,6 +470,12 @@ public sealed partial class CollectionsPage : Page
             message += Environment.NewLine + string.Join(Environment.NewLine, errors.Take(6));
         }
         StatusLine.Text = message;
+        }
+        catch (Exception ex)
+        {
+            Log.Error("启用合集失败", ex);
+            StatusLine.Text = "启用合集失败: " + ex.Message;
+        }
         await Task.CompletedTask;
     }
 
@@ -475,10 +483,18 @@ public sealed partial class CollectionsPage : Page
     {
         if (sender is not Button { Tag: string tag } || string.IsNullOrWhiteSpace(tag)) return;
 
+        try
+        {
         var (disabled, errors) = CollectionInstaller.Deactivate(tag);
         RefreshInstalled();
         StatusLine.Text = $"已停用「{tag["合集:".Length..]}」：{disabled} 个模组" +
                           (errors.Count > 0 ? $"（{errors.Count} 个失败）" : "") + "。";
+        }
+        catch (Exception ex)
+        {
+            Log.Error("停用合集失败", ex);
+            StatusLine.Text = "停用合集失败: " + ex.Message;
+        }
         await Task.CompletedTask;
     }
 

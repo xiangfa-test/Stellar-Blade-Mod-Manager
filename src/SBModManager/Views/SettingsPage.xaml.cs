@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SBModManager.Services;
 using Windows.System;
+using SBModManager.Ui;
 
 namespace SBModManager.Views;
 
@@ -15,7 +16,7 @@ public sealed partial class SettingsPage : Page
         Loaded += (_, _) => LoadSettings();
     }
 
-    private AppState State => AppState.Instance;
+    private IAppState State => AppServices.State;
 
     private void LoadSettings()
     {
@@ -180,7 +181,7 @@ public sealed partial class SettingsPage : Page
             Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
             CloseButtonText = "好",
         };
-        _ = dialog.ShowAsync();
+        UiTask.Safe(dialog.ShowAsync());
     }
 
     private void ShowError(string message) => ShowInfo("提示", message);
@@ -418,11 +419,18 @@ public sealed partial class SettingsPage : Page
 
     private async void OpenRelease_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         var url = _pendingUpdate?.ReleaseUrl;
         if (string.IsNullOrWhiteSpace(url))
         {
             url = $"https://github.com/{AppUpdater.Repository}/releases/latest";
         }
         await Launcher.LaunchUriAsync(new Uri(url));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: OpenRelease_Click", ex);
+        }
     }
 }

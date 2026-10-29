@@ -164,6 +164,8 @@ public sealed partial class ModsPage
 
     private async void VersionBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        try
+        {
         if (_suppressVersionChange) return;
         if (VersionBox.SelectedItem is not ModItem selected) return;
         if (ModList.SelectedItem is ModItem current && current.Record.Id == selected.Record.Id) return;
@@ -174,10 +176,17 @@ public sealed partial class ModsPage
         }
         ModList.SelectedItem = selected;
         UpdateDetails(selected);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: VersionBox_SelectionChanged", ex);
+        }
     }
 
     private async void EditMeta_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         if (ModList.SelectedItem is not ModItem item)
         {
             ShowMessage(InfoBarSeverity.Warning, "未选择模组", "先在左侧选择一个模组。");
@@ -387,6 +396,11 @@ public sealed partial class ModsPage
         RebuildMods();
         UpdateDetails(item);
         ShowMessage(InfoBarSeverity.Success, "已保存", $"「{item.Name}」的标签与备注已更新。");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: EditMeta_Click", ex);
+        }
     }
 
     private async void OpenGallery_Click(object sender, RoutedEventArgs e)

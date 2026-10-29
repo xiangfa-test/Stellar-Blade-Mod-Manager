@@ -71,7 +71,7 @@ public sealed partial class ModsPage : Page
 
     public ObservableCollection<ExternalItem> Externals { get; } = new();
 
-    private AppState State => AppState.Instance;
+    private IAppState State => AppServices.State;
 
     private string? GameDir => State.GameDir;
 
@@ -126,7 +126,7 @@ public sealed partial class ModsPage : Page
     {
         lock (ConflictCacheLock)
         {
-            var deployedVersion = AppState.Instance.Deployed.Mods.Count;
+            var deployedVersion = AppServices.State.Deployed.Mods.Count;
             var fresh = _conflictCache is not null &&
                         _conflictCacheGameDir == gameDir &&
                         _conflictCache.DeployedCount == deployedVersion;
@@ -475,10 +475,17 @@ public sealed partial class ModsPage : Page
 
     private async void ModToggle_Toggled(object sender, RoutedEventArgs e)
     {
+        try
+        {
         if (DateTime.UtcNow < _suppressToggleUntil) return;
         if (sender is not ToggleSwitch toggle || toggle.DataContext is not ModItem item) return;
         if (item.Enabled == toggle.IsOn) return;
         await SetModEnabledAsync(item, toggle.IsOn);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: ModToggle_Toggled", ex);
+        }
     }
 
     private async Task SetModEnabledAsync(ModItem item, bool enable)
@@ -606,6 +613,8 @@ public sealed partial class ModsPage : Page
 
     private async void EnableAll_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         if (!EnsureGame(out var gameDir)) return;
         SetBusy(true);
         var failed = new List<string>();
@@ -633,6 +642,11 @@ public sealed partial class ModsPage : Page
         ShowMessage(failed.Count == 0 ? InfoBarSeverity.Success : InfoBarSeverity.Warning,
             "批量启用完成",
             failed.Count == 0 ? "所有模组都已启用。" : "部分模组未启用:\n" + string.Join(Environment.NewLine, failed.Take(8)));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: EnableAll_Click", ex);
+        }
     }
 
     private void DisableAll_Click(object sender, RoutedEventArgs e)
@@ -707,6 +721,8 @@ public sealed partial class ModsPage : Page
 
     private async void ExternalList_RightTapped(object sender, RightTappedRoutedEventArgs e)
     {
+        try
+        {
         if ((e.OriginalSource as FrameworkElement)?.DataContext is not ExternalItem item) return;
         var flyout = new MenuFlyout();
         var open = new MenuFlyoutItem { Text = "在资源管理器中显示" };
@@ -731,6 +747,11 @@ public sealed partial class ModsPage : Page
         flyout.Items.Add(delete);
 
         flyout.ShowAt(ExternalList, e.GetPosition(ExternalList));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: ExternalList_RightTapped", ex);
+        }
     }
 
     // ---------------------------------------------------------------- misc
@@ -767,6 +788,8 @@ public sealed partial class ModsPage : Page
 
     private async void Root_Drop(object sender, DragEventArgs e)
     {
+        try
+        {
         if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
         var items = await e.DataView.GetStorageItemsAsync();
         var files = new List<string>();
@@ -787,6 +810,11 @@ public sealed partial class ModsPage : Page
         if (files.Count > 0)
         {
             await ImportFilesAsync(files);
+        }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: Root_Drop", ex);
         }
     }
 

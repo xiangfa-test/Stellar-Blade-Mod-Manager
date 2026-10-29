@@ -20,7 +20,7 @@ public sealed partial class LoadOrderPage : Page
 {
     public ObservableCollection<LoadOrderItem> Items { get; } = new();
 
-    private static AppState State => AppState.Instance;
+    private static IAppState State => AppServices.State;
 
     public LoadOrderPage()
     {
@@ -100,6 +100,8 @@ public sealed partial class LoadOrderPage : Page
 
     private async void Apply_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         if (State.GameDir is not { } gameDir)
         {
             StatusText.Text = "请先在设置里选择游戏目录。";
@@ -126,6 +128,11 @@ public sealed partial class LoadOrderPage : Page
                 CloseButtonText = "好",
             };
             await dialog.ShowAsync();
+        }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: Apply_Click", ex);
         }
     }
 }

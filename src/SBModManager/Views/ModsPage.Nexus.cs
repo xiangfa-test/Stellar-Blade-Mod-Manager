@@ -16,10 +16,17 @@ public sealed partial class ModsPage
 {
     private async void OpenNexusPage_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         if (ModList.SelectedItem is not ModItem item) return;
         var url = item.Record.NexusPageUrl;
         if (string.IsNullOrWhiteSpace(url)) return;
         await Windows.System.Launcher.LaunchUriAsync(new Uri(url));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: OpenNexusPage_Click", ex);
+        }
     }
 
     private async Task HandleNxmAsync(string url)

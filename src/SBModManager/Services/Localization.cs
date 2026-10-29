@@ -119,8 +119,22 @@ public static class Localization
                 break;
 
             case ToggleSwitch toggle:
-                if (toggle.OnContent is string on) toggle.OnContent = T(Original(toggle, on, ""));
-                if (toggle.OffContent is string off) toggle.OffContent = T(Original(toggle, off, ""));
+                // Template-provided "on/off" labels are localized by the OS language, which may
+                // not match the in-app language; set them explicitly.
+                toggle.OnContent = T("开");
+                toggle.OffContent = T("关");
+                break;
+
+            case ComboBox combo:
+                foreach (var item in combo.Items)
+                {
+                    if (item is ComboBoxItem comboItem) ApplyElement(comboItem);
+                    else if (item is string text && _table.ContainsKey(text))
+                    {
+                        var index = combo.Items.IndexOf(item);
+                        if (index >= 0) combo.Items[index] = T(text);
+                    }
+                }
                 break;
 
             case TextBox box when !string.IsNullOrWhiteSpace(box.PlaceholderText):

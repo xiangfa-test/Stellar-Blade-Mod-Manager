@@ -21,7 +21,7 @@ public sealed partial class MainWindow : Window
         Title = "剑星 MOD 管理器";
 
         Services.GameCrashWatcher.CrashDetected += OnGameCrashDetected;
-        Services.Localization.Initialize(Services.AppState.Instance.Config.Language);
+        Services.Localization.Initialize(Services.AppServices.State.Config.Language);
 
         // Merge the caption area into the app content: the custom title bar uses the
         // Mica backdrop and WinUI-typed caption buttons instead of the system frame.
@@ -80,8 +80,8 @@ public sealed partial class MainWindow : Window
                 DispatcherQueue.TryEnqueue(() => Services.Localization.Apply(page));
             }
         };
-        NavView.Loaded += (_, _) => Services.Localization.Apply(NavView);
-        DispatcherQueue.TryEnqueue(() => Services.Localization.Apply(NavView));
+        RootGrid.Loaded += (_, _) => Services.Localization.Apply(RootGrid);
+        DispatcherQueue.TryEnqueue(() => Services.Localization.Apply(RootGrid));
         SelectPage(Program.PageTag ?? "mods");
 
         if (Program.NavTag is { Length: > 0 } navTag)
@@ -261,7 +261,7 @@ public sealed partial class MainWindow : Window
     {
         if (_startupUpdateChecked) return;
         _startupUpdateChecked = true;
-        if (!Services.AppState.Instance.Config.AutoCheckUpdates) return;
+        if (!Services.AppServices.State.Config.AutoCheckUpdates) return;
         if (!Services.AppUpdater.StartupCheckAllowed()) return;
 
         try
@@ -292,7 +292,7 @@ public sealed partial class MainWindow : Window
 
     private void AttachSizeMemory()
     {
-        var config = Services.AppState.Instance.Config;
+        var config = Services.AppServices.State.Config;
         if (config.RememberWindowSize && config.WindowWidth >= 640 && config.WindowHeight >= 480)
         {
             try
@@ -334,7 +334,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var state = Services.AppState.Instance;
+        var state = Services.AppServices.State;
         var config = state.Config;
         var size = AppWindow.Size;
 
@@ -364,7 +364,7 @@ public sealed partial class MainWindow : Window
     /// <summary>Re-apply UI text after the language setting changes.</summary>
     public void ApplyLanguage()
     {
-        Services.Localization.Initialize(Services.AppState.Instance.Config.Language);
+        Services.Localization.Initialize(Services.AppServices.State.Config.Language);
         Services.Localization.Apply(NavView);
         Services.Localization.Apply(ContentFrame.Content as DependencyObject);
     }
@@ -372,7 +372,7 @@ public sealed partial class MainWindow : Window
     /// <summary>Show the debug page only when enabled in settings.</summary>
     public void ApplyDebugVisibility()
     {
-        var visible = Services.AppState.Instance.Config.ShowDebugPage;
+        var visible = Services.AppServices.State.Config.ShowDebugPage;
         DebugNavItem.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         if (!visible && ContentFrame.CurrentSourcePageType == typeof(DebugPage))
         {
@@ -382,7 +382,7 @@ public sealed partial class MainWindow : Window
 
     private void ApplyConfiguredTheme()
     {
-        RootGrid.RequestedTheme = Services.AppState.Instance.Config.Theme switch
+        RootGrid.RequestedTheme = Services.AppServices.State.Config.Theme switch
         {
             "light" => ElementTheme.Light,
             "dark" => ElementTheme.Dark,
@@ -574,8 +574,8 @@ public sealed partial class MainWindow : Window
         // "问题反馈" opens GitHub Issues instead of navigating to a page.
         if (tag == "feedback")
         {
-            _ = Windows.System.Launcher.LaunchUriAsync(
-                new Uri("https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/issues"));
+            UiTask.Safe(Windows.System.Launcher.LaunchUriAsync(
+                new Uri("https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/issues")));
             DispatcherQueue.TryEnqueue(() =>
             {
                 var current = ContentFrame.CurrentSourcePageType;

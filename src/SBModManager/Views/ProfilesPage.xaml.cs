@@ -43,6 +43,8 @@ public sealed partial class ProfilesPage : Page
 
     private async void SaveCurrent_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         var box = new TextBox
         {
             Text = "方案 " + DateTime.Now.ToString("MM-dd HH:mm"),
@@ -66,12 +68,19 @@ public sealed partial class ProfilesPage : Page
         ProfileStore.Save(profile);
         Reload();
         StatusText.Text = $"已保存方案「{name}」（{profile.Entries.Count(e => e.Enabled)} 个启用）。";
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: SaveCurrent_Click", ex);
+        }
     }
 
     private ModProfile? Find(string id) => ProfileStore.LoadAll().FirstOrDefault(p => p.Id == id);
 
     private async void ApplyProfile_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         if (sender is not Button { Tag: string id }) return;
         var profile = Find(id);
         if (profile is null) return;
@@ -98,10 +107,17 @@ public sealed partial class ProfilesPage : Page
 
         StatusText.Text = $"方案「{profile.Name}」已应用：启用 {result.Enabled} 个，失败 {result.Failed} 个。";
         Reload();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: ApplyProfile_Click", ex);
+        }
     }
 
     private async void RenameProfile_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         if (sender is not Button { Tag: string id }) return;
         var profile = Find(id);
         if (profile is null) return;
@@ -123,10 +139,17 @@ public sealed partial class ProfilesPage : Page
         profile.Name = name;
         ProfileStore.Save(profile);
         Reload();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: RenameProfile_Click", ex);
+        }
     }
 
     private async void DeleteProfile_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         if (sender is not Button { Tag: string id }) return;
         var profile = Find(id);
         if (profile is null) return;
@@ -144,5 +167,10 @@ public sealed partial class ProfilesPage : Page
 
         ProfileStore.Delete(id);
         Reload();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: DeleteProfile_Click", ex);
+        }
     }
 }
