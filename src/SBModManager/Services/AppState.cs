@@ -23,6 +23,8 @@ public sealed class AppState : IAppState
     public void Load()
     {
         AppPaths.EnsureCreated();
+        // Sweep temp files left behind by a save that was killed before its rename.
+        FileSafe.CleanupStale(AppPaths.Root);
         try
         {
             if (File.Exists(AppPaths.ConfigFile))
@@ -132,7 +134,7 @@ public sealed class AppState : IAppState
     {
         try
         {
-            File.WriteAllText(AppPaths.ConfigFile, JsonSerializer.Serialize(Config, JsonOptions));
+            FileSafe.WriteAllText(AppPaths.ConfigFile, JsonSerializer.Serialize(Config, JsonOptions));
         }
         catch (Exception ex)
         {
@@ -144,7 +146,7 @@ public sealed class AppState : IAppState
     {
         try
         {
-            File.WriteAllText(AppPaths.StateFile, JsonSerializer.Serialize(Deployed, JsonOptions));
+            FileSafe.WriteAllText(AppPaths.StateFile, JsonSerializer.Serialize(Deployed, JsonOptions));
         }
         catch (Exception ex)
         {

@@ -64,7 +64,7 @@ public static class ResumableDownloader
 
         if (!File.Exists(metaPath))
         {
-            File.WriteAllText(metaPath, url, Encoding.UTF8);
+            FileSafe.WriteAllText(metaPath, url);
         }
 
         for (var attempt = 1; attempt <= 3; attempt++)
@@ -141,7 +141,7 @@ public static class ResumableDownloader
                 }
 
                 MoveWithRetry(partPath, targetPath);
-                File.WriteAllText(metaPath, url, Encoding.UTF8);
+                FileSafe.WriteAllText(metaPath, url);
                 progress?.Report(100);
                 return;
             }

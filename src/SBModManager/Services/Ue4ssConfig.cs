@@ -131,7 +131,7 @@ public static class Ue4ssConfig
             var json = array.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
             if (!File.Exists(jsonPath) || File.ReadAllText(jsonPath) != json)
             {
-                File.WriteAllText(jsonPath, json);
+                FileSafe.WriteAllText(jsonPath, json);
             }
             Log.Info($"UE4SS mods.json: {modName} -> {(enabled ? "enabled" : "disabled")}");
         }
@@ -171,7 +171,7 @@ public static class Ue4ssConfig
                 lines.Add($"{modName} : 1");
             }
 
-            File.WriteAllLines(txtPath, lines);
+            FileSafe.WriteAllLines(txtPath, lines);
         }
         catch (Exception ex)
         {

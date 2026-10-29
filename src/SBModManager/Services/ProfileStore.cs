@@ -56,7 +56,7 @@ public static class ProfileStore
     public static void Save(ModProfile profile)
     {
         Directory.CreateDirectory(DirectoryPath);
-        File.WriteAllText(Path.Combine(DirectoryPath, profile.Id + ".json"),
+        FileSafe.WriteAllText(Path.Combine(DirectoryPath, profile.Id + ".json"),
             JsonSerializer.Serialize(profile, new JsonSerializerOptions { WriteIndented = true }));
     }
 

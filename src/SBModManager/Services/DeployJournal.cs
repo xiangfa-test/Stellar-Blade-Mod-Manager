@@ -37,7 +37,7 @@ public static class DeployJournal
                 Backups = backups.ToDictionary(kv => kv.Key, kv => kv.Value),
             };
             Directory.CreateDirectory(AppPaths.Root);
-            File.WriteAllText(JournalPath, JsonSerializer.Serialize(entry,
+            FileSafe.WriteAllText(JournalPath, JsonSerializer.Serialize(entry,
                 new JsonSerializerOptions { WriteIndented = true }));
         }
         catch (Exception ex)

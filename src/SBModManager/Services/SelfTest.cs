@@ -441,6 +441,31 @@ public static class SelfTest
             Check("损坏的部署日志不崩溃并清理",
                 !journalThrew && !File.Exists(journalPath));
 
+            // 1m2) atomic writes: every state file must be replaced, never truncated in place
+            var atomicDir = Path.Combine(AppPaths.TempRoot, "selftest-atomic");
+            try { if (Directory.Exists(atomicDir)) Directory.Delete(atomicDir, recursive: true); } catch { }
+            Directory.CreateDirectory(atomicDir);
+            var atomicFile = Path.Combine(atomicDir, "state.json");
+            File.WriteAllText(atomicFile, "old");
+            FileSafe.WriteAllText(atomicFile, "new");
+            Check("原子写覆盖已有文件", File.ReadAllText(atomicFile) == "new");
+
+            var atomicTemps = Directory.GetFiles(atomicDir, "*.tmp-*");
+            Check("原子写不残留临时文件", atomicTemps.Length == 0,
+                string.Join(", ", atomicTemps.Select(f => Path.GetFileName(f))));
+
+            var staleTemp = Path.Combine(atomicDir, "state.json.tmp-deadbeef");
+            File.WriteAllText(staleTemp, "half");
+            File.SetLastWriteTimeUtc(staleTemp, DateTime.UtcNow.AddHours(-2));
+            var swept = FileSafe.CleanupStale(atomicDir);
+            Check("启动清理陈旧临时文件", swept >= 1 && !File.Exists(staleTemp), $"swept={swept}");
+
+            var freshTemp = Path.Combine(atomicDir, "state.json.tmp-cafebabe");
+            File.WriteAllText(freshTemp, "in-flight");
+            Check("未超时的临时文件不被误删",
+                FileSafe.CleanupStale(atomicDir) == 0 && File.Exists(freshTemp));
+            try { Directory.Delete(atomicDir, recursive: true); } catch { }
+
             // 1n) crash analysis must not raise false positives
             var future = DateTimeOffset.Now.AddHours(1);
             Check("无崩溃证据且正常退出不误报", CrashAnalyzer.Build(future, 0) is null);

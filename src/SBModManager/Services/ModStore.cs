@@ -47,7 +47,7 @@ public static class ModStore
     public static void Save(ModRecord record)
     {
         Directory.CreateDirectory(record.ModDir);
-        File.WriteAllText(Path.Combine(record.ModDir, MetaFileName),
+        FileSafe.WriteAllText(Path.Combine(record.ModDir, MetaFileName),
             JsonSerializer.Serialize(record, JsonOptions));
     }
 
