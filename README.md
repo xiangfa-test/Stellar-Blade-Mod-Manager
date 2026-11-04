@@ -2,7 +2,15 @@
 
 基于 **WinUI 3 + .NET 8** 的《Stellar Blade（剑星）》模组管理器，原生 Fluent + Mica 界面。
 
-当前版本 **v1.14.2** ｜ 协议 **GPL-3.0** ｜ [下载最新版](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/releases/latest)
+[![Release](https://img.shields.io/github/v/release/xiangfa-test/Stellar-Blade-Mod-Manager?label=release&color=2ea44f)](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/xiangfa-test/Stellar-Blade-Mod-Manager/total?label=downloads&color=blue)](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/releases)
+[![License](https://img.shields.io/github/license/xiangfa-test/Stellar-Blade-Mod-Manager?color=blue)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/xiangfa-test/Stellar-Blade-Mod-Manager)](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/commits/main)
+![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078D6?logo=windows&logoColor=white)
+![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)
+![WinUI](https://img.shields.io/badge/WinUI-3-0078D4?logo=windows&logoColor=white)
+
+[下载最新版](https://github.com/xiangfa-test/Stellar-Blade-Mod-Manager/releases/latest)
 
 ![模组管理](docs/screenshots/mods.png)
 

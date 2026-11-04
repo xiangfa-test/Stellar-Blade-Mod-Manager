@@ -245,7 +245,8 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 
 ## 8. 发布流程（每次都要走完）
 
-1. 升版本：`SBModManager.csproj` 的 `<Version>`、`AboutPage.xaml`、`README.md`
+1. 升版本：`SBModManager.csproj` 的 `<Version>`、`AboutPage.xaml`
+   （README 里的版本用 shields.io 动态徽章，不需要手改）
 2. 写 `_scratch/release/notes-vX.Y.Z.md`：**只写本版改动**，不带作者、不带历史
    - 体例：`## 剑星 MOD 管理器 vX.Y.Z` → `### 新增` / `### 修复` / `### 说明`
      （个别版本可加 `### 改进`、`### 内部改进`）
