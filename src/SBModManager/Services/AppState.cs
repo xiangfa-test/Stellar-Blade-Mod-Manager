@@ -130,27 +130,36 @@ public sealed class AppState : IAppState
 
     public void ReloadLibrary() => Library = ModStore.LoadAll();
 
+    /// <summary>Serialises config/state writes: the UI thread and background jobs can both save.</summary>
+    private static readonly object SaveLock = new();
+
     public void SaveConfig()
     {
-        try
+        lock (SaveLock)
         {
-            FileSafe.WriteAllText(AppPaths.ConfigFile, JsonSerializer.Serialize(Config, JsonOptions));
-        }
-        catch (Exception ex)
-        {
-            Log.Error("保存配置失败", ex);
+            try
+            {
+                FileSafe.WriteAllText(AppPaths.ConfigFile, JsonSerializer.Serialize(Config, JsonOptions));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("保存配置失败", ex);
+            }
         }
     }
 
     public void SaveDeployed()
     {
-        try
+        lock (SaveLock)
         {
-            FileSafe.WriteAllText(AppPaths.StateFile, JsonSerializer.Serialize(Deployed, JsonOptions));
-        }
-        catch (Exception ex)
-        {
-            Log.Error("保存部署状态失败", ex);
+            try
+            {
+                FileSafe.WriteAllText(AppPaths.StateFile, JsonSerializer.Serialize(Deployed, JsonOptions));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("保存部署状态失败", ex);
+            }
         }
     }
 

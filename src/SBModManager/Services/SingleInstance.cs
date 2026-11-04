@@ -120,8 +120,15 @@ public static class SingleInstance
         _mutex = null;
     }
 
+    /// <summary>Forwarded payloads come from another process' command line: keep them bounded.</summary>
+    private const int MaxPayloadLength = 4096;
+
+    /// <summary>Requests handled per UI tick, so a flooded queue cannot stall the window.</summary>
+    private const int MaxRequestsPerDrain = 32;
+
     public static void Enqueue(InstanceRequest request)
     {
+        var payload = SanitizePayload(request.Payload);
         var name = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}.{request.Kind}";
         var written = 0;
         foreach (var dir in WriteDirs)
@@ -129,7 +136,7 @@ public static class SingleInstance
             try
             {
                 Directory.CreateDirectory(dir);
-                File.WriteAllText(Path.Combine(dir, name), request.Payload ?? "");
+                File.WriteAllText(Path.Combine(dir, name), payload);
                 written++;
             }
             catch
@@ -155,6 +162,7 @@ public static class SingleInstance
         var seenPayloads = new HashSet<string>(StringComparer.Ordinal);
         foreach (var dir in ReadDirs)
         {
+            if (result.Count >= MaxRequestsPerDrain) break;
             try
             {
                 if (!Directory.Exists(dir)) continue;
@@ -188,6 +196,14 @@ public static class SingleInstance
             Log.Info($"收到 {result.Count} 个转发请求: " + string.Join(", ", result.Select(r => r.Kind)));
         }
         return result;
+    }
+
+    /// <summary>Strip line breaks and cap the length of a payload we did not produce ourselves.</summary>
+    private static string SanitizePayload(string? payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload)) return "";
+        var clean = payload.Replace("\r", "").Replace("\n", "").Trim();
+        return clean.Length <= MaxPayloadLength ? clean : clean[..MaxPayloadLength];
     }
 
     private static void CleanupOldRequests()

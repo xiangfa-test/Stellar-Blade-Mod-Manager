@@ -449,6 +449,29 @@ public static class SelfTest
             try { ModActions.Delete(sibB); } catch { }
             try { if (File.Exists(extraTarget)) File.Delete(extraTarget); } catch { }
 
+            // 1h5) metadata whose Id drifted from its folder is repaired on load, otherwise the
+            // record would point ModDir at a folder that does not exist.
+            var healDir = Path.Combine(AppPaths.ModsRoot, "heal-id-test");
+            Directory.CreateDirectory(healDir);
+            var drifted = new ModRecord { Id = "some-other-id", Name = "HealTest", Type = ModType.Pak };
+            File.WriteAllText(Path.Combine(healDir, ModStore.MetaFileName),
+                JsonSerializer.Serialize(drifted, new JsonSerializerOptions { WriteIndented = true }));
+            var healed = ModStore.LoadAll().FirstOrDefault(m => m.Id == "heal-id-test");
+            var healedOnDisk = false;
+            try
+            {
+                var reread = JsonSerializer.Deserialize<ModRecord>(
+                    File.ReadAllText(Path.Combine(healDir, ModStore.MetaFileName)));
+                healedOnDisk = reread?.Id == "heal-id-test";
+            }
+            catch
+            {
+                // treated as not healed
+            }
+            Check("元数据 Id 与目录不一致时自动修正", healed is not null && healedOnDisk,
+                healed is null ? "未加载到记录" : $"id={healed.Id}");
+            try { Directory.Delete(healDir, recursive: true); } catch { }
+
             // 1j) translation language detection
             Check("翻译方向识别",
                 TranslationService.LooksChinese("这是一段中文说明") &&

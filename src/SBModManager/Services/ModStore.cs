@@ -28,6 +28,23 @@ public static class ModStore
                     var record = JsonSerializer.Deserialize<ModRecord>(File.ReadAllText(meta), JsonOptions);
                     if (record is not null)
                     {
+                        // ModDir is derived from Id, so a drifted Id would point the record at a
+                        // folder that no longer exists and deploying it would fail confusingly.
+                        var folderId = Path.GetFileName(dir);
+                        if (string.IsNullOrWhiteSpace(record.Id) ||
+                            !string.Equals(record.Id, folderId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            Log.Warn($"模组元数据 Id 与目录不一致，已修正: {meta} ({record.Id} -> {folderId})");
+                            record.Id = folderId;
+                            try
+                            {
+                                Save(record);
+                            }
+                            catch (Exception saveEx)
+                            {
+                                Log.Warn($"修正后的元数据写入失败 {meta}: {saveEx.Message}");
+                            }
+                        }
                         result.Add(record);
                     }
                 }

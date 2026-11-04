@@ -96,7 +96,17 @@ public static class AppPaths
 public static class Log
 {
     private static readonly object Sync = new();
-    private static readonly string FilePath = Path.Combine(
+
+    /// <summary>Rotate once the current day file passes this size; one previous file is kept.</summary>
+    private const long MaxBytes = 8 * 1024 * 1024;
+
+    /// <summary>Checking the size on every line would be wasteful; sample it instead.</summary>
+    private const int WritesPerSizeCheck = 200;
+
+    private static int _writesSinceCheck;
+
+    /// <summary>Computed per write so a session that crosses midnight keeps logging to today.</summary>
+    private static string FilePath => Path.Combine(
         AppPaths.LogsRoot, $"sbmm-{DateTime.Now:yyyyMMdd}.log");
 
     public static event Action<string>? LineWritten;
@@ -114,14 +124,46 @@ public static class Log
             try
             {
                 Directory.CreateDirectory(AppPaths.LogsRoot);
-                File.AppendAllText(FilePath, line + Environment.NewLine, Encoding.UTF8);
+                var path = FilePath;
+                if (++_writesSinceCheck >= WritesPerSizeCheck)
+                {
+                    _writesSinceCheck = 0;
+                    RotateIfTooLarge(path);
+                }
+                File.AppendAllText(path, line + Environment.NewLine, Encoding.UTF8);
             }
             catch
             {
                 // logging must never throw
             }
         }
-        LineWritten?.Invoke(line);
+
+        // A subscriber must never break the caller that just logged something.
+        try
+        {
+            LineWritten?.Invoke(line);
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    /// <summary>Move the log aside when it grows past the cap, so a long session stays bounded.</summary>
+    private static void RotateIfTooLarge(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            if (!info.Exists || info.Length < MaxBytes) return;
+            var backup = path + ".1";
+            File.Delete(backup);
+            File.Move(path, backup);
+        }
+        catch
+        {
+            // rotation is best effort
+        }
     }
 
     public static void OpenLogFolder()
