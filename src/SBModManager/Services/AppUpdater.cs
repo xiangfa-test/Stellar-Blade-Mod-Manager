@@ -179,20 +179,49 @@ public static class AppUpdater
         }
 
         var stage = Path.Combine(root, "stage");
-        ZipFile.ExtractToDirectory(zipPath, stage);
-        var exe = Path.Combine(stage, "SBModManager", "SBModManager.exe");
-        if (!File.Exists(exe))
+        if (Directory.Exists(stage)) Directory.Delete(stage, recursive: true);
+
+        var limitError = ArchiveService.EnsureZipWithinLimits(zipPath);
+        if (limitError is not null)
         {
-            // Some zips may not have the top-level folder.
-            exe = Path.Combine(stage, "SBModManager.exe");
-            if (!File.Exists(exe))
-            {
-                throw new InvalidOperationException("更新包里没有找到 SBModManager.exe。");
-            }
-            return stage;
+            throw new InvalidOperationException(limitError);
         }
 
-        return Path.Combine(stage, "SBModManager");
+        ZipFile.ExtractToDirectory(zipPath, stage);
+
+        // Some zips may not have the top-level folder; accept either layout but insist on a
+        // complete app, otherwise replacing the running install would break it.
+        var staged = Path.Combine(stage, "SBModManager");
+        if (!Directory.Exists(staged)) staged = stage;
+        var incomplete = ValidateStagedApp(staged);
+        if (incomplete is not null)
+        {
+            throw new InvalidOperationException("更新包不完整：" + incomplete);
+        }
+        return staged;
+    }
+
+    /// <summary>
+    /// Check that a staged update really is a complete build before it is allowed to replace the
+    /// running install. Returns an error message, or null when the folder looks usable.
+    /// </summary>
+    public static string? ValidateStagedApp(string stagedDir)
+    {
+        if (!Directory.Exists(stagedDir)) return "解压目录不存在";
+        var required = new[]
+        {
+            "SBModManager.exe",
+            "SBModManager.dll",
+            "SBModManager.runtimeconfig.json",
+        };
+        foreach (var name in required)
+        {
+            if (!File.Exists(Path.Combine(stagedDir, name)))
+            {
+                return "缺少 " + name;
+            }
+        }
+        return null;
     }
 
     /// <summary>Start a helper that waits for this process to exit, copies the files and restarts the app.</summary>

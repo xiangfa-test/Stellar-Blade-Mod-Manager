@@ -472,6 +472,33 @@ public static class SelfTest
                 healed is null ? "未加载到记录" : $"id={healed.Id}");
             try { Directory.Delete(healDir, recursive: true); } catch { }
 
+            // 1h6) an update may only replace the install when the staged build is complete
+            var stageDir = Path.Combine(AppPaths.TempRoot, "selftest-stage");
+            try { if (Directory.Exists(stageDir)) Directory.Delete(stageDir, recursive: true); } catch { }
+            Directory.CreateDirectory(stageDir);
+            Check("更新包校验：目录不存在时报错",
+                AppUpdater.ValidateStagedApp(Path.Combine(stageDir, "missing")) is not null);
+            File.WriteAllText(Path.Combine(stageDir, "SBModManager.exe"), "stub");
+            var missingDll = AppUpdater.ValidateStagedApp(stageDir);
+            Check("更新包校验：缺少 dll 时报错",
+                missingDll is not null && missingDll.Contains(".dll"), missingDll);
+            File.WriteAllText(Path.Combine(stageDir, "SBModManager.dll"), "stub");
+            File.WriteAllText(Path.Combine(stageDir, "SBModManager.runtimeconfig.json"), "{}");
+            Check("更新包校验：完整产物通过", AppUpdater.ValidateStagedApp(stageDir) is null);
+            try { Directory.Delete(stageDir, recursive: true); } catch { }
+
+            // 1h7) archive size guard must not reject an ordinary mod archive
+            var limitZip = Path.Combine(AppPaths.TempRoot, "selftest-limits.zip");
+            try { if (File.Exists(limitZip)) File.Delete(limitZip); } catch { }
+            using (var limitArchive = ZipFile.Open(limitZip, ZipArchiveMode.Create))
+            {
+                var limitEntry = limitArchive.CreateEntry("a.pak");
+                using var limitWriter = new StreamWriter(limitEntry.Open());
+                limitWriter.Write("x");
+            }
+            Check("压缩包体积检查：正常包不拦截", ArchiveService.EnsureZipWithinLimits(limitZip) is null);
+            try { File.Delete(limitZip); } catch { }
+
             // 1j) translation language detection
             Check("翻译方向识别",
                 TranslationService.LooksChinese("这是一段中文说明") &&

@@ -10,6 +10,12 @@ public static class ArchiveService
     public static readonly string[] ArchiveExtensions = { ".zip", ".7z", ".rar" };
     public static readonly string[] PakExtensions = { ".pak", ".ucas", ".utoc" };
 
+    /// <summary>A mod archive with more entries than this is treated as hostile, not as a mod.</summary>
+    public const int MaxEntries = 100_000;
+
+    /// <summary>Upper bound on the total uncompressed size we are willing to write.</summary>
+    public const long MaxTotalBytes = 32L * 1024 * 1024 * 1024;
+
     public static bool IsArchive(string path)
         => ArchiveExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
 
@@ -58,6 +64,13 @@ public static class ArchiveService
         // Fast path: the framework's own ZIP implementation.
         if (ext == ".zip")
         {
+            var limitError = EnsureZipWithinLimits(archive);
+            if (limitError is not null)
+            {
+                Log.Warn($"拒绝解压 {Path.GetFileName(archive)}: {limitError}");
+                return limitError;
+            }
+
             try
             {
                 ZipFile.ExtractToDirectory(archive, destDir, overwriteFiles: true);
@@ -112,7 +125,18 @@ public static class ArchiveService
             }
 
             using var p = Process.Start(psi) ?? throw new InvalidOperationException("无法启动解压程序。");
-            p.WaitForExit(120_000);
+            if (!p.WaitForExit(120_000))
+            {
+                try
+                {
+                    p.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                    // already gone
+                }
+                return "解压超时（超过 120 秒），已终止解压程序。";
+            }
             if (p.ExitCode != 0)
             {
                 return $"解压失败（7-Zip 退出码 {p.ExitCode}）：{string.Join("；", errors)}";
@@ -173,9 +197,10 @@ public static class ArchiveService
                 using (var input = entry.OpenEntryStream())
                 using (var output = File.Create(target))
                 {
-                    input.CopyTo(output);
+                    CopyLimited(input, output);
                 }
                 count++;
+                if (count > MaxEntries) return $"压缩包条目过多（超过 {MaxEntries}），已取消解压。";
             }
 
             return count == 0 ? "压缩包内没有文件。" : null;
@@ -205,9 +230,10 @@ public static class ArchiveService
                 using (var input = reader.OpenEntryStream())
                 using (var output = File.Create(target))
                 {
-                    input.CopyTo(output);
+                    CopyLimited(input, output);
                 }
                 count++;
+                if (count > MaxEntries) return $"压缩包条目过多（超过 {MaxEntries}），已取消解压。";
             }
 
             return count == 0 ? "压缩包内没有文件。" : null;
@@ -218,6 +244,50 @@ public static class ArchiveService
         }
     }
 
+
+    /// <summary>
+    /// Cheap pre-flight for ZIP files: reject archives whose entry count or total uncompressed
+    /// size suggests a decompression bomb. Returns an error message, or null when it looks sane.
+    /// </summary>
+    public static string? EnsureZipWithinLimits(string archive)
+    {
+        try
+        {
+            using var zip = ZipFile.OpenRead(archive);
+            var count = 0;
+            long total = 0;
+            foreach (var entry in zip.Entries)
+            {
+                count++;
+                total += entry.Length;
+                if (count > MaxEntries) return $"压缩包条目过多（超过 {MaxEntries}），已取消解压。";
+                if (total > MaxTotalBytes) return "压缩包解压后体积过大，已取消解压。";
+            }
+        }
+        catch (Exception ex)
+        {
+            // A zip we cannot even enumerate is handled by the extractor below; do not block it.
+            Log.Warn("检查压缩包体积失败（继续尝试解压）: " + ex.Message);
+        }
+        return null;
+    }
+
+    /// <summary>Copy while counting, so a bomb cannot fill the disk before we notice.</summary>
+    private static void CopyLimited(Stream input, Stream output)
+    {
+        var buffer = new byte[81920];
+        long total = 0;
+        int read;
+        while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            total += read;
+            if (total > MaxTotalBytes)
+            {
+                throw new InvalidOperationException("压缩包解压后体积过大，已取消解压。");
+            }
+            output.Write(buffer, 0, read);
+        }
+    }
 
     private static string? CombineSafe(string destFullWithSeparator, string entryKey)
     {
