@@ -130,6 +130,70 @@ public static class Deployer
     /// <summary>Serializes all file operations on the game folder (deploy/undeploy/redeploy).</summary>
     private static readonly object FileLock = new();
 
+    /// <summary>
+    /// Cross-process guard for game-folder mutations. The in-process <see cref="FileLock"/> only
+    /// covers one instance, but a portable copy and an installed copy can run side by side
+    /// (different SBMM_INSTANCE_SUFFIX) while pointing at the same game folder; without this the
+    /// backup/displaced bookkeeping of the two processes interleaves and files get orphaned.
+    /// A per-session mutex is enough: the realistic case is the same user starting two copies.
+    /// </summary>
+    private const string DeployMutexName = @"Local\SBModManager.Deploy";
+
+    /// <summary>Acquire the cross-process deploy mutex. Returns null when it cannot be obtained.</summary>
+    private static Mutex? AcquireDeployMutex(int timeoutMs = 60_000)
+    {
+        Mutex? mutex = null;
+        try
+        {
+            mutex = new Mutex(false, DeployMutexName);
+            try
+            {
+                if (!mutex.WaitOne(timeoutMs))
+                {
+                    Log.Warn("等待跨进程部署锁超时，本次操作可能与其他实例并发执行");
+                    mutex.Dispose();
+                    return null;
+                }
+            }
+            catch (AbandonedMutexException)
+            {
+                // The previous owner died while holding it; we own it now and can proceed.
+                Log.Warn("上一个实例在部署过程中退出，已接管部署锁");
+            }
+            return mutex;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("创建跨进程部署锁失败（继续单进程运行）: " + ex.Message);
+            try
+            {
+                mutex?.Dispose();
+            }
+            catch
+            {
+                // ignore
+            }
+            return null;
+        }
+    }
+
+    private static void ReleaseDeployMutex(Mutex? mutex)
+    {
+        if (mutex is null) return;
+        try
+        {
+            mutex.ReleaseMutex();
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("释放跨进程部署锁失败: " + ex.Message);
+        }
+        finally
+        {
+            mutex.Dispose();
+        }
+    }
+
     /// <summary>Resolved live from the composition root, so tests can swap it via AppServices.WithState.</summary>
     private static IAppState State => AppServices.State;
 
@@ -178,7 +242,15 @@ public static class Deployer
     {
         lock (FileLock)
         {
-            return DeployCore(mod, gameDir, force, progress);
+            var mutex = AcquireDeployMutex();
+            try
+            {
+                return DeployCore(mod, gameDir, force, progress);
+            }
+            finally
+            {
+                ReleaseDeployMutex(mutex);
+            }
         }
     }
 
@@ -338,7 +410,15 @@ public static class Deployer
     {
         lock (FileLock)
         {
-            UndeployCore(modId);
+            var mutex = AcquireDeployMutex();
+            try
+            {
+                UndeployCore(modId);
+            }
+            finally
+            {
+                ReleaseDeployMutex(mutex);
+            }
         }
     }
 
@@ -668,7 +748,15 @@ public static class Deployer
     {
         lock (FileLock)
         {
-            return RedeployAllCore(gameDir);
+            var mutex = AcquireDeployMutex();
+            try
+            {
+                return RedeployAllCore(gameDir);
+            }
+            finally
+            {
+                ReleaseDeployMutex(mutex);
+            }
         }
     }
 
