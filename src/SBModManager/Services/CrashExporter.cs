@@ -122,7 +122,7 @@ public static class CrashExporter
         {
             sb.AppendLine(
                 $"[{(state.IsEnabled(mod.Id) ? "启用" : "停用")}] " +
-                $"优先级={mod.Priority} 类型={mod.DisplayType} 版本={mod.Version} " +
+                $"优先级={mod.Priority} 类型={mod.TypeCode} 版本={mod.Version} " +
                 $"导入={mod.ImportedAt.LocalDateTime:yyyy-MM-dd HH:mm} " +
                 $"文件数={mod.Files.Count} 名称={mod.Name}" +
                 (mod.NexusModId is > 0 ? $" nexus={mod.NexusModId}" : ""));

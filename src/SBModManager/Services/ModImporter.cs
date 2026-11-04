@@ -228,7 +228,7 @@ public static class ModImporter
 
             if (mixedArchive)
             {
-                record.Notes = "检测到 .bk2 与其它模组文件混合，已按「" + record.DisplayType + "」处理。";
+                record.Notes = "检测到 .bk2 与其它模组文件混合，已按「" + record.TypeCode + "」处理。";
             }
 
             var dest = AppPaths.ModDir(record.Id);

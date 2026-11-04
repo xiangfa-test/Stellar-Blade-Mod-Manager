@@ -37,7 +37,7 @@ public sealed class ModItem : ObservableObject
     public ModRecord Record { get; }
 
     public string Name => Record.Name;
-    public string TypeLabel => Record.DisplayType;
+    public string TypeLabel => Ui.ModTypeText.Of(Record.Type);
     public string AuthorText => string.IsNullOrWhiteSpace(Record.Author)
         ? ""
         : string.Format(Localization.T("作者: {0}"), Record.Author);
@@ -94,7 +94,7 @@ public sealed class ModItem : ObservableObject
     {
         get
         {
-            var gameDir = AppState.Instance.GameDir;
+            var gameDir = AppServices.State.GameDir;
             if (gameDir is null) return Array.Empty<string>();
             try
             {

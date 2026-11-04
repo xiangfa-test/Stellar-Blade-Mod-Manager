@@ -49,7 +49,7 @@ public sealed partial class LoadOrderPage : Page, ILanguageAwarePage
             {
                 Id = record.Id,
                 Name = record.Name,
-                Subtitle = record.DisplayType + (string.IsNullOrWhiteSpace(record.Version) ? "" : "  ·  v" + record.Version.TrimStart('v', 'V')),
+                Subtitle = Ui.ModTypeText.Of(record.Type) + (string.IsNullOrWhiteSpace(record.Version) ? "" : "  ·  v" + record.Version.TrimStart('v', 'V')),
                 EnabledText = State.IsEnabled(record.Id) ? Localization.T("已启用") : Localization.T("未启用"),
                 Enabled = State.IsEnabled(record.Id),
                 PriorityText = i.ToString(),

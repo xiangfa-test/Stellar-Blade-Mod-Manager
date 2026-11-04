@@ -15,7 +15,7 @@ public sealed partial class MainWindow
 
         try
         {
-            var state = Services.AppState.Instance;
+            var state = Services.AppServices.State;
             if (state.Config.StartMenuPromptDone) return;
 
             // Already present (installed before, or created manually): keep the flag in sync.
@@ -102,7 +102,7 @@ public sealed partial class MainWindow
 
     private async Task PromptWindowSizeAsync(Windows.Graphics.SizeInt32 size)
     {
-        var state = Services.AppState.Instance;
+        var state = Services.AppServices.State;
         if (state.Config.WindowSizePromptDone) return;
         state.Config.WindowSizePromptDone = true;
 

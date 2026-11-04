@@ -219,7 +219,7 @@ public sealed partial class ModsPage : Page, ILanguageAwarePage
         {
             if (filter.Length > 0 &&
                 !record.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
-                !record.DisplayType.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !Ui.ModTypeText.Of(record.Type).Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !record.CnsSummary.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !record.Tags.Any(t => t.Contains(filter, StringComparison.OrdinalIgnoreCase)))
             {
@@ -502,7 +502,7 @@ public sealed partial class ModsPage : Page, ILanguageAwarePage
         if (result.Mod is not null)
         {
             CollectionInstaller.TagAsLocal(result.Mod);
-            ShowMessage(InfoBarSeverity.Success, Localization.T("导入完成"), $"已导入「{result.Mod.Name}」（{result.Mod.DisplayType}）");
+            ShowMessage(InfoBarSeverity.Success, Localization.T("导入完成"), $"已导入「{result.Mod.Name}」（{Ui.ModTypeText.Of(result.Mod.Type)}）");
         }
         else
         {

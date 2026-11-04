@@ -108,19 +108,24 @@ public sealed class ModRecord
     [JsonIgnore]
     public string ModDir => Services.AppPaths.ModDir(Id);
 
+    /// <summary>
+    /// Short, culture-neutral code for this type. Used in logs, crash reports and stored notes,
+    /// which must not change with the UI language; the localized label lives in
+    /// <c>Ui.ModTypeText</c> so that <c>Models</c> keeps no dependency on services.
+    /// </summary>
     [JsonIgnore]
-    public string DisplayType => Type switch
+    public string TypeCode => Type switch
     {
-        ModType.Pak => Services.Localization.T("PAK 模组"),
-        ModType.Loose => Services.Localization.T("资源模组"),
-        ModType.Ue4ss => Services.Localization.T("UE4SS 模组"),
-        ModType.Ue4ssRuntime => Services.Localization.T("UE4SS 运行库"),
-        ModType.IniTweak => Services.Localization.T("INI 配置"),
-        ModType.Cns => Services.Localization.T("CNS 外观"),
-        ModType.GameRoot => Services.Localization.T("游戏根目录"),
-        ModType.Video => Services.Localization.T("主页视频"),
-        ModType.LogicMod => Services.Localization.T("逻辑模组"),
-        _ => Services.Localization.T("未知"),
+        ModType.Pak => "PAK",
+        ModType.Loose => "LOOSE",
+        ModType.Ue4ss => "UE4SS",
+        ModType.Ue4ssRuntime => "UE4SS-RUNTIME",
+        ModType.IniTweak => "INI",
+        ModType.Cns => "CNS",
+        ModType.GameRoot => "GAME-ROOT",
+        ModType.Video => "VIDEO",
+        ModType.LogicMod => "LOGIC",
+        _ => "UNKNOWN",
     };
 
     [JsonIgnore]
