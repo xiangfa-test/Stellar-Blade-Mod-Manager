@@ -214,24 +214,68 @@ public sealed partial class NexusPage : Page
         }
     }
 
-    private async void Refresh_Click(object sender, RoutedEventArgs e) => await LoadAsync();
+    private async void Refresh_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: Refresh_Click", ex);
+        }
+    }
 
     private async void Kind_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (!IsLoaded) return;
-        await LoadAsync();
+        try
+        {
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: Kind_Changed", ex);
+        }
     }
 
     private async void Search_Submitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
-        => await LoadAsync();
+    {
+        try
+        {
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: Search_Submitted", ex);
+        }
+    }
 
     private async void OpenApiKeys_Click(object sender, RoutedEventArgs e)
-        => await Windows.System.Launcher.LaunchUriAsync(
-            new Uri("https://www.nexusmods.com/settings/api-keys"));
+    {
+        try
+        {
+            await Windows.System.Launcher.LaunchUriAsync(
+                new Uri("https://www.nexusmods.com/settings/api-keys"));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: OpenApiKeys_Click", ex);
+        }
+    }
 
     private async void OpenSite_Click(object sender, RoutedEventArgs e)
-        => await Windows.System.Launcher.LaunchUriAsync(
-            new Uri($"https://www.nexusmods.com/{State.Config.NexusGameDomain}"));
+    {
+        try
+        {
+            await Windows.System.Launcher.LaunchUriAsync(
+                new Uri($"https://www.nexusmods.com/{State.Config.NexusGameDomain}"));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: OpenSite_Click", ex);
+        }
+    }
 
     private void LoadMore_Click(object sender, RoutedEventArgs e) => AppendPage();
 

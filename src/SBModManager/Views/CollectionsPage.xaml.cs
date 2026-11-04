@@ -90,14 +90,28 @@ public sealed partial class CollectionsPage : Page, ILanguageAwarePage
     }
 
     private async void Parse_Click(object sender, RoutedEventArgs e)
-        => await ParseAsync(UrlBox.Text);
+    {
+        try
+        {
+            await ParseAsync(UrlBox.Text);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: Parse_Click", ex);
+        }
+    }
 
     private async void UrlBox_KeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == Windows.System.VirtualKey.Enter)
+        if (e.Key != Windows.System.VirtualKey.Enter) return;
+        e.Handled = true;
+        try
         {
-            e.Handled = true;
             await ParseAsync(UrlBox.Text);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: UrlBox_KeyDown", ex);
         }
     }
 
@@ -205,7 +219,14 @@ public sealed partial class CollectionsPage : Page, ILanguageAwarePage
         var revision = revisions[RevisionBox.SelectedIndex];
         if (revision == _collection.RevisionNumber) return;
 
-        await ParseAsync(_collection.PageUrl, revision);
+        try
+        {
+            await ParseAsync(_collection.PageUrl, revision);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: RevisionBox_SelectionChanged", ex);
+        }
     }
 
     private async void Install_Click(object sender, RoutedEventArgs e)
@@ -364,9 +385,14 @@ public sealed partial class CollectionsPage : Page, ILanguageAwarePage
         {
             url = UrlBox.Text.Trim();
         }
-        if (!string.IsNullOrWhiteSpace(url))
+        if (string.IsNullOrWhiteSpace(url)) return;
+        try
         {
             await Launcher.LaunchUriAsync(new Uri(url));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: OpenPage_Click", ex);
         }
     }
 
@@ -457,7 +483,14 @@ public sealed partial class CollectionsPage : Page, ILanguageAwarePage
     {
         if (e.ClickedItem is not string value) return;
         UrlBox.Text = value;
-        await ParseAsync(value);
+        try
+        {
+            await ParseAsync(value);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("界面操作失败: Recent_ItemClick", ex);
+        }
     }
 
     private async void ActivateInstalled_Click(object sender, RoutedEventArgs e)
