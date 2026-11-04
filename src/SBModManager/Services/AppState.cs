@@ -61,66 +61,8 @@ public sealed class AppState : IAppState
 
         ReloadLibrary();
 
-        if (!Config.LocalCollectionMigrated)
-        {
-            Config.LocalCollectionMigrated = true;
-            var migrated = CollectionInstaller.MigrateUntaggedToLocal();
-            SaveConfig();
-            if (migrated > 0)
-            {
-                ReloadLibrary();
-            }
-        }
-
-        if (!Config.GameRootOverlayMigrated)
-        {
-            Config.GameRootOverlayMigrated = true;
-            var overlayMigrated = ModImporter.MigrateGameRootOverlays();
-            SaveConfig();
-            if (overlayMigrated > 0)
-            {
-                ReloadLibrary();
-            }
-        }
-
-        if (!Config.GameRootOverlayMigratedV2)
-        {
-            Config.GameRootOverlayMigratedV2 = true;
-            var migratedV2 = ModImporter.MigrateGameRootOverlaysV2();
-            SaveConfig();
-            if (migratedV2 > 0)
-            {
-                ReloadLibrary();
-            }
-        }
-
-        if (!Config.GroupKeyMigrated)
-        {
-            Config.GroupKeyMigrated = true;
-            var changed = 0;
-            foreach (var record in Library)
-            {
-                if (record.NexusModId is not > 0) continue;
-                var key = ModImporter.GroupKeyFor(record.Name, record.NexusModId);
-                if (record.GroupKey == key) continue;
-                record.GroupKey = key;
-                ModStore.Save(record);
-                changed++;
-            }
-            SaveConfig();
-            if (changed > 0)
-            {
-                ReloadLibrary();
-                Log.Info($"已修正 {changed} 个 N 网模组的版本分组");
-            }
-        }
-
-        if (!Config.CnsMetadataMigrated)
-        {
-            Config.CnsMetadataMigrated = true;
-            CnsAnalyzer.MigrateMetadata();
-            SaveConfig();
-        }
+        // One-time data migrations live in their own service so this class only loads/saves.
+        Migrations.RunPending(this);
 
         Log.Info("数据目录: " + AppPaths.Root + (AppPaths.RootResolutionLog.Count > 1 ? " (候选: " + string.Join("; ", AppPaths.RootResolutionLog) + ")" : ""));
         var version = typeof(AppState).Assembly.GetName().Version?.ToString(3) ?? "1.1.0";
