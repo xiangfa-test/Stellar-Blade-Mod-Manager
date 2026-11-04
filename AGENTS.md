@@ -71,7 +71,9 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 ```
 
 **项数随功能增长，不要记死数字**：基线 121 项，`SBMM_TEST_UE4SS_ZIP` 打开时 +7，另有原子写 4 项、
-停用日志 3 项、同组版本 4 项、MAIN 优先 2 项、翻译表一致性 1 项等。实测 142 项（含 fixture）。
+停用日志 3 项、同组版本 4 项、MAIN 优先 2 项、翻译表一致性 1 项、元数据自愈 1 项、
+更新包校验 3 项、压缩包体积 1 项等。实测 147 项（含 fixture）；Debug 页按钮跑同一套是 140 项
+（少了 UE4SS fixture 那 7 项，因为页面里没有设置该环境变量）。
 判断标准是 `RESULT: ALL PASS` 且 `FAIL=0`，不是某个具体数字。
 
 一键验收入口（本机脚本，`_scratch` 已 gitignore）：`pwsh -File _scratch\verify.ps1`（含构建 + 自检）。
@@ -97,6 +99,17 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 - 测试用 `AppServices.WithState(fake, () => ...)` 临时替换；视图页面统一
   `private static IAppState State => AppServices.State;`
 
+### 分层与依赖边界
+
+- **Models 不依赖 Services**：`ModRecord` 只放数据与 `TypeCode`（PAK / UE4SS / GAME-ROOT…，
+  语言中立，供日志、崩溃报告、写进元数据的备注使用）。界面显示用的本地化类型名在
+  `Ui/ModTypeText.Of(ModType)`；**不要在 Models 里调 `Localization.T`**。
+- **一次性数据迁移在 `Services/Migrations.RunPending(IAppState)`**，由 `AppState.Load` 调用。
+  新增迁移：加一个 `Config.*Migrated` 开关 + 在 `RunPending` 里加一段（保持幂等），
+  不要塞回 `AppState.Load`。
+- 服务层禁止引用 `Views.`；UI 侧需要复用逻辑时放 `Ui/` 或 `ViewModels/`。
+- 状态保存已加锁（`AppState.SaveLock`），UI 线程与后台任务同时保存不会互相踩。
+
 ### 状态文件写入（Services/FileSafe.cs）
 
 - **所有用户可见的状态 JSON/文本都必须用 `FileSafe.WriteAllText`**，不要用 `File.WriteAllText`：
@@ -108,6 +121,8 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
   `ue4ss/Mods/mods.json` 与 `mods.txt`、断点续传 `.meta`。
 - 启动时 `FileSafe.CleanupStale(AppPaths.Root)` 清理被杀进程遗留的 `*.tmp-*`（只删超过 1 小时的）。
 - 自检有 4 项守着这条约定（覆盖写入 / 不残留临时文件 / 清理陈旧 / 不误删在途文件）。
+- 日志（`Log`）：路径按写入时计算（跨零点自动换当天文件），单文件超过 8MB 轮转为 `.1`；
+  `LineWritten` 订阅者抛异常不会影响调用方。
 
 ### 部署管线（Services/Deployer.cs）
 
@@ -139,6 +154,8 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 
 - 启动检查 GitHub Release（HTML 优先，API 兜底），下载 zip → SHA256 校验 → 解压 → PowerShell 替换后重启
 - `ResumableDownloader`：`.part` + `.meta` 断点续传、3 次重试、416 自动重下、**先关闭文件流再 Move**
+- 解压前 `ArchiveService.EnsureZipWithinLimits` 预检（条目 > 10 万 / 解压总量 > 32 GB 直接拒绝）
+- 解压后 `AppUpdater.ValidateStagedApp` 要求暂存目录含 exe / dll / runtimeconfig，不完整就拒绝更新
 - 更新提示文案：只说明管理器自身更新，不要提示“关闭游戏”
 
 ### N 网访问
@@ -210,8 +227,8 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 **新增服务**：放 `Services/`，状态用 `AppServices.State`，日志 `Log.Info/Warn/Error`，
 网络/文件操作必须 try/catch + 超时；UI 不要从服务反引用（服务层禁止 `Views.`）。
 
-**新增模组类型**：`Models.cs` 的 `ModType` 枚举 + `DisplayType` → `ModImporter` 识别 →
-`Deployer.ComputeTargets` 目标映射 → `ModsPage` 类型筛选。
+**新增模组类型**：`Models.cs` 的 `ModType` 枚举 + `TypeCode` → `Ui/ModTypeText.Of` 加本地化名称 →
+`ModImporter` 识别 → `Deployer.ComputeTargets` 目标映射 → `ModsPage` 类型筛选。
 
 ## 7. 高风险坑（务必先看）
 
