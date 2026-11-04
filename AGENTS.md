@@ -237,6 +237,11 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
     自检会静默操作真实数据。统一写成 `=> AppServices.State` 表达式属性。
 13. 动文件之前先写 journal（`DeployJournal.Begin` / `BeginUndeploy`），改完再 `Complete`；
     不要新增「改了文件但崩溃后无法回放」的路径。
+14. **自检可能在线程池上跑**：Debug 页的「运行自检」用 `Task.Run`，而自检里凡是创建或检查 WinUI
+    控件的项（Markdown 渲染那两项）必须用 `SelfTest.OnUiThread(...)` 包住，否则抛
+    `COMException 0x8001010E`（RPC_E_WRONG_THREAD）。**注意不只是创建对象，遍历 `Children`
+    同样算 UI 访问**；判断与断言要一起放进 lambda，不能只包 `Render` 那一行。
+    自检外层 catch 现在会带出「最后完成: xxx」，据此定位中断点。
 
 ## 8. 发布流程（每次都要走完）
 

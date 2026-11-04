@@ -14,11 +14,51 @@ public static class SelfTest
     {
         var report = new StringBuilder();
         var failures = 0;
+        var lastCheck = "(尚未开始)";
 
         void Check(string name, bool ok, string? detail = null)
         {
+            lastCheck = name;
             if (!ok) failures++;
             report.AppendLine($"[{(ok ? "PASS" : "FAIL")}] {name}{(detail is null ? "" : " — " + detail)}");
+        }
+
+        // The suite is also started from the debug page via Task.Run, i.e. on a pool thread.
+        // Creating XAML objects there throws RPC_E_WRONG_THREAD (0x8001010E), so checks that
+        // need WinUI controls hop to the UI thread instead of failing the whole run.
+        T OnUiThread<T>(Func<T> action, T fallback)
+        {
+            if (Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread() is not null)
+            {
+                return action();
+            }
+
+            var queue = SBModManager.App.MainWindow?.DispatcherQueue;
+            if (queue is null)
+            {
+                Log.Warn("自检：没有可用的 UI 线程，跳过需要界面控件的检查");
+                return fallback;
+            }
+
+            var result = fallback;
+            using var finished = new ManualResetEventSlim(false);
+            queue.TryEnqueue(() =>
+            {
+                try
+                {
+                    result = action();
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("自检：界面检查失败 " + ex.Message);
+                }
+                finally
+                {
+                    finished.Set();
+                }
+            });
+            finished.Wait(TimeSpan.FromSeconds(10));
+            return result;
         }
 
         var state = AppServices.State;
@@ -420,10 +460,13 @@ public static class SelfTest
             Check("HTML 图片转 Markdown", imgMd.Contains("![](https://example.com/a.png)"), imgMd);
             var imgBb = SBModManager.Ui.HtmlToMarkdown.Convert("[img]https://example.com/b.png[/img]");
             Check("BBCode 图片转 Markdown", imgBb.Contains("![](https://example.com/b.png)"), imgBb);
-            var imgPanel = SBModManager.Ui.MarkdownRenderer.Render("![](https://example.com/c.png)");
-            Check("Markdown 图片渲染为 Image",
-                imgPanel is Microsoft.UI.Xaml.Controls.StackPanel imgStack &&
-                imgStack.Children.OfType<Microsoft.UI.Xaml.Controls.Image>().Any());
+            // Both the rendering and the inspection of the resulting children must run on the UI
+            // thread: walking a UIElementCollection off-thread throws RPC_E_WRONG_THREAD too.
+            var imageRendered = OnUiThread(() =>
+                SBModManager.Ui.MarkdownRenderer.Render("![](https://example.com/c.png)")
+                    is Microsoft.UI.Xaml.Controls.StackPanel stack &&
+                stack.Children.OfType<Microsoft.UI.Xaml.Controls.Image>().Any(), false);
+            Check("Markdown 图片渲染为 Image", imageRendered);
 
             // 1l) BBCode -> Markdown (older Nexus pages)
             var bbcode = "[b]安装说明[/b]\n[url=https://example.com]链接[/url]\n[list][*]a[*]b[/list]";
@@ -440,10 +483,11 @@ public static class SelfTest
                 md.Contains("[link](https://example.com)"), md);
 
             // 1i) Markdown renderer produces blocks for headings/lists/bold
-            var markdownPanel = SBModManager.Ui.MarkdownRenderer.Render(
-                "# 标题\n\n**粗体** 和 *斜体* 和 `code`\n\n- 项目一\n- 项目二\n\n[链接](https://example.com)");
-            Check("Markdown 渲染分段", markdownPanel is Microsoft.UI.Xaml.Controls.StackPanel panel &&
-                panel.Children.Count >= 3, $"blocks={(markdownPanel as Microsoft.UI.Xaml.Controls.StackPanel)?.Children.Count}");
+            var markdownBlocks = OnUiThread(() =>
+                (SBModManager.Ui.MarkdownRenderer.Render(
+                    "# 标题\n\n**粗体** 和 *斜体* 和 `code`\n\n- 项目一\n- 项目二\n\n[链接](https://example.com)")
+                    as Microsoft.UI.Xaml.Controls.StackPanel)?.Children.Count ?? -1, -1);
+            Check("Markdown 渲染分段", markdownBlocks >= 3, $"blocks={markdownBlocks}");
 
             // 1l2) Nexus file selection: a later optional upload must not win over the main file
             var nexusFiles = new List<NexusFileInfo>
@@ -1327,7 +1371,10 @@ public static class SelfTest
         catch (Exception ex)
         {
             failures++;
-            report.AppendLine("[FAIL] 未预期异常: " + ex);
+            // Name the last finished check: a single throw used to end the run with no clue
+            // about which step it came from (the remaining checks never ran at all).
+            report.AppendLine($"[FAIL] 未预期异常（最后完成: {lastCheck}）: {ex.GetType().Name} {ex.Message}");
+            report.AppendLine(ex.ToString());
         }
         finally
         {
