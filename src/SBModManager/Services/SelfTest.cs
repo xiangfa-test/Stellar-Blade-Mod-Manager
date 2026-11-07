@@ -8,7 +8,7 @@ using SharpCompress.Writers;
 namespace SBModManager.Services;
 
 /// <summary>Non-interactive checks for the import / deploy pipeline (--selftest).</summary>
-public static class SelfTest
+public static partial class SelfTest
 {
     public static void Run(string reportPath)
     {
@@ -21,44 +21,6 @@ public static class SelfTest
             lastCheck = name;
             if (!ok) failures++;
             report.AppendLine($"[{(ok ? "PASS" : "FAIL")}] {name}{(detail is null ? "" : " — " + detail)}");
-        }
-
-        // The suite is also started from the debug page via Task.Run, i.e. on a pool thread.
-        // Creating XAML objects there throws RPC_E_WRONG_THREAD (0x8001010E), so checks that
-        // need WinUI controls hop to the UI thread instead of failing the whole run.
-        T OnUiThread<T>(Func<T> action, T fallback)
-        {
-            if (Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread() is not null)
-            {
-                return action();
-            }
-
-            var queue = SBModManager.App.MainWindow?.DispatcherQueue;
-            if (queue is null)
-            {
-                Log.Warn("自检：没有可用的 UI 线程，跳过需要界面控件的检查");
-                return fallback;
-            }
-
-            var result = fallback;
-            using var finished = new ManualResetEventSlim(false);
-            queue.TryEnqueue(() =>
-            {
-                try
-                {
-                    result = action();
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn("自检：界面检查失败 " + ex.Message);
-                }
-                finally
-                {
-                    finished.Set();
-                }
-            });
-            finished.Wait(TimeSpan.FromSeconds(10));
-            return result;
         }
 
         var state = AppServices.State;
@@ -1445,27 +1407,4 @@ public static class SelfTest
             Log.Info("自检结束: " + (failures == 0 ? "全部通过" : failures + " 项失败"));
         }
     }
-    private static bool? ModEnabledInJson(string path, string modName)
-    {
-        try
-        {
-            if (!File.Exists(path)) return null;
-            using var doc = JsonDocument.Parse(File.ReadAllText(path));
-            foreach (var entry in doc.RootElement.EnumerateArray())
-            {
-                if (entry.TryGetProperty("mod_name", out var name) &&
-                    string.Equals(name.GetString(), modName, StringComparison.OrdinalIgnoreCase) &&
-                    entry.TryGetProperty("mod_enabled", out var enabled))
-                {
-                    return enabled.ValueKind == JsonValueKind.True;
-                }
-            }
-            return null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
 }
