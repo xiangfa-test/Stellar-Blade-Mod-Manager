@@ -20,6 +20,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         Services.GameCrashWatcher.CrashDetected += OnGameCrashDetected;
+        Services.GameCrashWatcher.StartupFailureSuspected += OnStartupFailureSuspected;
         Services.Localization.Initialize(Services.AppServices.State.Config.Language);
         Title = Services.Localization.T("剑星 MOD 管理器");
 

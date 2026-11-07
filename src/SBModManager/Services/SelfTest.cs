@@ -478,6 +478,39 @@ public static partial class SelfTest
             Check("压缩包体积检查：正常包不拦截", ArchiveService.EnsureZipWithinLimits(limitZip) is null);
             try { File.Delete(limitZip); } catch { }
 
+            // 1h8) UE4SS compatibility workaround: detect -> apply -> revert, all in a temp folder
+            var compatRoot = Path.Combine(AppPaths.TempRoot, "selftest-compat");
+            var compatGame = Path.Combine(compatRoot, "game");
+            var compatBinaries = Path.Combine(compatGame, "SB", "Binaries", "Win64");
+            var compatUe4ss = Path.Combine(compatBinaries, "ue4ss");
+            var compatSig = Path.Combine(compatUe4ss, "UE4SS_Signatures");
+            try { if (Directory.Exists(compatRoot)) Directory.Delete(compatRoot, recursive: true); } catch { }
+            Directory.CreateDirectory(compatSig);
+            File.WriteAllText(Path.Combine(compatBinaries, "dwmapi.dll"), "stub");
+            File.WriteAllText(Path.Combine(compatUe4ss, "UE4SS.dll"), "stub");
+            File.WriteAllText(Path.Combine(compatSig, "FText_Constructor.lua"), "-- signature stub");
+
+            var compatBefore = Ue4ssCompatFix.Inspect(compatGame);
+            Check("UE4SS 修复：识别失效签名",
+                compatBefore.State == Ue4ssCompatState.NeedsFix && compatBefore.CanApply,
+                compatBefore.State.ToString());
+
+            var compatApplied = Ue4ssCompatFix.Apply(compatGame, out var compatApplyMessage);
+            var compatAfterApply = Ue4ssCompatFix.Inspect(compatGame);
+            Check("UE4SS 修复：应用后为已修复状态",
+                compatApplied == 1 && compatAfterApply.State == Ue4ssCompatState.Fixed &&
+                compatAfterApply.CanRevert, compatApplyMessage);
+
+            var compatRevertedCount = Ue4ssCompatFix.Revert(compatGame, out var compatRevertMessage);
+            var compatAfterRevert = Ue4ssCompatFix.Inspect(compatGame);
+            Check("UE4SS 修复：撤销后恢复原名",
+                compatRevertedCount == 1 && compatAfterRevert.State == Ue4ssCompatState.NeedsFix &&
+                File.Exists(Path.Combine(compatSig, "FText_Constructor.lua")), compatRevertMessage);
+
+            Check("UE4SS 修复：未安装时不误报",
+                Ue4ssCompatFix.Inspect(Path.Combine(compatRoot, "no-game")).State == Ue4ssCompatState.NotInstalled);
+            try { Directory.Delete(compatRoot, recursive: true); } catch { }
+
             // 1j) translation language detection
             Check("翻译方向识别",
                 TranslationService.LooksChinese("这是一段中文说明") &&

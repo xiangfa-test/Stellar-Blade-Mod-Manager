@@ -37,6 +37,13 @@ public static class GameCrashWatcher
 
     public static event Action<CrashReport>? CrashDetected;
 
+    /// <summary>
+    /// Raised when the game process vanished within seconds of starting and Windows produced no
+    /// crash evidence — the signature of an injection failure (UE4SS built for another game
+    /// version), which used to look exactly like "nothing happened" in the logs.
+    /// </summary>
+    public static event Action<string>? StartupFailureSuspected;
+
     public static void Start()
     {
         lock (Sync)
@@ -152,7 +159,16 @@ public static class GameCrashWatcher
                     // "Exited in seconds with no WER report and no dump" is the signature of an
                     // injection failure (UE4SS built for another game version aborts during its
                     // signature scan and the process just disappears), not of a normal crash.
-                    Log.Warn("疑似启动失败: " + DescribeSilentExit(ran, exitCode));
+                    var diagnosis = DescribeSilentExit(ran, exitCode);
+                    Log.Warn("疑似启动失败: " + diagnosis);
+                    try
+                    {
+                        StartupFailureSuspected?.Invoke(diagnosis);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warn("启动失败通知处理异常: " + ex.Message);
+                    }
                 }
                 PendingSince = started;
             }

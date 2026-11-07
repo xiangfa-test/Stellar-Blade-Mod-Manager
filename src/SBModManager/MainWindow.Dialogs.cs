@@ -125,6 +125,79 @@ public sealed partial class MainWindow
         state.SaveConfig();
     }
 
+    /// <summary>
+    /// The game started and vanished within seconds without a crash report. When the installed
+    /// UE4SS carries a stale signature we know the fix, so offer it right away; otherwise only log
+    /// (prompting on every unrelated quick exit would be noise).
+    /// </summary>
+    private static DateTimeOffset _lastStartupFixPrompt = DateTimeOffset.MinValue;
+
+    private void OnStartupFailureSuspected(string diagnosis)
+    {
+        DispatcherQueue.TryEnqueue(async () =>
+        {
+            try
+            {
+                var status = Services.Ue4ssCompatFix.Inspect(Services.AppServices.State.GameDir);
+                if (!status.CanApply)
+                {
+                    Services.Log.Info("疑似启动失败，但没有可自动修复的 UE4SS 签名，仅记录日志");
+                    return;
+                }
+
+                // One prompt per launch attempt at most, and never twice in a row for the same mess.
+                if (DateTimeOffset.Now - _lastStartupFixPrompt < TimeSpan.FromMinutes(5)) return;
+                _lastStartupFixPrompt = DateTimeOffset.Now;
+
+                var panel = new StackPanel { Spacing = 10, MaxWidth = 760 };
+                panel.Children.Add(new TextBlock
+                {
+                    Text = Localization.T("游戏启动后很快退出，系统却没有生成崩溃报告——这通常是 UE4SS 与游戏新版本不兼容导致的注入失败。"),
+                    TextWrapping = TextWrapping.Wrap,
+                });
+                panel.Children.Add(new TextBlock
+                {
+                    Text = string.Format(
+                        Localization.T("检测到失效签名 {0}，会导致游戏启动后立即退出。"),
+                        status.PendingSignature ?? ""),
+                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCautionBrush"],
+                    TextWrapping = TextWrapping.Wrap,
+                });
+                panel.Children.Add(new ScrollViewer
+                {
+                    MaxHeight = 240,
+                    Content = new TextBlock
+                    {
+                        Text = diagnosis,
+                        TextWrapping = TextWrapping.Wrap,
+                        IsTextSelectionEnabled = true,
+                        FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+                    },
+                });
+
+                var dialog = new ContentDialog
+                {
+                    Title = Localization.T("疑似启动失败"),
+                    Content = panel,
+                    PrimaryButtonText = Localization.T("立即修复"),
+                    CloseButtonText = Localization.T("稍后"),
+                    DefaultButton = ContentDialogButton.Primary,
+                };
+
+                var result = await Ui.Dialogs.ShowAsync(dialog, Content.XamlRoot);
+                if (result != ContentDialogResult.Primary) return;
+
+                Services.Ue4ssCompatFix.Apply(Services.AppServices.State.GameDir, out var message);
+                await Ui.Dialogs.InfoAsync(Content.XamlRoot, Localization.T("修复完成"),
+                    message + "\n\n" + Localization.T("已应用修复，请启动游戏确认；若仍无法启动，可试着把 dwmapi.dll 改名以排除 UE4SS。"));
+            }
+            catch (Exception ex)
+            {
+                Services.Log.Warn("显示启动失败提示失败: " + ex.Message);
+            }
+        });
+    }
+
     private void OnGameCrashDetected(Services.CrashReport report)
     {
         DispatcherQueue.TryEnqueue(async () =>

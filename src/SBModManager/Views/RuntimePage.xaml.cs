@@ -48,6 +48,80 @@ public sealed partial class RuntimePage : Page, ILanguageAwarePage
         }
         Ue4ssList.ItemsSource = Ue4ssMods;
         EmptyHint.Visibility = Ue4ssMods.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        RefreshCompat();
+    }
+
+    /// <summary>
+    /// Show whether the installed UE4SS carries a signature that breaks launching on the current
+    /// game build, and offer the reversible one-click workaround right here (it must stay reachable
+    /// after the crash dialog has been dismissed).
+    /// </summary>
+    private void RefreshCompat()
+    {
+        var status = Ue4ssCompatFix.Inspect(State.GameDir);
+        CompatStatusLine.Text = status.State switch
+        {
+            Ue4ssCompatState.NoGameDir => Localization.T("尚未设置游戏目录。"),
+            Ue4ssCompatState.NotInstalled => Localization.T("未检测到 UE4SS，无需修复。"),
+            Ue4ssCompatState.Healthy => Localization.T("当前没有可修复的问题。"),
+            Ue4ssCompatState.NeedsFix => string.Format(
+                Localization.T("检测到失效签名 {0}，会导致游戏启动后立即退出。"),
+                status.PendingSignature ?? ""),
+            Ue4ssCompatState.Fixed => string.Format(
+                Localization.T("已应用修复（{0}）。"), status.AppliedSignature ?? ""),
+            _ => "",
+        };
+
+        CompatLogLine.Text = string.IsNullOrWhiteSpace(status.LogTail)
+            ? ""
+            : string.Format(Localization.T("UE4SS 日志最后一行: {0}"), status.LogTail);
+
+        FixCompatButton.Visibility = status.CanApply ? Visibility.Visible : Visibility.Collapsed;
+        RevertCompatButton.Visibility = status.CanRevert ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private async void FixCompat_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            SetBusy(true);
+            var changed = Ue4ssCompatFix.Apply(State.GameDir, out var message);
+            Refresh();
+            if (changed > 0)
+            {
+                message += "\n\n" + Localization.T(
+                    "已应用修复，请启动游戏确认；若仍无法启动，可试着把 dwmapi.dll 改名以排除 UE4SS。");
+            }
+            await ShowInfoAsync(Localization.T("修复完成"), message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("应用 UE4SS 兼容修复失败", ex);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private async void RevertCompat_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            SetBusy(true);
+            Ue4ssCompatFix.Revert(State.GameDir, out var message);
+            Refresh();
+            await ShowInfoAsync(Localization.T("撤销完成"), message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("撤销 UE4SS 兼容修复失败", ex);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
     }
 
     private void Refresh_Click(object sender, RoutedEventArgs e) => Refresh();

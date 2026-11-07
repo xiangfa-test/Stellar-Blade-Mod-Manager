@@ -81,6 +81,47 @@
                 </StackPanel>
             </Border>
 
+            <!--  ===== 启动失败修复 =====  -->
+            <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="启动失败修复" />
+
+            <Border Style="{StaticResource SettingsCardStyle}">
+                <StackPanel>
+                    <Grid Style="{StaticResource SettingsRowStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE7BA;" Style="{StaticResource SettingsRowIconStyle}" />
+                        <StackPanel Grid.Column="1" Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="UE4SS 签名兼容性" />
+                            <TextBlock
+                                Style="{StaticResource SettingsRowDescriptionStyle}"
+                                Text="游戏更新后若一启动就退出，多半是 UE4SS 签名与新版游戏不匹配。这里可以一键禁用失效签名。" />
+                            <TextBlock x:Name="CompatStatusLine" Style="{StaticResource SettingsRowDescriptionStyle}" />
+                            <TextBlock x:Name="CompatLogLine" Style="{StaticResource SettingsRowDescriptionStyle}" />
+                        </StackPanel>
+                        <StackPanel
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="8">
+                            <Button
+                                x:Name="FixCompatButton"
+                                Click="FixCompat_Click"
+                                Content="应用修复"
+                                Style="{StaticResource AccentButtonStyle}"
+                                ToolTipService.ToolTip="把 ue4ss\UE4SS_Signatures 里已失效的签名文件改名，使 UE4SS 不再尝试覆写它（可在下方撤销）" />
+                            <Button
+                                x:Name="RevertCompatButton"
+                                Click="RevertCompat_Click"
+                                Content="撤销修复"
+                                ToolTipService.ToolTip="把签名文件改回原名" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <!--  ===== 脚本类模组 =====  -->
             <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="脚本类模组" />
 
