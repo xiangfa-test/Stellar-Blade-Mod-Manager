@@ -109,6 +109,11 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
   不要塞回 `AppState.Load`。
 - 服务层禁止引用 `Views.`；UI 侧需要复用逻辑时放 `Ui/` 或 `ViewModels/`。
 - 状态保存已加锁（`AppState.SaveLock`），UI 线程与后台任务同时保存不会互相踩。
+- **对话框一律走 `Ui.Dialogs.ShowAsync(dialog, root)`**：它校验 `XamlRoot`（为空就跳过并记日志，
+  而不是抛「参数错误」），并用 `SemaphoreSlim(1,1)` 串行化——同一窗口只能开一个 `ContentDialog`，
+  以前并发打开会抛「已有对话框」。`ConfirmAsync` / `InfoAsync` 也走同一闸门。
+- `async void` 事件处理器共 53 个，**全部**有 try/catch（脚本核对 `without try = 0`），
+  新增时保持这个约定。
 
 ### 状态文件写入（Services/FileSafe.cs）
 
@@ -132,6 +137,10 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 - PAK 顺序前缀：`AppConfig.PakOrderPrefixEnabled` 时文件名加 `0001_`
 - 同盘优先硬链接，失败回退复制；覆盖他人文件先备份，停用时还原
 - 所有部署/停用/重建走同一把 `FileLock`；`Deployer.DeploymentChanged` 事件通知缓存失效
+- **跨进程**：三个入口另外持有命名互斥量 `Local\SBModManager.Deploy`，防止便携版与安装版
+  （`SBMM_INSTANCE_SUFFIX` 不同）同时写同一个游戏目录。取不到锁 60s 后继续并记警告；
+  `AbandonedMutexException`（上个实例部署中崩溃）会接管锁而不是永久卡住。
+  `RedeployAll` 内部再调 `Deploy/Undeploy` 是同线程重入，靠 try/finally 成对释放
 - `DeployJournal`：**部署和停用都写日志**（`Entry.Kind` = `deploy` / `undeploy`），启动时回放。
   - deploy 回放：目标还在 + 库里有该 Id → 接管进 `Deployed`；库记录没了 → 删残留
   - undeploy 回放：删残留文件 → 还原备份 → 修正 `deployed.json`（并把文件还给原主人）
@@ -238,8 +247,9 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 3. 运行中的实例会锁 exe/`dist`：构建或打包前先结束 `SBModManager.exe`。
 4. **沙箱/非管理员写不了开始菜单与 `%LOCALAPPDATA%`**：测试一律用 `SBMM_DATA_DIR`；
    开始菜单自检在不可写时会被跳过（真实环境才验证）。
-5. 弹 `ContentDialog` 前要确认 `XamlRoot` 非空，否则 `ShowAsync` 抛“参数错误”；
-   并且同一时刻只能有一个 ContentDialog（已有的用 `UiTask.Safe` 包裹）。
+5. **弹对话框统一用 `Ui.Dialogs.ShowAsync(dialog, root)`**（不要直接 `dialog.ShowAsync()`）：
+   没有 `XamlRoot` 会抛“参数错误”，而同一时刻只能有一个 ContentDialog，并发会抛“已有对话框”。
+   该入口已内置两项保护。代码里构造完对话框后不要再手动设 `XamlRoot`，交给它设置。
 6. `async void` 事件处理器：新增时尽量 `try/catch` 或把工作交给已 catch 的方法；
    全局 `UnhandledException` / `TaskScheduler.UnobservedTaskException` 只兜底，不代替处理。
 7. 翻译应用时机：只应用一次会漏掉懒加载控件（ComboBox 选项、模板内文字）。
@@ -303,13 +313,17 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 
 - 未做代码签名：SmartScreen 会提示；Release 提供 SHA256，可考虑 SignPath Foundation（GPL 免费）
 - 没有单元测试框架，只有端到端自检；核心服务仍以 static 为主（`AppServices` 已收口状态，仍无 DI/接口）
-- `FileLock` 只是进程内锁：便携版（`SBMM-INSTANCE_SUFFIX` 不同）与安装版可以同时跑，并同时写同一
-  游戏目录 —— 需要跨进程锁时再处理（当前靠单实例 + 用户不要同时开两份来规避）
-- 仍有多处 `async void` 事件处理器（53 处），统一 try/catch 已做，但可继续收敛为 `UiTask.Safe`
+- 部署已加跨进程互斥量（`Local\SBModManager.Deploy`），但它是**按登录会话**生效的：同一会话内的
+  多个实例（便携版 + 安装版）互斥，跨 Windows 会话（例如另一个登录用户）仍不互斥，那种场景需要改 `Global\` 或文件锁
+- `async void` 事件处理器 53 处已全部带 try/catch（每个都记「界面操作失败: <处理器名>」），
+  后续可继续收敛为 `UiTask.Safe`，但不是正确性问题
 - 代码内 UI 文案（含插值串）已接入 `Localization.T`，运行时切换语言可整页刷新；仅剩筛选下拉的哨兵项保持中文（见「本地化」一节）
+- 自检仍是单个 `Run` 方法（约 1390 行、147 项检查，各段共享大量局部变量）：可独立的方法
+  （`OnUiThread` / `ModEnabledInJson`）已拆到 `Services/SelfTest.Helpers.cs`（partial）。
+  若要继续拆成「导入/部署/本地化/N 网」多文件，需先把共享状态收进上下文对象，否则只能靠参数搬运
 - FOMOD 不执行脚本安装器；资源冲突分析是近似（只读 `.utoc` 明文）
-- 合集/批量下载逻辑在 `Views/ModsPage.Nexus.cs` 与 `Services/CollectionInstaller.cs` 各有一份且已分叉，
-  改其中一处时**必须同步另一处**（待合并为单一实现）
+- 合集安装已合并到 `CollectionInstaller.InstallAsync`（合集页与模组页都走它）；
+  `ModsPage.Nexus.cs` 里剩下的下载循环是 **nxm 单文件**下载，属于另一条功能，不要误合并
 - 下载免费账号限制依赖网页兜底，不做 key 抓取
 - 更新检查串行；模组很多时较慢
 - 无 CI（每次本地构建 + 手工发布）
