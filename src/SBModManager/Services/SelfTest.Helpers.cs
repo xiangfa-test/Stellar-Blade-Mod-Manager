@@ -48,6 +48,36 @@ public static partial class SelfTest
         return result;
     }
 
+    /// <summary>
+    /// The suite deploys and undeploys real files in the target game folder, so it must only run
+    /// against a throwaway directory. The debug page runs it with whatever config happens to be
+    /// loaded — which once deployed test paks into the player's real Steam install.
+    /// Returns a reason string when the target is unsafe, or null when it is fine.
+    /// </summary>
+    private static string? UnsafeGameDirReason(string? gameDir)
+    {
+        if (string.IsNullOrWhiteSpace(gameDir)) return "游戏目录为空";
+        if (Environment.GetEnvironmentVariable("SBMM_TEST_ALLOW_REAL_GAME") == "1") return null;
+
+        var separators = new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+        var full = Path.GetFullPath(gameDir).TrimEnd(separators);
+
+        foreach (var allowed in new[] { AppPaths.Root, Path.GetTempPath() })
+        {
+            var root = Path.GetFullPath(allowed).TrimEnd(separators);
+            if (string.Equals(full, root, StringComparison.OrdinalIgnoreCase) ||
+                full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+        }
+
+        if (full.Contains("_scratch", StringComparison.OrdinalIgnoreCase)) return null;
+
+        return "自检会真实部署/停用文件，拒绝在非测试目录上运行（" + full +
+               "）；确需在真实目录运行请设置 SBMM_TEST_ALLOW_REAL_GAME=1";
+    }
+
     /// <summary>Read "is this mod enabled" out of a UE4SS mods.json; null when unknown.</summary>
     private static bool? ModEnabledInJson(string path, string modName)
     {

@@ -146,6 +146,14 @@ public static class GameCrashWatcher
             {
                 // The game ran and exited without evidence yet: keep watching briefly for WER
                 // reports/dumps that Windows writes a few seconds later.
+                var ran = DateTimeOffset.Now - started.Value;
+                if (ran < TimeSpan.FromSeconds(30))
+                {
+                    // "Exited in seconds with no WER report and no dump" is the signature of an
+                    // injection failure (UE4SS built for another game version aborts during its
+                    // signature scan and the process just disappears), not of a normal crash.
+                    Log.Warn("疑似启动失败: " + DescribeSilentExit(ran, exitCode));
+                }
                 PendingSince = started;
             }
         }
@@ -159,6 +167,58 @@ public static class GameCrashWatcher
             // otherwise one unexpected exception would permanently stop crash detection.
             Interlocked.Exchange(ref _polling, 0);
         }
+    }
+
+    /// <summary>
+    /// Explain a "the process was there, then it was gone" exit: no WER report and no dump means
+    /// nothing crashed from Windows' point of view, so the question is what aborted it. UE4SS is
+    /// the usual answer (its signature scan fails after a game update), and its log says why.
+    /// </summary>
+    private static string DescribeSilentExit(TimeSpan ran, int? exitCode)
+    {
+        var sb = new StringBuilder();
+        sb.Append($"游戏进程 {ran.TotalSeconds:F0} 秒后退出，Windows 没有生成崩溃报告或转储");
+        sb.Append($"（退出码 {(exitCode is null ? "未知" : exitCode.Value.ToString())}）。");
+        sb.Append("这种「秒退且无 WER」通常是注入失败：UE4SS 与游戏新版本不匹配时，");
+        sb.Append("会在 Lua 签名扫描阶段直接退出，进程来不及显示任何窗口。");
+
+        var ue4ssTail = ReadLastLineOfUe4ssLog();
+        if (ue4ssTail is not null)
+        {
+            sb.Append(" UE4SS 日志最后一行：").Append(ue4ssTail);
+        }
+        else
+        {
+            sb.Append(" 没有找到 UE4SS 日志（可能未安装 UE4SS）。");
+        }
+
+        sb.Append(" 排查：1) 更新 UE4SS 到匹配游戏版本的构建；2) 把 ue4ss\\UE4SS_Signatures 里");
+        sb.Append("失效的签名文件改名（上游 Chrisr0/RE-UE4SS 发布说明有对应方法）；");
+        sb.Append("3) 临时移除 dwmapi.dll 确认是否为注入问题。");
+        return sb.ToString();
+    }
+
+    /// <summary>Last non-empty line of the UE4SS log, which carries the real reason for an abort.</summary>
+    private static string? ReadLastLineOfUe4ssLog()
+    {
+        var gameDir = AppServices.State.GameDir;
+        if (string.IsNullOrWhiteSpace(gameDir)) return null;
+
+        var path = Path.Combine(gameDir, "SB", "Binaries", "Win64", "ue4ss", "UE4SS.log");
+        try
+        {
+            if (!File.Exists(path)) return null;
+            var lines = File.ReadAllLines(path);
+            for (var i = lines.Length - 1; i >= 0; i--)
+            {
+                if (!string.IsNullOrWhiteSpace(lines[i])) return lines[i].Trim();
+            }
+        }
+        catch
+        {
+            // the log may be locked or mid-write; the diagnostic is still useful without it
+        }
+        return null;
     }
 
     private static Process? FindGameProcess()

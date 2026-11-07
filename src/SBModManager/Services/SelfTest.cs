@@ -31,9 +31,26 @@ public static partial class SelfTest
 
         if (gameDir is null)
         {
+            report.AppendLine("RESULT: 1 FAILED");
             File.WriteAllText(reportPath, report.ToString());
             return;
         }
+
+        // Never run destructive checks against the player's real install: the debug page starts
+        // this suite with whatever config is loaded, which used to deploy test paks into ~mods.
+        if (UnsafeGameDirReason(gameDir) is { } unsafeReason)
+        {
+            failures++;
+            report.AppendLine("[FAIL] 自检目标不安全 — " + unsafeReason);
+            report.AppendLine("RESULT: 1 FAILED");
+            File.WriteAllText(reportPath, report.ToString());
+            Log.Error("自检拒绝执行: " + unsafeReason);
+            return;
+        }
+
+        Check("自检守卫：识别真实游戏目录",
+            UnsafeGameDirReason(@"D:\SteamLibrary\steamapps\common\StellarBlade") is not null);
+        Check("自检守卫：测试目录放行", UnsafeGameDirReason(gameDir) is null, gameDir);
 
         var madeMods = new List<ModRecord>();
         try
