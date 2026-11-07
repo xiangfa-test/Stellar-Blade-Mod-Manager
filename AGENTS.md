@@ -72,14 +72,20 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 
 **项数随功能增长，不要记死数字**：基线 121 项，`SBMM_TEST_UE4SS_ZIP` 打开时 +7，另有原子写 4 项、
 停用日志 3 项、同组版本 4 项、MAIN 优先 2 项、翻译表一致性 1 项、元数据自愈 1 项、
-更新包校验 3 项、压缩包体积 1 项等。实测 147 项（含 fixture）；Debug 页按钮跑同一套是 140 项
+更新包校验 3 项、压缩包体积 1 项、自检守卫 2 项等。实测 149 项（含 fixture）；Debug 页按钮跑同一套是 142 项
 （少了 UE4SS fixture 那 7 项，因为页面里没有设置该环境变量）。
 判断标准是 `RESULT: ALL PASS` 且 `FAIL=0`，不是某个具体数字。
 
 一键验收入口（本机脚本，`_scratch` 已 gitignore）：`pwsh -File _scratch\verify.ps1`（含构建 + 自检）。
 
+**自检有破坏性**：它会真的部署/停用文件。`SelfTest` 开头有守卫（`UnsafeGameDirReason`）：
+目标目录必须位于数据目录、`%TEMP%` 或含 `_scratch` 的路径下，否则直接 `[FAIL] 自检目标不安全`
+并拒绝执行——**Debug 页的「运行自检」用的是当前加载的配置**，玩家在真实安装上点它曾经把测试包
+部署进真的 `~mods`。真要对真实目录跑，需显式 `SBMM_TEST_ALLOW_REAL_GAME=1`。
+
 可选环境变量：
 
+- `SBMM_TEST_ALLOW_REAL_GAME=1`：关闭自检目录守卫（**危险**，会真的改游戏目录）
 - `SBMM_TEST_UE4SS_ZIP=<zip>`：用真实 UE4SS 包跑安装/部署测试（`_scratch/ue4ss-fixture.zip`）
 - `SBMM_TEST_UPDATE=1` + `SBMM_TEST_UPDATE_PREPARE=1`：真实下载最新 Release 并校验/解压
 - `SBMM_TEST_GITHUB=owner/repo`：解析 GitHub Release
@@ -183,6 +189,10 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 
 - 运行时监控 `SB` / `SB-Win64-Shipping` 进程；退出后收集 WER（`Report.wer` 是 **UTF-16**）、
   转储、游戏日志，给出简要分析并保存到数据目录 `crashes/`
+- **「秒退且无 WER」要能认出来**：进程 30 秒内消失、又没有 WER/dump 时，`GameCrashWatcher`
+  记一条诊断，带上 `ue4ss\UE4SS.log` 最后一行和排查步骤。这类静默退出几乎都是注入失败
+  （UE4SS 与游戏版本不匹配 → 签名扫描失败 → 进程直接消失），不是常规崩溃。
+  2026-11 剑星更新后即为此例：`Error: Crashed calling FText constructor.`
 - 弹窗带免责声明；可导出 zip（源文件、模组环境、游戏日志、管理器日志）
 - 非管理员创建开始菜单快捷方式会请求提权（`StartMenuShortcut`）
 
