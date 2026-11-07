@@ -343,7 +343,7 @@ public sealed partial class NexusPage : Page
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await Ui.Dialogs.ShowAsync(dialog, XamlRoot) != ContentDialogResult.Primary) return;
 
         SetBusy(true);
         try

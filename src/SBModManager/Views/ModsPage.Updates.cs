@@ -180,7 +180,7 @@ public sealed partial class ModsPage
             },
             CloseButtonText = Localization.T("关闭"),
         };
-        UiTask.Safe(dialog.ShowAsync());
+        UiTask.Safe(() => Ui.Dialogs.ShowAsync(dialog, XamlRoot));
     }
 
     private async void ShowAssetConflicts_Click(object sender, RoutedEventArgs e)
@@ -201,10 +201,19 @@ public sealed partial class ModsPage
             Content = new TextBlock { Text = Localization.T("正在读取 pak 的 .utoc 资源清单…"), TextWrapping = TextWrapping.Wrap },
             CloseButtonText = Localization.T("取消"),
         };
-        UiTask.Safe(progressDialog.ShowAsync());
+        UiTask.Safe(() => Ui.Dialogs.ShowAsync(progressDialog, XamlRoot));
 
         var conflicts = await Task.Run(() => PakInspector.FindAssetConflicts(enabled));
-        progressDialog.Hide();
+        try
+        {
+            // The dialog is shown fire-and-forget behind the shared dialog gate, so it may not be
+            // open yet (or at all); Hide() throws in that case and must not abort the analysis.
+            progressDialog.Hide();
+        }
+        catch
+        {
+            // not open
+        }
 
         if (conflicts.Count == 0)
         {
@@ -268,7 +277,7 @@ public sealed partial class ModsPage
             Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
             args.Cancel = true;
         };
-        await dialog.ShowAsync();
+        await Ui.Dialogs.ShowAsync(dialog, XamlRoot);
         }
         catch (Exception ex)
         {
@@ -306,7 +315,7 @@ public sealed partial class ModsPage
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
-        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await Ui.Dialogs.ShowAsync(confirm, XamlRoot) != ContentDialogResult.Primary) return;
 
         SetBusy(true);
         try

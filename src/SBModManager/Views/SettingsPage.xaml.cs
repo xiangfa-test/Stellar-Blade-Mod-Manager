@@ -304,7 +304,7 @@ public sealed partial class SettingsPage : Page, ILanguageAwarePage
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await Ui.Dialogs.ShowAsync(dialog, XamlRoot) != ContentDialogResult.Primary)
         {
             return;
         }

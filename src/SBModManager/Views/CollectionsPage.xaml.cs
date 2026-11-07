@@ -248,7 +248,7 @@ public sealed partial class CollectionsPage : Page, ILanguageAwarePage
                 PrimaryButtonText = Localization.T("复制模组链接"),
                 CloseButtonText = Localization.T("关闭"),
             };
-            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            if (await Ui.Dialogs.ShowAsync(dialog, XamlRoot) == ContentDialogResult.Primary)
             {
                 CopyLinks();
             }
@@ -351,7 +351,7 @@ public sealed partial class CollectionsPage : Page, ILanguageAwarePage
             PrimaryButtonText = Localization.T("查看合集模组"),
             CloseButtonText = Localization.T("关闭"),
         };
-        var result = await dialog.ShowAsync();
+        var result = await Ui.Dialogs.ShowAsync(dialog, XamlRoot);
         if (result == ContentDialogResult.Primary)
         {
             (App.MainWindow as MainWindow)?.OpenModsWithFilter(CollectionInstaller.TagFor(collection));

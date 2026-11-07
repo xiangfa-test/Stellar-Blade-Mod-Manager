@@ -152,7 +152,7 @@ public sealed partial class ModsPage
             PrimaryButtonText = Localization.T("打开 Nexus 页面"),
             CloseButtonText = Localization.T("关闭"),
         };
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        if (await Ui.Dialogs.ShowAsync(dialog, XamlRoot) == ContentDialogResult.Primary)
         {
             await Launcher.LaunchUriAsync(new Uri(fallbackUrl));
         }
@@ -189,7 +189,7 @@ public sealed partial class ModsPage
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await Ui.Dialogs.ShowAsync(dialog, XamlRoot) != ContentDialogResult.Primary) return;
 
         var input = urlBox.Text.Trim();
         if (input.Length == 0) return;
@@ -292,7 +292,7 @@ public sealed partial class ModsPage
             CloseButtonText = Localization.T("关闭"),
             DefaultButton = ContentDialogButton.Primary,
         };
-        var choice = await dialog.ShowAsync();
+        var choice = await Ui.Dialogs.ShowAsync(dialog, XamlRoot);
         if (choice == ContentDialogResult.Secondary)
         {
             CopyCollectionLinks(collection);
@@ -341,7 +341,7 @@ public sealed partial class ModsPage
                 SecondaryButtonText = Localization.T("打开合集页面"),
                 CloseButtonText = Localization.T("关闭"),
             };
-            var result = await fallback.ShowAsync();
+            var result = await Ui.Dialogs.ShowAsync(fallback, XamlRoot);
             if (result == ContentDialogResult.Primary)
             {
                 CopyCollectionLinks(collection);
@@ -385,7 +385,7 @@ public sealed partial class ModsPage
             CloseButtonText = Localization.T("取消"),
         };
         progressDialog.CloseButtonClick += (_, _) => cts.Cancel();
-        var dialogTask = progressDialog.ShowAsync().AsTask();
+        var dialogTask = Ui.Dialogs.ShowAsync(progressDialog, XamlRoot);
 
         // Progress<T> is built on the UI thread, so its callbacks already run on the dispatcher.
         var progress = new Progress<CollectionInstallProgress>(p =>

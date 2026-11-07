@@ -63,7 +63,7 @@ public sealed partial class ProfilesPage : Page, ILanguageAwarePage
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await Ui.Dialogs.ShowAsync(dialog, XamlRoot) != ContentDialogResult.Primary) return;
 
         var name = box.Text.Trim();
         if (name.Length == 0) return;
@@ -99,7 +99,7 @@ public sealed partial class ProfilesPage : Page, ILanguageAwarePage
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
-        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await Ui.Dialogs.ShowAsync(confirm, XamlRoot) != ContentDialogResult.Primary) return;
 
         StatusText.Text = Localization.T("正在应用方案…");
         var progress = new Progress<string>(text => StatusText.Text = text);
@@ -137,7 +137,7 @@ public sealed partial class ProfilesPage : Page, ILanguageAwarePage
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await Ui.Dialogs.ShowAsync(dialog, XamlRoot) != ContentDialogResult.Primary) return;
 
         var name = box.Text.Trim();
         if (name.Length == 0) return;
@@ -168,7 +168,7 @@ public sealed partial class ProfilesPage : Page, ILanguageAwarePage
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Close,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await Ui.Dialogs.ShowAsync(dialog, XamlRoot) != ContentDialogResult.Primary) return;
 
         ProfileStore.Delete(id);
         Reload();

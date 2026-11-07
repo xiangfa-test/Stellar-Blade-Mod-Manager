@@ -484,7 +484,7 @@ public sealed partial class ModsPage : Page, ILanguageAwarePage
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await Ui.Dialogs.ShowAsync(dialog, XamlRoot) != ContentDialogResult.Primary)
         {
             return null;
         }
@@ -576,7 +576,7 @@ public sealed partial class ModsPage : Page, ILanguageAwarePage
                         CloseButtonText = Localization.T("取消"),
                         DefaultButton = blocking.Count > 0 ? ContentDialogButton.Close : ContentDialogButton.Primary,
                     };
-                    var dependencyChoice = await dependencyDialog.ShowAsync();
+                    var dependencyChoice = await Ui.Dialogs.ShowAsync(dependencyDialog, XamlRoot);
                     if (blocking.Count > 0 && dependencyChoice != ContentDialogResult.Primary)
                     {
                         ShowMessage(InfoBarSeverity.Warning, Localization.T("已取消"), Localization.T("缺少依赖，未启用该模组。"));
@@ -664,7 +664,7 @@ public sealed partial class ModsPage : Page, ILanguageAwarePage
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Close,
         };
-        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+        return await Ui.Dialogs.ShowAsync(dialog, XamlRoot) == ContentDialogResult.Primary;
     }
 
     private async void EnableAll_Click(object sender, RoutedEventArgs e)

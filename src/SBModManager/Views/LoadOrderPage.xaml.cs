@@ -131,7 +131,7 @@ public sealed partial class LoadOrderPage : Page, ILanguageAwarePage
                 },
                 CloseButtonText = Localization.T("好"),
             };
-            await dialog.ShowAsync();
+            await Ui.Dialogs.ShowAsync(dialog, XamlRoot);
         }
         }
         catch (Exception ex)

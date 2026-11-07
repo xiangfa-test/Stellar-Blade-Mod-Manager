@@ -380,7 +380,7 @@ public sealed partial class ModsPage
             CloseButtonText = Localization.T("取消"),
             DefaultButton = ContentDialogButton.Primary,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await Ui.Dialogs.ShowAsync(dialog, XamlRoot) != ContentDialogResult.Primary) return;
 
         // The default local collection tag is part of the collection membership and is kept.
         if (item.Record.Tags.Any(t => string.Equals(t, localTag, StringComparison.OrdinalIgnoreCase)) &&
@@ -465,7 +465,7 @@ public sealed partial class ModsPage
             Show(index - 1);
             args.Cancel = true;
         };
-        await dialog.ShowAsync();
+        await Ui.Dialogs.ShowAsync(dialog, XamlRoot);
     }
 
     private void DetailPreview_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
