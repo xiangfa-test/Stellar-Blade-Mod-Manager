@@ -72,7 +72,8 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 
 **项数随功能增长，不要记死数字**：基线 121 项，`SBMM_TEST_UE4SS_ZIP` 打开时 +7，另有原子写 4 项、
 停用日志 3 项、同组版本 4 项、MAIN 优先 2 项、翻译表一致性 1 项、元数据自愈 1 项、
-更新包校验 3 项、压缩包体积 1 项、自检守卫 2 项等。实测 149 项（含 fixture）；Debug 页按钮跑同一套是 142 项
+更新包校验 3 项、压缩包体积 1 项、自检守卫 2 项、UE4SS 兼容修复 4 项等。实测 153 项（含 fixture）；
+Debug 页按钮跑同一套是 146 项
 （少了 UE4SS fixture 那 7 项，因为页面里没有设置该环境变量）。
 判断标准是 `RESULT: ALL PASS` 且 `FAIL=0`，不是某个具体数字。
 
@@ -184,6 +185,20 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 - 标签筛选**区分大小写、完全匹配**；列表建议来自热门模组用过的标签
 - 免费账号 API 下载返回 403 → 显示提醒条，3 秒后自动打开网页文件页（可“立即打开”）
 - 已被作者删除的模组详情返回 403，属正常现象
+
+### UE4SS 兼容修复（Services/Ue4ssCompatFix.cs）
+
+- 剑星每次大更新都会让 UE4SS 的 AOB 签名失效（2026-11 那次是 `FText_Constructor.lua`）：
+  UE4SS 在 Lua 签名扫描阶段报 `Crashed calling FText constructor.`，进程随即消失，
+  **没有崩溃窗口、没有 WER、游戏日志为空**。上游 Chrisr0/RE-UE4SS 发布说明给的办法是把签名
+  文件改名（`FText_Constructor.lua` → `dFText_Constructor.lua`，`d` 前缀即禁用）。
+- `Inspect(gameDir)` → `NoGameDir` / `NotInstalled` / `Healthy` / `NeedsFix` / `Fixed`，
+  附带 `UE4SS.log` 最后一行；`Apply` / `Revert` 负责改名与还原，都会先留
+  `*.disabled-<日期>` 备份。失效签名清单是 `KnownBrokenSignatures` 数组，以后再加一项即可，
+  UI 与崩溃提示都不用动。
+- 两个入口：**运行环境页**「启动失败修复 → UE4SS 签名兼容性」卡片（常驻按钮，中英文都已接），
+  以及 `GameCrashWatcher.StartupFailureSuspected` 触发的「疑似启动失败」对话框
+  （只在确有可修复项时弹，同一故障 5 分钟内不重复）。
 
 ### 崩溃捕获（GameCrashWatcher + CrashAnalyzer + CrashExporter）
 
@@ -328,7 +343,7 @@ $env:SBMM_INSTANCE_SUFFIX="-qa"
 - `async void` 事件处理器 53 处已全部带 try/catch（每个都记「界面操作失败: <处理器名>」），
   后续可继续收敛为 `UiTask.Safe`，但不是正确性问题
 - 代码内 UI 文案（含插值串）已接入 `Localization.T`，运行时切换语言可整页刷新；仅剩筛选下拉的哨兵项保持中文（见「本地化」一节）
-- 自检仍是单个 `Run` 方法（约 1390 行、147 项检查，各段共享大量局部变量）：可独立的方法
+- 自检仍是单个 `Run` 方法（约 1400 行、153 项检查，各段共享大量局部变量）：可独立的方法
   （`OnUiThread` / `ModEnabledInJson`）已拆到 `Services/SelfTest.Helpers.cs`（partial）。
   若要继续拆成「导入/部署/本地化/N 网」多文件，需先把共享状态收进上下文对象，否则只能靠参数搬运
 - FOMOD 不执行脚本安装器；资源冲突分析是近似（只读 `.utoc` 明文）
