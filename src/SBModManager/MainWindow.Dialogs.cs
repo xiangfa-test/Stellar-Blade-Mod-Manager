@@ -41,8 +41,7 @@ public sealed partial class MainWindow
 
             var dialog = new ContentDialog
             {
-                XamlRoot = Content.XamlRoot,
-                Title = Localization.T("添加到开始菜单？"),
+                    Title = Localization.T("添加到开始菜单？"),
                 Content = new TextBlock
                 {
                     TextWrapping = TextWrapping.Wrap,
@@ -54,7 +53,7 @@ public sealed partial class MainWindow
                 DefaultButton = ContentDialogButton.Primary,
             };
 
-            var result = await dialog.ShowAsync();
+            var result = await Ui.Dialogs.ShowAsync(dialog, Content.XamlRoot);
             state.Config.StartMenuPromptDone = true;
 
             if (result == ContentDialogResult.Primary)
@@ -108,8 +107,7 @@ public sealed partial class MainWindow
 
         var dialog = new ContentDialog
         {
-            XamlRoot = RootGrid.XamlRoot,
-            Title = Localization.T("记住窗口大小？"),
+                Title = Localization.T("记住窗口大小？"),
             Content = $"下次启动时使用当前窗口大小（{size.Width} × {size.Height}）吗？\n\n" +
                       Localization.T("选择「记住」后，之后每次调整窗口都会自动记住。") +
                       Localization.T("想反悔可到「设置 → 窗口 → 重置为默认大小」清除。"),
@@ -117,7 +115,7 @@ public sealed partial class MainWindow
             CloseButtonText = Localization.T("不记住"),
             DefaultButton = ContentDialogButton.Primary,
         };
-        var result = await dialog.ShowAsync();
+        var result = await Ui.Dialogs.ShowAsync(dialog, RootGrid.XamlRoot);
         state.Config.RememberWindowSize = result == ContentDialogResult.Primary;
         if (state.Config.RememberWindowSize)
         {
@@ -160,8 +158,7 @@ public sealed partial class MainWindow
 
                 var dialog = new ContentDialog
                 {
-                    XamlRoot = Content.XamlRoot,
-                    Title = Localization.T("检测到游戏崩溃"),
+                            Title = Localization.T("检测到游戏崩溃"),
                     Content = panel,
                     PrimaryButtonText = Localization.T("导出报告"),
                     SecondaryButtonText = Localization.T("打开报告"),
@@ -169,7 +166,7 @@ public sealed partial class MainWindow
                     DefaultButton = ContentDialogButton.Primary,
                 };
 
-                var result = await dialog.ShowAsync();
+                var result = await Ui.Dialogs.ShowAsync(dialog, Content.XamlRoot);
                 if (result == ContentDialogResult.Primary)
                 {
                     var zip = Services.CrashExporter.Export(report);
